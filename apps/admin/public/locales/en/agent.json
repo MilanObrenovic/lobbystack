@@ -240,9 +240,6 @@
       "label": "Business summary",
       "hint": "What your receptionist tells callers about the business.",
       "placeholder": "For example: Maple Family Clinic is a family practice in Toronto offering checkups, vaccinations and physiotherapy.",
-      "generated": "AI wrote this from your knowledge and updates it when your knowledge changes. Edit it to write your own.",
-      "operator": "You wrote this, so AI won't change it.",
-      "empty": "Add your website or documents in Knowledge, and AI writes this for you.",
       "regenerate": "Rewrite with AI",
       "regenerating": "AI is rewriting it from your knowledge. Check back in a minute."
     },
@@ -329,7 +326,10 @@
     "deactivateEntry": "Deactivate entry",
     "upload": "Upload",
     "uploading": "Uploading…",
-    "saveFailed": "We couldn't save your settings. Please try again."
+    "saveFailed": "We couldn't save your settings. Please try again.",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "editField": "Edit {{field}}"
   },
   "loading": {
     "workspace": "Loading workspace…",
@@ -339,5 +339,27 @@
   "readOnly": "Viewer access is read-only.",
   "empty": {
     "description": "Create a business first, then return here to configure your AI receptionist."
+  },
+  "hours": {
+    "title": "Opening hours",
+    "description": "The agent offers appointments only inside these hours.",
+    "generated": "We filled these in from your website and documents. Check them.",
+    "empty": "Add your hours so the agent can book appointments.",
+    "closed": "Closed",
+    "openOn": "Open on {{day}}",
+    "opensAt": "{{day}} opening time",
+    "closesAt": "{{day}} closing time",
+    "addWindow": "Add hours",
+    "removeWindow": "Remove these hours",
+    "save": "Save hours",
+    "invalid": "Check {{day}}: each closing time must come after its opening time, with no overlaps.",
+    "noHoursAlert": {
+      "title": "Add opening hours to book appointments",
+      "description": "The agent offers times only inside your opening hours. Until you add them, it takes a message instead.",
+      "action": "Add opening hours"
+    },
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "notSet": "Not set"
   }
 }

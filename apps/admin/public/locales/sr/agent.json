@@ -240,9 +240,6 @@
       "label": "Opis firme",
       "hint": "Šta Vaš recepcioner govori pozivaocima o firmi.",
       "placeholder": "Na primer: Porodična klinika Maple u Torontu nudi preglede, vakcinacije i fizioterapiju.",
-      "generated": "AI je napisao ovaj opis na osnovu Vašeg znanja i ažurira ga kada se znanje promeni. Izmenite ga da biste napisali svoj.",
-      "operator": "Ovaj opis ste napisali Vi, pa ga AI neće menjati.",
-      "empty": "Dodajte svoj veb-sajt ili dokumente u odeljku Znanje i AI će ga napisati umesto Vas.",
       "regenerate": "Napiši ponovo pomoću AI",
       "regenerating": "AI ga ponovo piše na osnovu Vašeg znanja. Proverite ponovo za minut."
     },
@@ -329,7 +326,10 @@
     "deactivateEntry": "Deaktiviraj unos",
     "upload": "Otpremi",
     "uploading": "Otpremanje…",
-    "saveFailed": "Nismo mogli da sačuvamo podešavanja. Pokušajte ponovo."
+    "saveFailed": "Nismo mogli da sačuvamo podešavanja. Pokušajte ponovo.",
+    "edit": "Izmeni",
+    "cancel": "Otkaži",
+    "editField": "Izmeni: {{field}}"
   },
   "loading": {
     "workspace": "Učitavanje radnog prostora…",
@@ -339,5 +339,27 @@
   "readOnly": "Uz pristup za pregled možete samo da čitate.",
   "empty": {
     "description": "Prvo napravite firmu, pa se vratite ovde da podesite AI recepcionera."
+  },
+  "hours": {
+    "title": "Radno vreme",
+    "description": "Agent nudi termine samo u ovom radnom vremenu.",
+    "generated": "Popunili smo radno vreme na osnovu Vašeg veb-sajta i dokumenata. Proverite ga.",
+    "empty": "Dodajte radno vreme da bi agent mogao da zakazuje termine.",
+    "closed": "Zatvoreno",
+    "openOn": "Otvoreno: {{day}}",
+    "opensAt": "Vreme otvaranja: {{day}}",
+    "closesAt": "Vreme zatvaranja: {{day}}",
+    "addWindow": "Dodaj vreme",
+    "removeWindow": "Ukloni ovo vreme",
+    "save": "Sačuvaj radno vreme",
+    "invalid": "Proverite dan {{day}}: svako zatvaranje mora biti posle otvaranja, bez preklapanja.",
+    "noHoursAlert": {
+      "title": "Dodajte radno vreme da biste zakazivali termine",
+      "description": "Agent nudi termine samo u Vašem radnom vremenu. Dok ga ne dodate, prima poruku umesto toga.",
+      "action": "Dodaj radno vreme"
+    },
+    "edit": "Izmeni",
+    "cancel": "Otkaži",
+    "notSet": "Nije podešeno"
   }
 }

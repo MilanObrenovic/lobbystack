@@ -240,9 +240,6 @@
       "label": "Resumen del negocio",
       "hint": "Lo que su recepcionista dice a quienes llaman sobre el negocio.",
       "placeholder": "Por ejemplo: Clínica Familiar Maple es una clínica de Toronto que ofrece chequeos, vacunas y fisioterapia.",
-      "generated": "La IA escribió este resumen a partir de su conocimiento y lo actualiza cuando cambia. Edítelo para escribir el suyo.",
-      "operator": "Usted escribió este resumen, así que la IA no lo cambiará.",
-      "empty": "Agregue su sitio web o sus documentos en Conocimiento y la IA lo escribirá por usted.",
       "regenerate": "Reescribir con IA",
       "regenerating": "La IA lo está reescribiendo a partir de su conocimiento. Vuelva en un minuto."
     },
@@ -329,7 +326,10 @@
     "deactivateEntry": "Desactivar entrada",
     "upload": "Subir",
     "uploading": "Subiendo…",
-    "saveFailed": "No pudimos guardar sus ajustes. Inténtelo de nuevo."
+    "saveFailed": "No pudimos guardar sus ajustes. Inténtelo de nuevo.",
+    "edit": "Editar",
+    "cancel": "Cancelar",
+    "editField": "Editar: {{field}}"
   },
   "loading": {
     "workspace": "Cargando espacio de trabajo…",
@@ -339,5 +339,27 @@
   "readOnly": "El acceso de lector es de solo lectura.",
   "empty": {
     "description": "Primero cree un negocio y luego vuelva aquí para configurar su recepcionista con IA."
+  },
+  "hours": {
+    "title": "Horario de atención",
+    "description": "El agente ofrece citas solo dentro de este horario.",
+    "generated": "Completamos este horario a partir de su sitio web y sus documentos. Revíselo.",
+    "empty": "Agregue su horario para que el agente pueda reservar citas.",
+    "closed": "Cerrado",
+    "openOn": "Abierto el {{day}}",
+    "opensAt": "Hora de apertura del {{day}}",
+    "closesAt": "Hora de cierre del {{day}}",
+    "addWindow": "Agregar horario",
+    "removeWindow": "Quitar este horario",
+    "save": "Guardar horario",
+    "invalid": "Revise el {{day}}: cada hora de cierre debe ir después de su apertura, sin superponerse.",
+    "noHoursAlert": {
+      "title": "Agregue su horario para reservar citas",
+      "description": "El agente ofrece horas solo dentro de su horario de atención. Hasta que lo agregue, toma un mensaje.",
+      "action": "Agregar horario"
+    },
+    "edit": "Editar",
+    "cancel": "Cancelar",
+    "notSet": "Sin definir"
   }
 }
