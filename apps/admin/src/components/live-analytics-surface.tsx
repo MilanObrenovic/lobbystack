@@ -39,7 +39,7 @@ const granularityTranslation: Record<Granularity, string> = { hour: "hourly", da
 
 function startOfDay(value: Date): Date { return new Date(value.getFullYear(), value.getMonth(), value.getDate()); }
 
-function presetRange(preset: Exclude<Preset, "custom">): { from: Date; to: Date } {
+function presetRange(preset: Exclude<Preset, "custom">, businessCreatedAt?: string): { from: Date; to: Date } {
   const today = startOfDay(new Date());
   const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
   const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
@@ -51,7 +51,12 @@ function presetRange(preset: Exclude<Preset, "custom">): { from: Date; to: Date 
   if (preset === "last3Months") return { from: new Date(today.getFullYear(), today.getMonth() - 3, today.getDate()), to: today };
   if (preset === "thisYear") return { from: new Date(today.getFullYear(), 0, 1), to: today };
   if (preset === "lastYear") return { from: new Date(today.getFullYear() - 1, 0, 1), to: new Date(today.getFullYear() - 1, 11, 31) };
-  if (preset === "allTime") return { from: new Date(2020, 0, 1), to: today };
+  if (preset === "allTime") {
+    // The API serves at most ten years, so very old businesses start there.
+    const tenYearsAgo = new Date(today.getFullYear() - 10, today.getMonth(), today.getDate() + 1);
+    const created = businessCreatedAt ? startOfDay(new Date(businessCreatedAt)) : new Date(2020, 0, 1);
+    return { from: created > tenYearsAgo ? created : tenYearsAgo, to: today };
+  }
   return { from: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29), to: today };
 }
 
@@ -68,12 +73,15 @@ export function LiveAnalyticsSurface() {
   const [preset, setPreset] = useState<Preset>("last30");
   const [granularity, setGranularity] = useState<Granularity>("week");
   const [customRange, setCustomRange] = useState<{ from: Date; to: Date } | null>(null);
-  const range = useMemo(() => preset === "custom" && customRange ? customRange : presetRange(preset === "custom" ? "last30" : preset), [customRange, preset]);
   const { businesses, business } = useActiveBusiness();
+  const range = useMemo(() => preset === "custom" && customRange ? customRange : presetRange(preset === "custom" ? "last30" : preset, business?.createdAt), [business?.createdAt, customRange, preset]);
+  // The API caps hourly and daily views at a year, so longer ranges show monthly.
+  const longRange = range.to.getTime() - range.from.getTime() > 365 * 86_400_000;
+  const effectiveGranularity: Granularity = longRange && (granularity === "hour" || granularity === "day") ? "month" : granularity;
   const analytics = useQuery({
-    queryKey: ["analytics", business?.businessId, preset, granularity, range.from.toISOString(), range.to.toISOString()],
+    queryKey: ["analytics", business?.businessId, preset, effectiveGranularity, range.from.toISOString(), range.to.toISOString()],
     queryFn: () => {
-      const parameters = new URLSearchParams({ businessId: business!.businessId, from: range.from.toISOString(), to: new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate(), 23, 59, 59, 999).toISOString(), granularity });
+      const parameters = new URLSearchParams({ businessId: business!.businessId, from: range.from.toISOString(), to: new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate(), 23, 59, 59, 999).toISOString(), granularity: effectiveGranularity });
       return requestJson<AnalyticsViewModel>(`/api/analytics?${parameters.toString()}`);
     },
     enabled: Boolean(business?.businessId),
@@ -86,7 +94,7 @@ export function LiveAnalyticsSurface() {
 
   const data = analytics.data;
   const chartData = (data?.series ?? []).map((point) => ({
-    label: new Intl.DateTimeFormat(intlLocale(i18n.language), granularity === "year" ? { year: "numeric", timeZone: "UTC" } : granularity === "month" ? { month: "short", timeZone: "UTC" } : granularity === "hour" ? { hour: "numeric", timeZone: "UTC" } : { day: "2-digit", month: "short", timeZone: "UTC" }).format(new Date(point.bucket)),
+    label: new Intl.DateTimeFormat(intlLocale(i18n.language), effectiveGranularity === "year" ? { year: "numeric", timeZone: "UTC" } : effectiveGranularity === "month" ? { month: "short", ...(longRange ? { year: "2-digit" as const } : {}), timeZone: "UTC" } : effectiveGranularity === "hour" ? { hour: "numeric", timeZone: "UTC" } : { day: "2-digit", month: "short", ...(longRange ? { year: "2-digit" as const } : {}), timeZone: "UTC" }).format(new Date(point.bucket)),
     calls: point.calls, messages: point.messages, appointments: point.appointments, agentResponseSeconds: point.agentResponseSeconds,
   }));
   const rangeLabel = `${new Intl.DateTimeFormat(intlLocale(i18n.language), { day: "2-digit", month: "short" }).format(range.from)} - ${new Intl.DateTimeFormat(intlLocale(i18n.language), { day: "2-digit", month: "short", year: "numeric" }).format(range.to)}`;
@@ -106,7 +114,7 @@ export function LiveAnalyticsSurface() {
 
   return <div className="flex flex-col gap-4">
     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 py-2"><h1 className="type-page-title">{t("analyticsPage.title")}</h1><div className="ms-auto flex flex-wrap items-center gap-3">
-      <DropdownMenu><DropdownMenuTrigger render={<Button aria-label={t("home.analytics.controls.granularity")} variant="outline" />}><span>{t(`home.analytics.controls.granularities.${granularityTranslation[granularity]}`)}</span><ChevronDown className="text-muted-foreground" data-icon="inline-end" /></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-44"><DropdownMenuGroup>{granularities.map((option) => <DropdownMenuItem className="justify-between" key={option} onClick={() => setGranularity(option)}>{t(`home.analytics.controls.granularities.${granularityTranslation[option]}`)}{option === granularity ? <Check /> : null}</DropdownMenuItem>)}</DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
+      <DropdownMenu><DropdownMenuTrigger render={<Button aria-label={t("home.analytics.controls.granularity")} variant="outline" />}><span>{t(`home.analytics.controls.granularities.${granularityTranslation[effectiveGranularity]}`)}</span><ChevronDown className="text-muted-foreground" data-icon="inline-end" /></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-44"><DropdownMenuGroup>{granularities.map((option) => <DropdownMenuItem className="justify-between" disabled={longRange && (option === "hour" || option === "day")} key={option} onClick={() => setGranularity(option)}>{t(`home.analytics.controls.granularities.${granularityTranslation[option]}`)}{option === effectiveGranularity ? <Check /> : null}</DropdownMenuItem>)}</DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
       <ButtonGroup><Popover><PopoverTrigger render={<Button aria-label={t("home.analytics.controls.dateRange")} size="icon" variant="outline" />}><CalendarIcon /></PopoverTrigger><PopoverContent align="start" className="w-auto p-0" sideOffset={8}><Calendar captionLayout="label" mode="range" onSelect={(selection: DateRange | undefined) => { if (!selection?.from) return; setCustomRange({ from: selection.from, to: selection.to ?? selection.from }); setPreset("custom"); }} selected={{ from: range.from, to: range.to }} /></PopoverContent></Popover><DropdownMenu><DropdownMenuTrigger render={<Button aria-label={t("home.analytics.controls.presetRange")} className="max-w-56" variant="outline" />}><span className="truncate">{t(`home.analytics.controls.presets.${preset}`)}</span></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-56"><DropdownMenuGroup>{presets.map((option) => <DropdownMenuItem className="justify-between" key={option} onClick={() => setPreset(option)}>{t(`home.analytics.controls.presets.${option}`)}{option === preset ? <Check /> : null}</DropdownMenuItem>)}</DropdownMenuGroup></DropdownMenuContent></DropdownMenu></ButtonGroup>
     </div></div>
     {businesses.isError || analytics.isError ? <Surface className="p-8 text-center text-sm text-destructive">Analytics are unavailable.</Surface> : null}
