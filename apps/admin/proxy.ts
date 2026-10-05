@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { isMaintenanceMode } from "@lobbystack/shared";
+import { isMaintenanceMode, normalizeInterfaceLocale } from "@lobbystack/shared";
 
-import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE_SECONDS, localeTag, normalizeLocale } from "@/lib/locale";
+import { configuredAppOrigins } from "@/lib/app-origins";
+import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE_SECONDS, localeTag } from "@/lib/locale";
 import {
   isLegacyPublicRoutePath,
   isPublicRoutePath,
@@ -85,13 +86,9 @@ function cacheControlForRequest(pathname: string, searchParams: URLSearchParams)
   return undefined;
 }
 
+// Same list Better Auth trusts, plus the request's own origin.
 function configuredOrigins(request: NextRequest): Set<string> {
-  const origins = new Set<string>([request.nextUrl.origin]);
-  for (const value of (process.env.AUTH_TRUSTED_ORIGINS ?? process.env.APP_BASE_URL ?? "").split(",")) {
-    const origin = value.trim().replace(/\/$/, "");
-    if (origin) origins.add(origin);
-  }
-  return origins;
+  return new Set([request.nextUrl.origin, ...configuredAppOrigins(process.env, [], true)]);
 }
 
 function hasValidCsrfOrigin(request: NextRequest): boolean {
@@ -124,7 +121,7 @@ export function proxy(request: NextRequest) {
     acceptLanguage: request.headers.get("accept-language"),
   });
   const pathLocale = localeFromPathname(pathname);
-  const queryLocale = normalizeLocale(request.nextUrl.searchParams.get("lng"));
+  const queryLocale = normalizeInterfaceLocale(request.nextUrl.searchParams.get("lng"));
 
   if (isLegacyPublicRoutePath(pathname)) {
     const target = request.nextUrl.clone();
