@@ -14,7 +14,6 @@
   "dependencies": {
     "@ai-sdk/openai": "4.0.46",
     "@ai-sdk/openai-compatible": "^3.0.31",
-    "@lobbystack/ai": "workspace:*",
     "@lobbystack/domain": "workspace:*",
     "@lobbystack/shared": "workspace:*",
     "ai": "^7.0.67",
@@ -25,7 +24,7 @@
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.0.0",
     "@types/ws": "^8.18.1"
   }
 }

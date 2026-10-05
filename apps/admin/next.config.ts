@@ -61,14 +61,13 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: [
     "@lobbystack/agent-core",
-    "@lobbystack/ai",
-    "@lobbystack/config",
     "@lobbystack/contracts",
     "@lobbystack/db",
     "@lobbystack/domain",
     "@lobbystack/jobs",
     "@lobbystack/providers",
     "@lobbystack/shared",
+    "@lobbystack/web-voice",
   ],
   serverExternalPackages:
     process.env.NODE_ENV === "production"

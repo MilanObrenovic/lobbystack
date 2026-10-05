@@ -2,8 +2,6 @@ import type { Locale } from "@/i18n/config"
 
 const APP_ORIGIN = import.meta.env.PUBLIC_APP_URL || "https://app.lobbystack.com"
 
-export const APP_AFFILIATE_URL = `${APP_ORIGIN}/affiliate`
-
 type AppAuthLinkOptions = {
   source?: "calculator"
   returnTo?: string

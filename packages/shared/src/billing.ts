@@ -7,6 +7,10 @@ export const billingPlanSlugs = [
 ] as const;
 export type BillingPlanSlug = (typeof billingPlanSlugs)[number];
 
+export function isBillingPlanSlug(value: string | null | undefined): value is BillingPlanSlug {
+  return (billingPlanSlugs as readonly (string | null | undefined)[]).includes(value);
+}
+
 export const cloudBillingPlanSlugs = [
   "free_cloud",
   "starter",
@@ -27,12 +31,6 @@ export type HostedCheckoutPlanIntervals = Record<
 
 export const billingAddonSlugs = ["ai_sms"] as const;
 export type BillingAddonSlug = (typeof billingAddonSlugs)[number];
-
-export const smsCapabilities = ["alert", "ai"] as const;
-export type SmsCapability = (typeof smsCapabilities)[number];
-
-export const smsSenderRoles = ["platform_alert", "business_ai"] as const;
-export type SmsSenderRole = (typeof smsSenderRoles)[number];
 
 export const billingUsageKinds = [
   "voice_seconds",
@@ -68,11 +66,6 @@ export const billingErrorCodes = {
 
 export type BillingErrorCode =
   (typeof billingErrorCodes)[keyof typeof billingErrorCodes];
-
-export type UsageBillingErrorCode = Exclude<
-  BillingErrorCode,
-  typeof billingErrorCodes.dedicatedNumberRequiresPaidPlan
->;
 
 export const billingMeterEventNames = {
   voiceMinutes: "billing.voice_minutes",
@@ -273,12 +266,6 @@ export function getBillingPeriodChargeCents(input: {
     return planConfig.annualChargeCents;
   }
   return planConfig.monthlyChargeCents;
-}
-
-export function isHostedBillingPlan(
-  plan: BillingPlanSlug,
-): plan is CloudBillingPlanSlug {
-  return plan !== "self_host";
 }
 
 export type PolarMeteredUsagePayload = {
