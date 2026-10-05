@@ -310,6 +310,8 @@
     "saveChanges": "Guardar cambios",
     "saving": "Guardando…",
     "saved": "Cambios guardados",
+    "deleted": "Eliminado",
+    "importCancelled": "Importación cancelada",
     "moreOptions": "Más opciones",
     "delete": "Eliminar",
     "confirmDelete": "¿Confirmar?",

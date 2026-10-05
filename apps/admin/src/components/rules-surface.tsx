@@ -3,6 +3,7 @@
 import { getCoreRowModel, getPaginationRowModel, useReactTable, type PaginationState } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, MoreHorizontal, Pause, Play, Plus, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -100,7 +101,7 @@ export function RulesSurface() {
         </TableCard>
         <DataTablePagination labels={{ rowsPerPage: t("pagination.rowsPerPage"), pageOf: (page, total) => t("pagination.pageOf", { page, total }), firstPage: t("pagination.firstPage"), previousPage: t("pagination.previousPage"), nextPage: t("pagination.nextPage"), lastPage: t("pagination.lastPage"), goToPage: (page) => t("pagination.goToPage", { page }) }} table={table} /></>}
         <RuleDialog editingRule={editingRule} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingRule(null); }} open={dialogOpen} pending={createRule.isPending || updateRule.isPending} save={async (input) => { if (editingRule) await updateRule.mutateAsync({ ruleId: editingRule.id, ...input }); else await createRule.mutateAsync(input); setDialogOpen(false); setEditingRule(null); }} />
-        <ConfirmActionDialog confirmVariant="destructive" cancelLabel={t("actions.deleteCancel")} confirmLabel={t("actions.delete")} description={t("actions.deleteDescription")} onConfirm={async () => { if (deleteCandidate) await deleteRule.mutateAsync(deleteCandidate.id); }} onOpenChange={(open) => { if (!open) setDeleteCandidate(null); }} open={deleteCandidate !== null} pending={deleteRule.isPending} title={t("actions.deleteTitle")} />
+        <ConfirmActionDialog confirmVariant="destructive" cancelLabel={t("actions.deleteCancel")} confirmLabel={t("actions.delete")} description={t("actions.deleteDescription")} onConfirm={async () => { if (!deleteCandidate) return; await deleteRule.mutateAsync(deleteCandidate.id); toast.success(t("actions.deleted")); }} onOpenChange={(open) => { if (!open) setDeleteCandidate(null); }} open={deleteCandidate !== null} pending={deleteRule.isPending} title={t("actions.deleteTitle")} />
       </div>
     </PageSurface>
   );

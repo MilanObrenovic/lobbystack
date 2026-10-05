@@ -310,6 +310,8 @@
     "saveChanges": "Sačuvaj izmene",
     "saving": "Čuvanje…",
     "saved": "Izmene su sačuvane",
+    "deleted": "Obrisano",
+    "importCancelled": "Uvoz je otkazan",
     "moreOptions": "Još opcija",
     "delete": "Obriši",
     "confirmDelete": "Potvrđujete?",
