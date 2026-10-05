@@ -132,6 +132,7 @@ function BillingBanner() {
 
 function ReplacementSidebar({ user }: Pick<DashboardShellProps, "user">) {
   const pathname = usePathname();
+  const { isMobile, setOpenMobile } = useSidebar();
   const { t } = useTranslation(["nav", "settings", "agent"]);
   const general: NavigationItem[] = [
     { label: t("nav:items.home"), href: "/", icon: HomeIcon },
@@ -163,7 +164,7 @@ function ReplacementSidebar({ user }: Pick<DashboardShellProps, "user">) {
         <NavigationGroup items={other} pathname={pathname} title={t("nav:sidebar.other")} />
       </SidebarContent>
       <SidebarFooter>
-        <DashboardSetupGuideCard />
+        <DashboardSetupGuideCard onNavigate={() => { if (isMobile) setOpenMobile(false); }} />
         <UserMenu user={user} />
       </SidebarFooter>
       <SidebarRail />

@@ -17,7 +17,7 @@ async function getJson<T>(url: string): Promise<T> {
   return await response.json() as T;
 }
 
-export function DashboardSetupGuideCard() {
+export function DashboardSetupGuideCard({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { t } = useTranslation("nav");
   const businesses = useQuery({ queryKey: ["businesses"], queryFn: () => getJson<{ businesses: Business[] }>("/api/businesses") });
   const business = businesses.data?.businesses.find((item) => item.active) ?? businesses.data?.businesses[0];
@@ -39,6 +39,7 @@ export function DashboardSetupGuideCard() {
         aria-label={t("sidebar.setupGuide.open")}
         className="h-auto w-full justify-start rounded-xl bg-foreground px-4 py-3 text-background hover:!bg-foreground hover:!text-background focus-visible:!bg-foreground focus-visible:!text-background active:!bg-foreground active:!text-background"
         nativeButton={false}
+        onClick={onNavigate}
         render={<Link href="/setup-guide" />}
         type="button"
         variant="ghost"
