@@ -4,6 +4,7 @@ import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "r
 import { useTranslation } from "react-i18next";
 
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { intlLocale } from "@/lib/locale";
 
 export type AnalyticsChartPoint = { label: string; calls: number; messages: number; appointments: number; agentResponseSeconds: number };
 
@@ -35,16 +36,31 @@ function renderXAxisTick({ index, payload, visibleTicksCount, x, y }: { index: n
   return <text fill="#888888" fontSize={12} textAnchor={index === 0 ? "start" : index === visibleTicksCount - 1 ? "end" : "middle"} x={xPosition} y={yPosition}>{payload.value}</text>;
 }
 
-export function AnalyticsMetricChart({ data, dataKey }: { data: AnalyticsChartPoint[]; dataKey: keyof Omit<AnalyticsChartPoint, "label"> }) {
+export function AnalyticsMetricChart({ data, dataKey, label, formatValue }: { data: AnalyticsChartPoint[]; dataKey: keyof Omit<AnalyticsChartPoint, "label">; label: string; formatValue?: (value: number) => string }) {
+  const { i18n } = useTranslation();
+  const format = formatValue ?? ((value: number) => value.toLocaleString(intlLocale(i18n.language)));
   return (
-    <ChartContainer className="aspect-auto h-40 w-full" config={{ [dataKey]: { label: dataKey, color: "var(--chart-1)" } }}>
+    <ChartContainer className="aspect-auto h-40 w-full" config={{ [dataKey]: { label, color: "var(--chart-1)" } }}>
       <LineChart accessibilityLayer data={data} margin={{ bottom: 8, left: 0, right: 0, top: 8 }}>
         <CartesianGrid horizontal={false} strokeDasharray="4 6" vertical />
         <XAxis axisLine={false} dataKey="label" height={28} interval="preserveStartEnd" tickLine={false} tickMargin={8} />
         <YAxis domain={[0, (maximum: number) => Math.max(maximum, 1)]} hide padding={{ bottom: 16, top: 8 }} />
-        <ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
+        <ChartTooltip content={<ChartTooltipContent indicator="dot" formatter={(value) => <MetricTooltipRow label={label} value={format(Number(value))} />} />} cursor={false} />
         <Line dataKey={dataKey} dot={false} stroke={`var(--color-${dataKey})`} strokeWidth={2} type="natural" />
       </LineChart>
     </ChartContainer>
+  );
+}
+
+// Same layout as the default tooltip row, for values that need custom formatting.
+function MetricTooltipRow({ label, value }: { label: string; value: string }) {
+  return (
+    <>
+      <div className="size-2.5 shrink-0 rounded-xs bg-(--color-bg)" style={{ "--color-bg": "var(--chart-1)" } as React.CSSProperties} />
+      <div className="flex flex-1 items-center justify-between gap-4 leading-none">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-mono font-medium text-foreground tabular-nums">{value}</span>
+      </div>
+    </>
   );
 }
