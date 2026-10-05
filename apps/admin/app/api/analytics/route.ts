@@ -26,7 +26,8 @@ export async function GET(request: Request) {
     const requestedGranularity = url.searchParams.get("granularity") ?? "day";
     if (!analyticsGranularities.includes(requestedGranularity as AnalyticsGranularity)) throw new Error("Analytics granularity is invalid.");
     // Hourly and daily series grow with the range; coarser ones stay small over years.
-    const maxDays = requestedGranularity === "hour" || requestedGranularity === "day" ? 366 : 3660;
+    // Weekly stays within the 500 buckets analyticsBucketStarts returns, even when the range starts mid-week.
+    const maxDays = requestedGranularity === "hour" || requestedGranularity === "day" ? 366 : requestedGranularity === "week" ? 3493 : 3660;
     if (span <= 0 || span > maxDays * 86_400_000) throw new Error(`Analytics range must be positive and no longer than ${maxDays} days for this granularity.`);
     const previousFrom = new Date(from.getTime() - span);
     return NextResponse.json(await getAnalytics(createDomainContext(), { userId: session.user.id, businessId, from, to, previousFrom, granularity: requestedGranularity as AnalyticsGranularity }));

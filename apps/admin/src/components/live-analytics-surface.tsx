@@ -75,9 +75,11 @@ export function LiveAnalyticsSurface() {
   const [customRange, setCustomRange] = useState<{ from: Date; to: Date } | null>(null);
   const { businesses, business } = useActiveBusiness();
   const range = useMemo(() => preset === "custom" && customRange ? customRange : presetRange(preset === "custom" ? "last30" : preset, business?.createdAt), [business?.createdAt, customRange, preset]);
-  // The API caps hourly and daily views at a year, so longer ranges show monthly.
-  const longRange = range.to.getTime() - range.from.getTime() > 365 * 86_400_000;
-  const effectiveGranularity: Granularity = longRange && (granularity === "hour" || granularity === "day") ? "month" : granularity;
+  // The API caps hourly and daily views at a year and weekly ones at 3493 days, so longer ranges show monthly.
+  const spanDays = (range.to.getTime() - range.from.getTime()) / 86_400_000;
+  const longRange = spanDays > 365;
+  const tooLongFor = (option: Granularity) => (longRange && (option === "hour" || option === "day")) || (spanDays > 3492 && option === "week");
+  const effectiveGranularity: Granularity = tooLongFor(granularity) ? "month" : granularity;
   const analytics = useQuery({
     queryKey: ["analytics", business?.businessId, preset, effectiveGranularity, range.from.toISOString(), range.to.toISOString()],
     queryFn: () => {
@@ -117,7 +119,7 @@ export function LiveAnalyticsSurface() {
 
   return <div className="flex flex-col gap-4">
     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 py-2"><h1 className="type-page-title">{t("analyticsPage.title")}</h1><div className="ms-auto flex flex-wrap items-center gap-3">
-      <DropdownMenu><DropdownMenuTrigger render={<Button aria-label={t("home.analytics.controls.granularity")} variant="outline" />}><span>{t(`home.analytics.controls.granularities.${granularityTranslation[effectiveGranularity]}`)}</span><ChevronDown className="text-muted-foreground" data-icon="inline-end" /></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-44"><DropdownMenuGroup>{granularities.map((option) => <DropdownMenuItem className="justify-between" disabled={longRange && (option === "hour" || option === "day")} key={option} onClick={() => setGranularity(option)}>{t(`home.analytics.controls.granularities.${granularityTranslation[option]}`)}{option === effectiveGranularity ? <Check /> : null}</DropdownMenuItem>)}</DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
+      <DropdownMenu><DropdownMenuTrigger render={<Button aria-label={t("home.analytics.controls.granularity")} variant="outline" />}><span>{t(`home.analytics.controls.granularities.${granularityTranslation[effectiveGranularity]}`)}</span><ChevronDown className="text-muted-foreground" data-icon="inline-end" /></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-44"><DropdownMenuGroup>{granularities.map((option) => <DropdownMenuItem className="justify-between" disabled={tooLongFor(option)} key={option} onClick={() => setGranularity(option)}>{t(`home.analytics.controls.granularities.${granularityTranslation[option]}`)}{option === effectiveGranularity ? <Check /> : null}</DropdownMenuItem>)}</DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
       <ButtonGroup><Popover><PopoverTrigger render={<Button aria-label={t("home.analytics.controls.dateRange")} size="icon" variant="outline" />}><CalendarIcon /></PopoverTrigger><PopoverContent align="start" className="w-auto p-0" sideOffset={8}><Calendar captionLayout="label" mode="range" onSelect={(selection: DateRange | undefined) => { if (!selection?.from) return; setCustomRange({ from: selection.from, to: selection.to ?? selection.from }); setPreset("custom"); }} selected={{ from: range.from, to: range.to }} /></PopoverContent></Popover><DropdownMenu><DropdownMenuTrigger render={<Button aria-label={t("home.analytics.controls.presetRange")} className="max-w-56" variant="outline" />}><span className="truncate">{t(`home.analytics.controls.presets.${preset}`)}</span></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-56"><DropdownMenuGroup>{presets.map((option) => <DropdownMenuItem className="justify-between" key={option} onClick={() => setPreset(option)}>{t(`home.analytics.controls.presets.${option}`)}{option === preset ? <Check /> : null}</DropdownMenuItem>)}</DropdownMenuGroup></DropdownMenuContent></DropdownMenu></ButtonGroup>
     </div></div>
     {businesses.isError || analytics.isError ? <Surface className="p-8 text-center text-sm text-destructive">Analytics are unavailable.</Surface> : null}
