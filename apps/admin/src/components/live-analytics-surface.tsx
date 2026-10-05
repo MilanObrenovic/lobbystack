@@ -81,7 +81,10 @@ export function LiveAnalyticsSurface() {
   const analytics = useQuery({
     queryKey: ["analytics", business?.businessId, preset, effectiveGranularity, range.from.toISOString(), range.to.toISOString()],
     queryFn: () => {
-      const parameters = new URLSearchParams({ businessId: business!.businessId, from: range.from.toISOString(), to: new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate(), 23, 59, 59, 999).toISOString(), granularity: effectiveGranularity });
+      // The API buckets and labels in UTC, so send the picked calendar days as UTC days.
+      const from = new Date(Date.UTC(range.from.getFullYear(), range.from.getMonth(), range.from.getDate()));
+      const to = new Date(Date.UTC(range.to.getFullYear(), range.to.getMonth(), range.to.getDate(), 23, 59, 59, 999));
+      const parameters = new URLSearchParams({ businessId: business!.businessId, from: from.toISOString(), to: to.toISOString(), granularity: effectiveGranularity });
       return requestJson<AnalyticsViewModel>(`/api/analytics?${parameters.toString()}`);
     },
     enabled: Boolean(business?.businessId),
