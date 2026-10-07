@@ -1,0 +1,54 @@
+{
+  "page": {
+    "title": "Zaposleni",
+    "searchPlaceholder": "Pretraži zaposlene..."
+  },
+  "table": {
+    "name": "Ime",
+    "phone": "Broj telefona",
+    "added": "Dodato",
+    "empty": "Nijedan zaposleni ne odgovara pretrazi.",
+    "emptyState": "Još nema zaposlenih.",
+    "actions": {
+      "moreOptions": "Više opcija",
+      "deleteEmployee": "Obriši zaposlenog",
+      "deleteTitle": "Obrisati zaposlenog?",
+      "deleteDescription": "Zaposleni će biti trajno uklonjen sa vaše kontrolne table.",
+      "deleteConfirm": "Obriši zaposlenog",
+      "deleteCancel": "Otkaži",
+      "deleted": "Zaposleni je obrisan.",
+      "deleteFailed": "Brisanje zaposlenog nije uspelo."
+    }
+  },
+  "add": {
+    "button": "Dodaj zaposlenog",
+    "title": "Dodaj zaposlenog",
+    "description": "Sačuvajte ime i broj telefona zaposlenog.",
+    "fields": {
+      "name": {
+        "label": "Ime",
+        "placeholder": "Marko Petrović",
+        "required": "Unesite ime zaposlenog."
+      },
+      "phone": {
+        "label": "Broj telefona",
+        "country": "Država",
+        "invalid": "Unesite ispravan broj telefona.",
+        "exists": "Zaposleni sa ovim brojem telefona već postoji."
+      }
+    },
+    "save": "Sačuvaj",
+    "saving": "Čuvanje...",
+    "created": "Zaposleni je dodat.",
+    "failed": "Dodavanje zaposlenog nije uspelo."
+  },
+  "pagination": {
+    "rowsPerPage": "Redova po stranici",
+    "pageOf": "Stranica {{page}} od {{total}}",
+    "firstPage": "Idi na prvu stranicu",
+    "previousPage": "Idi na prethodnu stranicu",
+    "nextPage": "Idi na sledeću stranicu",
+    "lastPage": "Idi na poslednju stranicu",
+    "goToPage": "Idi na stranicu {{page}}"
+  }
+}

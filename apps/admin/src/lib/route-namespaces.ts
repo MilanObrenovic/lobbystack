@@ -9,7 +9,7 @@ export function routeNamespaces(pathname: string): string[] {
   if (["demo", "claim-demo"].includes(section)) return ["common", "auth", "demos", "widget"];
   if (section === "onboarding") return ["common", "onboarding", "auth", "settings", "nav"];
   const route: Record<string, string[]> = {
-    "": ["dashboard"], analytics: ["dashboard"], calls: ["calls"], contacts: ["contacts"],
+    "": ["dashboard"], analytics: ["dashboard"], calls: ["calls"], contacts: ["contacts"], employees: ["employees"],
     messages: ["messages", "inbox"], appointments: [], integrations: [],
     agent: ["knowledge"], affiliate: ["affiliate"], demos: ["demos"],
     settings: ["widget"], "setup-guide": [],

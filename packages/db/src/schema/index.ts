@@ -370,6 +370,18 @@ export const contacts = pgTable(
   (table) => [uniqueIndex("contacts_business_phone_unique").on(table.businessId, table.phone).where(sql`${table.phone} is not null`), index("contacts_business_email_idx").on(table.businessId, table.email)],
 );
 
+export const employees = pgTable(
+  "employees",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    phone: varchar("phone", { length: 32 }).notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("employees_business_phone_unique").on(table.businessId, table.phone), index("employees_business_created_idx").on(table.businessId, table.createdAt)],
+);
+
 export const widgetKeys = pgTable(
   "widget_keys",
   {
