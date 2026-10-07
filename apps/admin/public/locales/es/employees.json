@@ -11,6 +11,7 @@
     "emptyState": "Todavía no hay empleados.",
     "actions": {
       "moreOptions": "Más opciones",
+      "editEmployee": "Editar empleado",
       "deleteEmployee": "Eliminar empleado",
       "deleteTitle": "¿Eliminar empleado?",
       "deleteDescription": "El empleado se eliminará de forma permanente de tu panel.",
@@ -41,6 +42,13 @@
     "saving": "Guardando...",
     "created": "Empleado añadido.",
     "failed": "No se pudo añadir el empleado."
+  },
+  "edit": {
+    "title": "Editar empleado",
+    "description": "Actualiza el nombre y el número de teléfono de este empleado.",
+    "save": "Guardar cambios",
+    "updated": "Empleado actualizado.",
+    "failed": "No se pudo actualizar el empleado."
   },
   "pagination": {
     "rowsPerPage": "Filas por página",

@@ -11,6 +11,7 @@
     "emptyState": "Još nema zaposlenih.",
     "actions": {
       "moreOptions": "Više opcija",
+      "editEmployee": "Izmeni zaposlenog",
       "deleteEmployee": "Obriši zaposlenog",
       "deleteTitle": "Obrisati zaposlenog?",
       "deleteDescription": "Zaposleni će biti trajno uklonjen sa vaše kontrolne table.",
@@ -41,6 +42,13 @@
     "saving": "Čuvanje...",
     "created": "Zaposleni je dodat.",
     "failed": "Dodavanje zaposlenog nije uspelo."
+  },
+  "edit": {
+    "title": "Izmeni zaposlenog",
+    "description": "Ažurirajte ime i broj telefona ovog zaposlenog.",
+    "save": "Sačuvaj izmene",
+    "updated": "Zaposleni je ažuriran.",
+    "failed": "Ažuriranje zaposlenog nije uspelo."
   },
   "pagination": {
     "rowsPerPage": "Redova po stranici",

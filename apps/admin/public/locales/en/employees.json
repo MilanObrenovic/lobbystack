@@ -11,6 +11,7 @@
     "emptyState": "No employees yet.",
     "actions": {
       "moreOptions": "More options",
+      "editEmployee": "Edit employee",
       "deleteEmployee": "Delete employee",
       "deleteTitle": "Delete employee?",
       "deleteDescription": "This will permanently remove the employee from your dashboard.",
@@ -41,6 +42,13 @@
     "saving": "Saving...",
     "created": "Employee added.",
     "failed": "Couldn't add the employee."
+  },
+  "edit": {
+    "title": "Edit employee",
+    "description": "Update this employee's name and phone number.",
+    "save": "Save changes",
+    "updated": "Employee updated.",
+    "failed": "Couldn't update the employee."
   },
   "pagination": {
     "rowsPerPage": "Rows per page",

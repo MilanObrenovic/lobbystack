@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, ne, or } from "drizzle-orm";
 
 import { employees, withBusinessTransaction } from "@lobbystack/db";
 
@@ -38,6 +38,23 @@ export async function createEmployee(
       .returning({ id: employees.id, name: employees.name, phone: employees.phone, createdAt: employees.createdAt, updatedAt: employees.updatedAt });
     if (!employee) throw Object.assign(new Error("An employee with this phone number already exists."), { status: 409, code: "employee_phone_exists" });
     return employee;
+  });
+}
+
+export async function updateEmployee(
+  context: DomainContext,
+  input: { userId: string; businessId: string; employeeId: string; name: string; phone: string },
+) {
+  return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
+    await requireBusinessAdmin(tx, input);
+    const name = input.name.trim();
+    if (!name) throw Object.assign(new Error("Employee name is required."), { status: 400, code: "employee_name_required" });
+    const duplicate = await tx.select({ id: employees.id }).from(employees).where(and(eq(employees.businessId, input.businessId), eq(employees.phone, input.phone), ne(employees.id, input.employeeId))).limit(1);
+    if (duplicate.length) throw Object.assign(new Error("An employee with this phone number already exists."), { status: 409, code: "employee_phone_exists" });
+    const [employee] = await tx.update(employees).set({ name, phone: input.phone, updatedAt: new Date() })
+      .where(and(eq(employees.id, input.employeeId), eq(employees.businessId, input.businessId)))
+      .returning({ id: employees.id, name: employees.name, phone: employees.phone, createdAt: employees.createdAt, updatedAt: employees.updatedAt });
+    return employee ?? null;
   });
 }
 

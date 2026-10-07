@@ -11,6 +11,7 @@
     "emptyState": "Aucun employé pour le moment.",
     "actions": {
       "moreOptions": "Plus d'options",
+      "editEmployee": "Modifier l'employé",
       "deleteEmployee": "Supprimer l'employé",
       "deleteTitle": "Supprimer l'employé ?",
       "deleteDescription": "L'employé sera définitivement retiré de votre tableau de bord.",
@@ -41,6 +42,13 @@
     "saving": "Enregistrement...",
     "created": "Employé ajouté.",
     "failed": "Impossible d'ajouter l'employé."
+  },
+  "edit": {
+    "title": "Modifier l'employé",
+    "description": "Mettez à jour le nom et le numéro de téléphone de cet employé.",
+    "save": "Enregistrer les modifications",
+    "updated": "Employé mis à jour.",
+    "failed": "Impossible de mettre à jour l'employé."
   },
   "pagination": {
     "rowsPerPage": "Lignes par page",

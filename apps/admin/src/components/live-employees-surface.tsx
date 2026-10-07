@@ -11,7 +11,7 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table";
-import { Ellipsis, Plus, Search, Trash2 } from "lucide-react";
+import { Ellipsis, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import type { Country } from "react-phone-number-input/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -23,7 +23,7 @@ import { PageHeader } from "@/components/page-header";
 import { TableCardSkeleton } from "@/components/loading-skeletons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -51,7 +51,8 @@ export function LiveEmployeesSurface() {
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [pendingDelete, setPendingDelete] = useState<Employee | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const { businesses, business } = useActiveBusiness();
   const employees = useQuery({
     queryKey: ["employees", business?.businessId, search.trim(), pagination.pageIndex, pagination.pageSize],
@@ -75,6 +76,8 @@ export function LiveEmployeesSurface() {
       return current.pageIndex > finalPage ? { ...current, pageIndex: finalPage } : current;
     });
   }, [total, employees.data]);
+
+  const openEditor = (employee: Employee | null) => { setEditingEmployee(employee); setDialogOpen(true); };
 
   const columns = useMemo<Array<ColumnDef<Employee>>>(() => [
     {
@@ -102,6 +105,8 @@ export function LiveEmployeesSurface() {
         <div className="flex w-16 justify-end pr-0" data-slot="data-table-row-actions"><DropdownMenu>
           <DropdownMenuTrigger render={<Button aria-label={t("table.actions.moreOptions")} size="icon-sm" variant="ghost" />}><Ellipsis /></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-0 w-fit p-1">
+            <DropdownMenuItem disabled={!canMutate} onClick={() => openEditor(row.original)}><Pencil />{t("table.actions.editEmployee")}</DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem disabled={!canMutate} onClick={() => setPendingDelete(row.original)} variant="destructive"><Trash2 />{t("table.actions.deleteEmployee")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu></div>
@@ -113,7 +118,7 @@ export function LiveEmployeesSurface() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <PageHeader actions={canMutate ? <Button onClick={() => setAddOpen(true)}><Plus data-icon="inline-start" />{t("add.button")}</Button> : null} title={t("page.title")} />
+      <PageHeader actions={canMutate ? <Button onClick={() => openEditor(null)}><Plus data-icon="inline-start" />{t("add.button")}</Button> : null} title={t("page.title")} />
       <div className="relative max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input className="pl-10" onChange={(event) => { setSearch(event.target.value); setPagination((current) => ({ ...current, pageIndex: 0 })); }} placeholder={t("page.searchPlaceholder")} value={search} />
@@ -125,7 +130,7 @@ export function LiveEmployeesSurface() {
               <colgroup><col className="w-[40%]" /><col className="w-[28%]" /><col className="w-[24%]" /><col className="w-[8%]" /></colgroup>
               <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead className={header.column.id === "added" || header.column.id === "actions" ? "text-right" : undefined} key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row) => <TableRow className="h-12 transition-colors hover:bg-muted/40" key={row.id}>{row.getVisibleCells().map((cell) => <TableCell className={cell.column.id === "added" ? "max-w-0 whitespace-nowrap text-right" : cell.column.id === "actions" ? "w-16 text-right" : "max-w-0"} key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
+                {table.getRowModel().rows.map((row) => <TableRow className={canMutate ? "h-12 cursor-pointer transition-colors hover:bg-muted/40" : "h-12 transition-colors hover:bg-muted/40"} key={row.id} onClick={() => { if (canMutate) openEditor(row.original); }}>{row.getVisibleCells().map((cell) => <TableCell className={cell.column.id === "added" ? "max-w-0 whitespace-nowrap text-right" : cell.column.id === "actions" ? "w-16 text-right" : "max-w-0"} key={cell.id} onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
                 {table.getRowModel().rows.length === 0 ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={4}>{search.trim() ? t("table.empty") : t("table.emptyState")}</TableCell></TableRow> : null}
               </TableBody>
             </Table>
@@ -133,13 +138,13 @@ export function LiveEmployeesSurface() {
           <DataTablePagination labels={{ rowsPerPage: t("pagination.rowsPerPage"), pageOf: (page, total) => t("pagination.pageOf", { page, total }), firstPage: t("pagination.firstPage"), previousPage: t("pagination.previousPage"), nextPage: t("pagination.nextPage"), lastPage: t("pagination.lastPage"), goToPage: (page) => t("pagination.goToPage", { page }) }} table={table} />
         </>
       )}
-      {business ? <AddEmployeeDialog businessId={business.businessId} onOpenChange={setAddOpen} open={addOpen} /> : null}
+      {business ? <EmployeeDialog businessId={business.businessId} employee={editingEmployee} onOpenChange={setDialogOpen} open={dialogOpen} /> : null}
       <ConfirmActionDialog confirmVariant="destructive" cancelLabel={t("table.actions.deleteCancel")} confirmLabel={t("table.actions.deleteConfirm")} description={t("table.actions.deleteDescription")} onConfirm={async () => { if (!pendingDelete) return; await remove.mutateAsync(pendingDelete); setPendingDelete(null); toast.success(t("table.actions.deleted")); }} onOpenChange={(open) => { if (!open && !remove.isPending) setPendingDelete(null); }} open={Boolean(pendingDelete)} pending={remove.isPending} title={t("table.actions.deleteTitle")} />
     </div>
   );
 }
 
-function AddEmployeeDialog({ businessId, open, onOpenChange }: { businessId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+function EmployeeDialog({ businessId, employee, open, onOpenChange }: { businessId: string; employee: Employee | null; open: boolean; onOpenChange: (open: boolean) => void }) {
   const { i18n, t } = useTranslation("employees");
   const locale = i18n.resolvedLanguage ?? i18n.language;
   const queryClient = useQueryClient();
@@ -155,19 +160,25 @@ function AddEmployeeDialog({ businessId, open, onOpenChange }: { businessId: str
 
   useEffect(() => {
     if (!open) return;
-    setName(""); setPhone(""); setCountry(defaultCountry); setSubmitted(false); setPhoneExists(false);
-  }, [defaultCountry, open]);
+    setName(employee?.name ?? ""); setPhone(employee?.phone ?? ""); setCountry(employee ? (inferPhoneCountry(employee.phone, defaultCountry) ?? defaultCountry) as Country : defaultCountry); setSubmitted(false); setPhoneExists(false);
+  }, [defaultCountry, employee, open]);
 
-  const create = useMutation({
-    mutationFn: () => requestJson(`/api/employees?businessId=${encodeURIComponent(businessId)}`, { method: "POST", body: JSON.stringify({ name: name.trim(), phone }) }),
+  const save = useMutation({
+    mutationFn: () => {
+      const query = `businessId=${encodeURIComponent(businessId)}`;
+      const body = JSON.stringify({ name: name.trim(), phone });
+      return employee
+        ? requestJson(`/api/employees/${encodeURIComponent(employee.id)}?${query}`, { method: "PATCH", body })
+        : requestJson(`/api/employees?${query}`, { method: "POST", body });
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["employees", businessId] });
-      toast.success(t("add.created"));
+      toast.success(t(employee ? "edit.updated" : "add.created"));
       onOpenChange(false);
     },
     onError: (error) => {
       if (errorCode(error) === "employee_phone_exists") setPhoneExists(true);
-      else toast.error(t("add.failed"));
+      else toast.error(t(employee ? "edit.failed" : "add.failed"));
     },
   });
 
@@ -177,12 +188,12 @@ function AddEmployeeDialog({ businessId, open, onOpenChange }: { businessId: str
 
   return <Dialog onOpenChange={onOpenChange} open={open}>
     <DialogContent className="sm:max-w-md">
-      <DialogHeader><DialogTitle>{t("add.title")}</DialogTitle><DialogDescription>{t("add.description")}</DialogDescription></DialogHeader>
-      <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (!create.isPending && name.trim() && phone) create.mutate(); }}>
+      <DialogHeader><DialogTitle>{t(employee ? "edit.title" : "add.title")}</DialogTitle><DialogDescription>{t(employee ? "edit.description" : "add.description")}</DialogDescription></DialogHeader>
+      <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (!save.isPending && name.trim() && phone) save.mutate(); }}>
         <FieldGroup>
           <Field data-invalid={nameMissing || undefined}>
             <FieldLabel htmlFor={nameId}>{t("add.fields.name.label")}</FieldLabel>
-            <Input aria-describedby={nameMissing ? `${nameId}-error` : undefined} aria-invalid={nameMissing || undefined} autoFocus id={nameId} maxLength={200} onChange={(event) => setName(event.target.value)} placeholder={t("add.fields.name.placeholder")} value={name} />
+            <Input aria-describedby={nameMissing ? `${nameId}-error` : undefined} aria-invalid={nameMissing || undefined} id={nameId} maxLength={200} onChange={(event) => setName(event.target.value)} placeholder={t("add.fields.name.placeholder")} value={name} />
             {nameMissing ? <FieldError id={`${nameId}-error`}>{t("add.fields.name.required")}</FieldError> : null}
           </Field>
           <Field data-invalid={phoneError ? true : undefined}>
@@ -197,7 +208,7 @@ function AddEmployeeDialog({ businessId, open, onOpenChange }: { businessId: str
             {phoneError ? <FieldError id={`${phoneId}-error`}>{phoneError}</FieldError> : null}
           </Field>
         </FieldGroup>
-        <DialogFooter><Button className="w-full" disabled={create.isPending} type="submit">{create.isPending ? t("add.saving") : t("add.save")}</Button></DialogFooter>
+        <DialogFooter><Button className="w-full" disabled={save.isPending} type="submit">{save.isPending ? t("add.saving") : t(employee ? "edit.save" : "add.save")}</Button></DialogFooter>
       </form>
     </DialogContent>
   </Dialog>;
