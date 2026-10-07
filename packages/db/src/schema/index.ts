@@ -377,9 +377,10 @@ export const employees = pgTable(
     businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     phone: varchar("phone", { length: 32 }).notNull(),
+    staffId: uuid("staff_id").references(() => staff.id, { onDelete: "set null" }),
     ...timestamps,
   },
-  (table) => [uniqueIndex("employees_business_phone_unique").on(table.businessId, table.phone), index("employees_business_created_idx").on(table.businessId, table.createdAt)],
+  (table) => [uniqueIndex("employees_business_phone_unique").on(table.businessId, table.phone), uniqueIndex("employees_staff_unique").on(table.staffId).where(sql`${table.staffId} is not null`), index("employees_business_created_idx").on(table.businessId, table.createdAt)],
 );
 
 export const widgetKeys = pgTable(

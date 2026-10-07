@@ -152,6 +152,35 @@ describe("buildAgentInstructions", () => {
   });
 });
 
+describe("employees", () => {
+  const withEmployees = { ...demoSnapshot, bookingMode: "instant" as const, employees: [{ name: "Ana Petrović" }, { name: "Marko Jovanović" }] };
+
+  it("asks the caller for an employee preference before looking up times, and books the first available one otherwise", () => {
+    const instructions = buildAgentInstructions(withEmployees, "web_chat");
+    expect(instructions).toContain("Employees: Ana Petrović, Marko Jovanović.");
+    expect(instructions).toContain("Before you look up open times, ask whether the caller would like a specific employee");
+    expect(instructions).toContain("pass that name as employeeName to findAvailability and bookAppointment");
+    expect(instructions).toContain("the first available employee gets the appointment");
+  });
+
+  it("tells GPT-Live to ask for an employee preference before delegating a booking", () => {
+    const instructions = buildLiveInstructions(withEmployees, callStart);
+    expect(instructions).toContain("Employees callers can book with: Ana Petrović, Marko Jovanović.");
+    expect(instructions).toContain("ask whether they'd like a specific employee before you delegate");
+  });
+
+  it("leaves employee guidance out when the business has none, books nothing, or runs a demo", () => {
+    expect(buildAgentInstructions(demoSnapshot, "web_chat")).not.toContain("specific employee");
+    expect(buildAgentInstructions({ ...withEmployees, bookingMode: "off" }, "web_chat")).not.toContain("specific employee");
+    expect(buildLiveInstructions({ ...withEmployees, bookingMode: "off" }, callStart)).not.toContain("Employees callers can book with");
+    expect(buildAgentInstructions(withEmployees, "web_chat", { intakeOnly: true })).not.toContain("specific employee");
+  });
+
+  it("asks for a preferred employee in request mode and notes it on the request", () => {
+    expect(buildAgentInstructions({ ...withEmployees, bookingMode: "request" }, "web_chat")).toContain("include their choice in the request's notes");
+  });
+});
+
 describe("instant booking without opening hours", () => {
   const noHours = { ...demoSnapshot, bookingMode: "instant" as const, hours: [] };
 

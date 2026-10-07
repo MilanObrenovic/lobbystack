@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte } from "drizzle-orm";
 
-import { appointments, calls, contacts, services, staff, type DatabaseTransaction } from "@lobbystack/db";
+import { appointments, calls, contacts, employees, services, staff, type DatabaseTransaction } from "@lobbystack/db";
 
 /**
  * Lists for the operator dashboard. Each row carries the contact's name, phone,
@@ -36,7 +36,9 @@ export async function listUpcomingAppointments(tx: DatabaseTransaction, business
     contactEmail: contacts.email,
     serviceName: services.name,
     staffName: staff.name,
-  }).from(appointments).leftJoin(contacts, eq(appointments.contactId, contacts.id)).leftJoin(services, eq(appointments.serviceId, services.id)).leftJoin(staff, eq(appointments.staffId, staff.id)).where(and(eq(appointments.businessId, businessId), gte(appointments.startsAt, from))).orderBy(appointments.startsAt).limit(limit);
+    // Null for the default staff member that stands for the business itself.
+    employeeName: employees.name,
+  }).from(appointments).leftJoin(contacts, eq(appointments.contactId, contacts.id)).leftJoin(services, eq(appointments.serviceId, services.id)).leftJoin(staff, eq(appointments.staffId, staff.id)).leftJoin(employees, and(eq(employees.staffId, appointments.staffId), eq(employees.businessId, businessId))).where(and(eq(appointments.businessId, businessId), gte(appointments.startsAt, from))).orderBy(appointments.startsAt).limit(limit);
 }
 
 /** Appointments that have not ended by `now`, for the appointments page. */

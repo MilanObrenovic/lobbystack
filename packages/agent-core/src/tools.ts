@@ -10,6 +10,7 @@ import {
   knowledgeQueryTerms,
   lookupCallerAppointments,
   rescheduleForCaller,
+  resolveEmployee,
   searchKnowledgeEvidence,
   takeMessageForStaff,
   verifyAppointmentChangeOtp,
@@ -202,14 +203,30 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
   };
 
   if (bookingMode === "instant") {
+    const employeeName = z.string().optional().describe("Only when the caller asked for a specific employee: that employee's name. Leave it out to book the first available employee.");
+    // The staff member a requested employee books under, or why no single employee matched.
+    const employeeFor = async (name: string | undefined) => {
+      if (!name?.trim()) return { ok: true as const };
+      const match = await resolveEmployee(domain, { businessId, name });
+      if (match.ok) return { ok: true as const, staffId: match.staffId, employeeName: match.name };
+      return {
+        ok: false as const,
+        reason: match.employees.length
+          ? `No single employee matches "${name}". The employees are: ${match.employees.join(", ")}. Ask the caller which one they mean.`
+          : "This business doesn't book with specific employees. Leave employeeName out.",
+      };
+    };
     tools.findAvailability = tool({
       description: "Find open appointment times for one service on one date. Never state availability without calling this. Don't use it to recheck a time the caller already accepted; bookAppointment checks that.",
       inputSchema: z.object({
         serviceName: z.string().describe("One of the business's services."),
         date: z.string().describe("Date as YYYY-MM-DD in the business's timezone."),
         preferredTime: z.string().optional().describe("Preferred start time as HH:mm (24-hour)."),
+        employeeName,
       }),
-      execute: async ({ serviceName, date, preferredTime }) => {
+      execute: async ({ serviceName, date, preferredTime, employeeName: requested }) => {
+        const employee = await employeeFor(requested);
+        if (!employee.ok) return employee;
         const [hour, minute] = (preferredTime ?? "").split(":").map(Number);
         const result = await findOpenings(domain, {
           businessId,
@@ -219,10 +236,12 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
           hours: snapshot.hours,
           ...(Number.isFinite(hour) ? { preferredHour24: hour, preferredMinute: Number.isFinite(minute) ? minute : 0 } : {}),
           ...(context.callId ? { callId: context.callId } : {}),
+          ...(employee.staffId ? { staffId: employee.staffId } : {}),
         });
+        const withEmployee = employee.employeeName && result.ok ? { ...result, employeeName: employee.employeeName } : result;
         // An empty day says why, so the agent doesn't call it fully booked when it isn't.
-        if (!result.ok || result.openings.length || !isReason(result.reason)) return result;
-        return { ...result, reason: DAY_UNAVAILABLE[result.reason] ?? UNAVAILABLE_TOOL_MESSAGES[result.reason] };
+        if (!withEmployee.ok || withEmployee.openings.length || !isReason(withEmployee.reason)) return withEmployee;
+        return { ...withEmployee, reason: DAY_UNAVAILABLE[withEmployee.reason] ?? UNAVAILABLE_TOOL_MESSAGES[withEmployee.reason] };
       },
     });
     tools.bookAppointment = tool({
@@ -233,11 +252,15 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
         contactName: z.string().optional().describe("The caller's name. Required to book."),
         contactPhone: phone.optional().describe("Required when the caller's number isn't already known."),
         smsConsentGranted: z.boolean().describe("True only if the caller agreed to receive a confirmation and reminder text."),
+        employeeName,
       }),
       execute: async (input) => {
         const contactPhone = input.contactPhone?.trim() || context.callerPhone;
         if (!input.contactName?.trim()) return { ok: false, reason: "Ask for the caller's name before booking." };
         if (!contactPhone) return { ok: false, reason: "Ask for a phone number before booking." };
+        const employee = await employeeFor(input.employeeName);
+        if (!employee.ok) return employee;
+        const staff = employee.staffId ? { staffId: employee.staffId } : {};
         // Each delegation starts fresh, so the agent often books a time it only
         // saw in the conversation. Read a time without an offset in the
         // business's timezone; the server's own timezone would shift it.
@@ -248,7 +271,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
         // report that booking rather than call the caller's own slot taken.
         const existing = await findCallerBooking(domain, { businessId, serviceName: input.serviceName, startsAt, contactPhone });
         if (existing) return existing;
-        const opening = await checkOpening(domain, { businessId, serviceName: input.serviceName, startsAt, timezone, ...(context.callId ? { callId: context.callId } : {}) });
+        const opening = await checkOpening(domain, { businessId, serviceName: input.serviceName, startsAt, timezone, ...(context.callId ? { callId: context.callId } : {}), ...staff });
         if (!opening.ok) return { ok: false, reason: `${opening.reason} Check the service name with getBusinessServices.` };
         if (!opening.available) return { ok: false, reason: UNAVAILABLE_TOOL_MESSAGES[isReason(opening.reason) ? opening.reason : "taken"] };
         const textable = canTextNumber(snapshot.contactChannels?.smsNumber, contactPhone);
@@ -262,6 +285,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
           smsConsentGranted: input.smsConsentGranted && textable,
           ...(input.contactName ? { contactName: input.contactName } : {}),
           ...(context.callId ? { callId: context.callId } : {}),
+          ...staff,
         });
         // Another booking can take the time between the check and the booking.
         if (!booked.ok) return "unavailableReason" in booked && isReason(booked.unavailableReason) ? { ok: false, reason: UNAVAILABLE_TOOL_MESSAGES[booked.unavailableReason] } : booked;
