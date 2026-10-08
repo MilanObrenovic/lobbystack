@@ -6,8 +6,7 @@ import { useActiveBusiness } from "@/hooks/use-active-business";
 import { useEffect, useId, useMemo, useState } from "react";
 import {
   flexRender,
-  getCoreRowModel,
-  useReactTable,
+  useTable,
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table";
@@ -18,7 +17,7 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
-import { DataTablePagination } from "@/components/data-table/pagination";
+import { DataTablePagination, paginationFeatures } from "@/components/data-table/pagination";
 import { PageHeader } from "@/components/page-header";
 import { TableCardSkeleton } from "@/components/loading-skeletons";
 import { Button } from "@/components/ui/button";
@@ -79,7 +78,7 @@ export function LiveEmployeesSurface() {
 
   const openEditor = (employee: Employee | null) => { setEditingEmployee(employee); setDialogOpen(true); };
 
-  const columns = useMemo<Array<ColumnDef<Employee>>>(() => [
+  const columns = useMemo<Array<ColumnDef<typeof paginationFeatures, Employee>>>(() => [
     {
       id: "name",
       accessorKey: "name",
@@ -114,7 +113,7 @@ export function LiveEmployeesSurface() {
     },
   ], [canMutate, locale, t]);
 
-  const table = useReactTable({ columns, data: rows, getCoreRowModel: getCoreRowModel(), manualPagination: true, rowCount: total, onPaginationChange: setPagination, state: { pagination } });
+  const table = useTable({ features: paginationFeatures, columns, data: rows, manualPagination: true, rowCount: total, onPaginationChange: setPagination, state: { pagination } });
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -133,7 +132,7 @@ export function LiveEmployeesSurface() {
               <colgroup><col className="w-[40%]" /><col className="w-[28%]" /><col className="w-[24%]" /><col className="w-[8%]" /></colgroup>
               <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead className={header.column.id === "added" || header.column.id === "actions" ? "text-right" : undefined} key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row) => <TableRow className={canMutate ? "h-12 cursor-pointer transition-colors hover:bg-muted/40" : "h-12 transition-colors hover:bg-muted/40"} key={row.id} onClick={() => { if (canMutate) openEditor(row.original); }}>{row.getVisibleCells().map((cell) => <TableCell className={cell.column.id === "added" ? "max-w-0 whitespace-nowrap text-right" : cell.column.id === "actions" ? "w-16 text-right" : "max-w-0"} key={cell.id} onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
+                {table.getRowModel().rows.map((row) => <TableRow className={canMutate ? "h-12 cursor-pointer transition-colors hover:bg-muted/40" : "h-12 transition-colors hover:bg-muted/40"} key={row.id} onClick={() => { if (canMutate) openEditor(row.original); }}>{row.getAllCells().map((cell) => <TableCell className={cell.column.id === "added" ? "max-w-0 whitespace-nowrap text-right" : cell.column.id === "actions" ? "w-16 text-right" : "max-w-0"} key={cell.id} onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
                 {table.getRowModel().rows.length === 0 ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={4}>{search.trim() ? t("table.empty") : t("table.emptyState")}</TableCell></TableRow> : null}
               </TableBody>
             </Table>
