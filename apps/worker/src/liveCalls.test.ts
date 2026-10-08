@@ -11,9 +11,10 @@ const mocks = vi.hoisted(() => ({
   recordAiGenerationEvent: vi.fn(async (..._args: unknown[]) => "event_2"),
   finishLiveCall: vi.fn(async (..._args: unknown[]) => false),
   createAgentModel: vi.fn((..._args: unknown[]) => ({})),
+  callerIsDone: vi.fn(async (..._args: unknown[]) => true),
   createReceptionistAgent: vi.fn((..._args: unknown[]) => ({})),
   closeLiveSession: vi.fn(async (..._args: unknown[]) => undefined),
-  controllers_: [] as Array<{ endSession: ReturnType<typeof vi.fn>; endAfterGoodbye: ReturnType<typeof vi.fn>; wrapUp: ReturnType<typeof vi.fn>; transferAfterAnnouncement: ReturnType<typeof vi.fn>; canTransfer: ReturnType<typeof vi.fn>; detach: ReturnType<typeof vi.fn>; options: Record<string, unknown> }>,
+  controllers_: [] as Array<{ endSession: ReturnType<typeof vi.fn>; endAfterGoodbye: ReturnType<typeof vi.fn>; endWhenCallerDone: ReturnType<typeof vi.fn>; wrapUp: ReturnType<typeof vi.fn>; transferAfterAnnouncement: ReturnType<typeof vi.fn>; canTransfer: ReturnType<typeof vi.fn>; detach: ReturnType<typeof vi.fn>; options: Record<string, unknown> }>,
   prepareLiveCallTransfer: vi.fn(async (..._args: unknown[]) => true),
   recordLiveCallTransferResult: vi.fn(async (..._args: unknown[]) => undefined),
   saveLiveCallTurn: vi.fn(async (..._args: unknown[]) => undefined),
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@lobbystack/agent-core", () => ({
+  callerIsDone: mocks.callerIsDone,
   createAgentModel: mocks.createAgentModel,
   createReceptionistAgent: mocks.createReceptionistAgent,
   liveDelegationEnvironment: () => ({ AI_CHAT_REASONING_EFFORT: "low" }),
@@ -34,6 +36,7 @@ vi.mock("@lobbystack/agent-core", () => ({
   LiveCallController: class {
     endSession = vi.fn();
     endAfterGoodbye = vi.fn();
+    endWhenCallerDone = vi.fn((_onCancelled?: () => void) => undefined);
     wrapUp = vi.fn(async (_reason: string) => undefined);
     transferAfterAnnouncement = vi.fn((_targetUri: string) => true);
     canTransfer = vi.fn(() => true);
@@ -41,7 +44,7 @@ vi.mock("@lobbystack/agent-core", () => ({
     constructor(options: Record<string, (...args: never[]) => unknown>) {
       mocks.controllers += 1;
       mocks.controllerOptions.push(options);
-      mocks.controllers_.push({ endSession: this.endSession, endAfterGoodbye: this.endAfterGoodbye, wrapUp: this.wrapUp, transferAfterAnnouncement: this.transferAfterAnnouncement, canTransfer: this.canTransfer, detach: this.detach, options });
+      mocks.controllers_.push({ endSession: this.endSession, endAfterGoodbye: this.endAfterGoodbye, endWhenCallerDone: this.endWhenCallerDone, wrapUp: this.wrapUp, transferAfterAnnouncement: this.transferAfterAnnouncement, canTransfer: this.canTransfer, detach: this.detach, options });
     }
     start() {}
   },
@@ -167,12 +170,63 @@ describe("createLiveCallHandler", () => {
     const controller = mocks.controllers_.at(-1)!;
     const context = (mocks.createReceptionistAgent.mock.lastCall![0] as { context: { callControl: { hangup: (reason: string) => Promise<void> } } }).context;
     await context.callControl.hangup("caller_finished");
-    expect(controller.endAfterGoodbye).toHaveBeenCalled();
+    expect(controller.endWhenCallerDone).toHaveBeenCalled();
     expect(controller.endSession).not.toHaveBeenCalled();
     (controller.options.onTimeout as (reason: string) => void)("silence_timeout");
     expect(controller.wrapUp).toHaveBeenCalledWith("silence_timeout");
     expect(controller.endSession).not.toHaveBeenCalled();
     await expect((controller.options.setup as Promise<{ language: string }>)).resolves.toMatchObject({ greeting: "Hi" });
+  });
+
+  // GPT-Live said goodbye and handed the call over; the agent's endCall hangs up once the goodbye has played.
+  async function endedByAgent(sessionId: string, reason: "caller_finished" | "spam" | "abuse") {
+    vi.stubEnv("LIVE_PROTOTYPE_ENABLED", "true");
+    vi.stubEnv("INTERNAL_SERVICE_TOKEN", "token");
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    mocks.snapshot.mockResolvedValue({ businessId: "biz_1", greeting: "Hi" });
+    const handler = createLiveCallHandler({ domain: { db: {} as never } });
+    await handler.handle(attachRequest({ sessionId, businessId: "biz_1", callId: `call_${sessionId}`, channel: "voice" }), response());
+    const controller = mocks.controllers_.at(-1)!;
+    const context = (mocks.createReceptionistAgent.mock.lastCall![0] as { context: { callControl: { hangup: (reason: string) => Promise<void> } } }).context;
+    await context.callControl.hangup(reason);
+    // No session.closed before the finalization timeout, so the close reason alone would say connection_lost.
+    const close = () => (controller.options.onClose as (summary: unknown) => void)({ sessionId, durationMs: 40_000, delegations: [], usageConfirmed: false, closeReason: "finalize_timeout" });
+    return { controller, close };
+  }
+
+  it("records a call the agent ended for a caller who is done as caller_finished", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const { controller, close } = await endedByAgent("live_done", "caller_finished");
+    // The caller can still say more before the hangup, so it isn't the non-cancellable end.
+    expect(controller.endWhenCallerDone).toHaveBeenCalledOnce();
+    expect(controller.endAfterGoodbye).not.toHaveBeenCalled();
+    close();
+    await vi.waitFor(() => expect(mocks.finishLiveCall).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ callId: "call_live_done", end: "caller_finished" })));
+    const closed = JSON.parse(String(info.mock.calls.find((call) => String(call[0]).includes("\"live.closed\""))![0]));
+    expect(closed).toMatchObject({ event: "live.closed", sessionId: "live_done", end: "caller_finished" });
+    expect(closed).not.toHaveProperty("autoHangup");
+    info.mockRestore();
+  });
+
+  it("drops caller_finished when the caller keeps talking, so a later timeout records its own reason", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const { controller, close } = await endedByAgent("live_more", "caller_finished");
+    (controller.endWhenCallerDone.mock.lastCall![0] as () => void)();
+    (controller.options.onTimeout as (reason: string) => void)("silence_timeout");
+    expect(controller.wrapUp).toHaveBeenCalledWith("silence_timeout");
+    close();
+    await vi.waitFor(() => expect(mocks.finishLiveCall).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ callId: "call_live_more", end: "silence_timeout" })));
+    info.mockRestore();
+  });
+
+  it.each(["spam", "abuse"] as const)("ends a %s call once the goodbye has played, whatever the caller says", async (reason) => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const { controller, close } = await endedByAgent(`live_${reason}`, reason);
+    expect(controller.endAfterGoodbye).toHaveBeenCalledOnce();
+    expect(controller.endWhenCallerDone).not.toHaveBeenCalled();
+    close();
+    await vi.waitFor(() => expect(mocks.finishLiveCall).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ callId: `call_live_${reason}`, end: reason })));
+    info.mockRestore();
   });
 
   it("ends a call within its reserved minutes, and never past 30 minutes", async () => {
@@ -868,6 +922,17 @@ describe("live call latency telemetry", () => {
     options.onDelegation!({ ...delegation, failed: true } as never);
     expect(mocks.recordAiGenerationEvent).toHaveBeenCalledWith({ db: {} }, expect.objectContaining({ operation: "voice.delegation", isError: true, error: "generation_failed", model: "gpt-6-luna" }));
     expect(mocks.recordAiGenerationEvent.mock.calls[0]![1]).not.toHaveProperty("totalCostUsd");
+  });
+
+  it("checks a caller who spoke after the call was ended on the delegation model, and logs live.caller_done_check", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const options = await startCall();
+    const setup = await (options.setup as unknown as Promise<{ callerDone: (conversation: string, abortSignal: AbortSignal) => Promise<boolean> }>);
+    const signal = new AbortController().signal;
+    await expect(setup.callerDone("Caller: Bye!", signal)).resolves.toBe(true);
+    expect(mocks.callerIsDone).toHaveBeenCalledWith(mocks.createAgentModel.mock.results.at(-1)!.value, "Caller: Bye!", signal);
+    expect(info).toHaveBeenCalledWith(expect.stringMatching(/^\{"event":"live\.caller_done_check","sessionId":"live_2","done":true,"ms":\d+\}$/));
+    info.mockRestore();
   });
 
   it("logs each greeting step as live.greeting", async () => {

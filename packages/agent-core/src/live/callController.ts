@@ -4,7 +4,7 @@ import type { DelegationCreatedEvent } from "openai/resources/live/live";
 import { SidebandWS } from "openai/resources/live/sideband/ws";
 
 import type { ReceptionistAgent } from "../agent";
-import { DIRECT_ANSWER_TOOLS, directToolAnswer, fitToAppend, type DirectAnswerStep } from "./directAnswer";
+import { CALL_ENDING, DIRECT_ANSWER_TOOLS, directToolAnswer, fitToAppend, type DirectAnswerStep } from "./directAnswer";
 import { greetingCommand } from "./greeting";
 import { LiveLatencyTracker, type LiveCallLatency } from "./latency";
 
@@ -31,6 +31,8 @@ export type DelegationTiming = {
   failed: boolean;
   /** The caller made a newer request before this one finished, so its result wasn't spoken. */
   superseded: boolean;
+  /** The agent ended the call, so the result went to GPT-Live as silent background. */
+  endedCall: boolean;
   /** Tokens across the agent's model steps, when the generation finished. */
   usage?: LanguageModelUsage;
 };
@@ -100,6 +102,12 @@ export type LiveCallSetup = {
    * history; the controller only sends it again as a fallback.
    */
   greeting?: string;
+  /**
+   * Whether a caller who spoke after the agent ended the call is only saying
+   * goodbye (live/callerDone.ts), so the call still ends. Without it, any
+   * words keep the call going.
+   */
+  callerDone?: (conversation: string, abortSignal: AbortSignal) => Promise<boolean>;
 };
 
 export type LiveCallControllerOptions = {
@@ -173,6 +181,13 @@ const GOODBYE_START_MS = 4_000;
 const GOODBYE_MAX_MS = 15_000;
 const GOODBYE_QUIET_MS = 1_000;
 const GOODBYE_POLL_MS = 200;
+// A caller who is done is hung up on once the receptionist's goodbye has
+// played and both sides have been quiet this long, so they can still say
+// "oh, wait". Speech still coming holds it, up to the second bound.
+const CALLER_DONE_QUIET_MS = 2_000;
+const CALLER_DONE_MAX_MS = 20_000;
+// A caller who spoke after the call was ended is checked once they've paused this long.
+const CALLER_CHECK_QUIET_MS = 800;
 // A wrap-up's goodbye counts from OpenAI's acknowledgment of the command, or
 // from the request when no acknowledgment arrives by this long.
 const WRAP_UP_ACK_WAIT_MS = 2_000;
@@ -194,6 +209,7 @@ const MAX_REMEMBERED_ACTIONS = 10;
 
 // The facts GPT-Live receives when a request fails. Its instructions say what to do then.
 const FAILED_ANSWER = "The backend couldn't complete this request.";
+const CALLER_SPOKE_AGAIN = "The caller spoke again before the call ended, so reply to what they said.";
 const STILL_WORKING = "Still checking. This is taking a few more seconds.";
 // Commands for GPT-Live when the call has to end, or a transfer didn't go through.
 const WRAP_UP: Record<LiveCallWrapUp, string> = {
@@ -204,14 +220,16 @@ const WRAP_UP: Record<LiveCallWrapUp, string> = {
 const TRANSFER_FAILED = "The transfer to a person didn't go through. In the language of the conversation, tell the caller briefly and offer to take a message so the team can call them back.";
 
 // Tools that change something. The next request on the call sees their results,
-// so a changed request reschedules instead of booking twice.
-const ACTION_TOOLS = new Set(["bookAppointment", "requestAppointment", "cancelAppointment", "rescheduleAppointment", "takeMessage", "transferCall", "endCall"]);
+// so a changed request reschedules instead of booking twice. endCall isn't one:
+// a call that goes on after it was cancelled, and the next request may end it again.
+const ACTION_TOOLS = new Set(["bookAppointment", "requestAppointment", "requestAppointmentCancellation", "cancelAppointment", "rescheduleAppointment", "takeMessage", "transferCall"]);
 // Lookups the next request can reuse instead of repeating.
 const REUSABLE_LOOKUPS = new Set(["findAvailability"]);
 const PROGRESS: Record<string, string> = {
   findAvailability: "looked up open times",
   bookAppointment: "tried to book the appointment",
   requestAppointment: "tried to save the appointment request",
+  requestAppointmentCancellation: "tried to save the cancellation request",
   lookupAppointmentForChange: "looked up the caller's appointment",
   verifyAppointmentForChange: "checked the caller's identity",
   sendAppointmentChangeOtp: "sent a verification code",
@@ -224,6 +242,11 @@ const PROGRESS: Record<string, string> = {
 };
 
 type PendingAppend = { kind: "greeting" | "answer" | "update" | "wrap_up"; delegationId?: string };
+// A hangup waiting for the caller to be done. afterMs is where the request
+// that ended the call was made on the session timeline: the caller speaking
+// after it holds the hangup until a check says whether they're only saying
+// goodbye, or cancels it when there's no check.
+type PendingHangup = { afterMs: number; requestedAt: number; onCancelled?: () => void; callerSpoke?: boolean; checking?: boolean };
 // The close reason when another worker took the call over.
 const DETACHED = "detached";
 type StepLike = DirectAnswerStep & { toolResults: Array<{ toolName: string; output: unknown }> };
@@ -243,6 +266,10 @@ export function isVoice(base64: string): boolean {
 
 function succeeded(output: unknown): boolean {
   return typeof output === "object" && output !== null && (output as { ok?: unknown }).ok !== false;
+}
+
+function endsCall(steps: StepLike[]): boolean {
+  return steps.some((step) => step.toolResults.some((result) => result.toolName === "endCall" && succeeded(result.output)));
 }
 
 /**
@@ -298,6 +325,16 @@ export class LiveCallController {
   private lastSpeechAt = Number.NEGATIVE_INFINITY;
   private readonly outputAudio: LiveCallSummary["outputAudio"] = { deltas: 0, coveredMs: 0, payloadBytes: 0 };
   private lastAnswerSentAt: number | undefined;
+  // When the caller last spoke, in performance.now() time, and where their
+  // latest words started on the session timeline.
+  private lastCallerAt = Number.NEGATIVE_INFINITY;
+  private lastCallerStartMs = Number.NEGATIVE_INFINITY;
+  // The request the agent is answering now. Requests run one at a time.
+  private answering: { offsetMs: number; revision: number } | undefined;
+  private pendingHangup: PendingHangup | undefined;
+  // The caller kept the call going after the last request that ended it.
+  private hangupCancelled = false;
+  private callerDone: LiveCallSetup["callerDone"];
   private ending = false;
   // A transfer in progress: waiting for the announcement to play, waiting for
   // OpenAI to accept the REFER, or referred and waiting for the outcome.
@@ -312,7 +349,7 @@ export class LiveCallController {
   constructor(private readonly options: LiveCallControllerOptions) {
     this.ready = Promise.resolve(options.setup);
     // A failed setup ends the call; the worker reports it.
-    this.ready.catch(() => this.endSession());
+    this.ready.then((setup) => { this.callerDone = setup.callerDone; }, () => this.endSession());
   }
 
   start(): void {
@@ -333,7 +370,7 @@ export class LiveCallController {
     socket.on("session.input_transcript.delta", (event) => {
       this.observeTimeline(event.end_ms);
       this.measure(() => this.latency.callerTranscript(event.start_ms, event.end_ms));
-      this.appendTranscript("caller", event.delta, event.end_ms);
+      this.appendTranscript("caller", event.delta, event.end_ms, event.start_ms);
     });
     // OpenAI's guide: transcript events arrive for intervals that contain
     // text, so words in session.output_transcript.delta are the evidence that
@@ -359,7 +396,10 @@ export class LiveCallController {
     // A keypad press reaches only the sideband, with no timeline position. It
     // counts as caller input, so the next request's agent sees it.
     untyped.on<{ event?: unknown }>("transport.dtmf.received", (event) => {
-      if (typeof event.event === "string" && event.event) this.appendTranscript("caller", ` [pressed ${event.event}]`, this.timelineNow());
+      if (typeof event.event === "string" && event.event) {
+        const now = this.timelineNow();
+        this.appendTranscript("caller", ` [pressed ${event.event}]`, now, now);
+      }
     });
     // OpenAI documents these for outbound SIP legs. A REFER makes the carrier
     // dial one, so after a REFER they report whether the destination answered.
@@ -605,11 +645,106 @@ export class LiveCallController {
     setTimeout(check, GOODBYE_POLL_MS);
   }
 
-  /** Ends the call once the receptionist has said goodbye. */
+  /** Ends the call once the receptionist has said goodbye. Nothing the caller says stops it. */
   endAfterGoodbye(): void {
     if (this.ending || this.finished) return;
     this.ending = true;
     this.afterSpeech(() => this.endSession());
+  }
+
+  /**
+   * Ends the call once the caller is done: GPT-Live handed the call to the
+   * agent, which ended it. The hangup waits until the request is answered,
+   * GPT-Live's goodbye after that answer has played (or it stayed silent for
+   * GOODBYE_START_MS), and both sides have been quiet for
+   * CALLER_DONE_QUIET_MS, or CALLER_DONE_MAX_MS at most. The caller speaking
+   * after that request, or another request, cancels it, and the call goes on.
+   * `onCancelled` runs then, or at once when the call can't end this way.
+   */
+  endWhenCallerDone(onCancelled?: () => void): void {
+    if (this.ending || this.finished || this.pendingHangup) return;
+    const answering = this.answering;
+    const afterMs = answering?.offsetMs ?? this.timelineNow();
+    // A newer request, a transfer, or the caller already speaking again means the call isn't over.
+    this.hangupCancelled = (answering !== undefined && answering.revision !== this.latestRevision) || this.transfer !== undefined || this.lastCallerStartMs > afterMs;
+    if (this.hangupCancelled) {
+      onCancelled?.();
+      return;
+    }
+    const hangup: PendingHangup = { afterMs, requestedAt: performance.now(), ...(onCancelled ? { onCancelled } : {}) };
+    this.pendingHangup = hangup;
+    setTimeout(() => this.hangUpWhenQuiet(hangup), GOODBYE_POLL_MS);
+  }
+
+  private hangUpWhenQuiet(hangup: PendingHangup): void {
+    if (this.pendingHangup !== hangup) return;
+    // A wrap-up or a non-cancellable end took the call over.
+    if (this.ending || this.finished) {
+      this.pendingHangup = undefined;
+      return;
+    }
+    if (this.transfer) {
+      this.cancelHangup();
+      return;
+    }
+    const now = performance.now();
+    if (hangup.callerSpoke) {
+      if (!hangup.checking && now - this.lastCallerAt >= CALLER_CHECK_QUIET_MS) this.checkCallerDone(hangup);
+      setTimeout(() => this.hangUpWhenQuiet(hangup), GOODBYE_POLL_MS);
+      return;
+    }
+    const quietSince = Math.max(this.playbackEndsAt(), this.lastSpeechAt, this.lastCallerAt);
+    // The goodbye follows the result that ended the call, unless GPT-Live stays silent.
+    const answeredAt = Math.max(this.lastAnswerSentAt ?? 0, hangup.requestedAt);
+    const saidGoodbye = this.lastSpeechAt >= answeredAt || now - answeredAt > GOODBYE_START_MS;
+    const done = this.runningDelegations === 0 && saidGoodbye && now - quietSince >= CALLER_DONE_QUIET_MS;
+    if (!done && now - Math.max(hangup.requestedAt, this.lastCallerAt) < CALLER_DONE_MAX_MS) {
+      setTimeout(() => this.hangUpWhenQuiet(hangup), GOODBYE_POLL_MS);
+      return;
+    }
+    this.pendingHangup = undefined;
+    this.ending = true;
+    this.endSession();
+  }
+
+  // The caller kept the call going, so the pending hangup is off.
+  private cancelHangup(): void {
+    const hangup = this.pendingHangup;
+    if (!hangup) return;
+    this.pendingHangup = undefined;
+    this.hangupCancelled = true;
+    hangup.onCancelled?.();
+  }
+
+  // The caller said something. Words after the request that ended the call
+  // hold the hangup for a check, or cancel it when there's no check.
+  private heardCaller(startMs: number): void {
+    this.lastCallerAt = performance.now();
+    this.lastCallerStartMs = Math.max(this.lastCallerStartMs, startMs);
+    const hangup = this.pendingHangup;
+    if (!hangup || startMs <= hangup.afterMs) return;
+    if (this.callerDone) hangup.callerSpoke = true;
+    else this.cancelHangup();
+  }
+
+  // Asks whether the caller's words after the request that ended the call
+  // only say goodbye. If so, the hangup goes ahead; otherwise, or when the
+  // check fails, the call goes on.
+  private checkCallerDone(hangup: PendingHangup): void {
+    hangup.checking = true;
+    const heard = this.lastCallerStartMs;
+    void this.callerDone!(this.conversationText(), this.abort.signal).catch(() => false).then((done) => {
+      if (this.pendingHangup !== hangup) return;
+      hangup.checking = false;
+      // The caller said more while the check ran, so it runs again on their newest words.
+      if (this.lastCallerStartMs > heard) return;
+      if (!done) {
+        this.cancelHangup();
+        return;
+      }
+      hangup.callerSpoke = false;
+      hangup.afterMs = heard;
+    });
   }
 
   /**
@@ -720,7 +855,7 @@ export class LiveCallController {
     }
   }
 
-  private appendTranscript(role: Turn["role"], delta: string, endMs: number): void {
+  private appendTranscript(role: Turn["role"], delta: string, endMs: number, startMs?: number): void {
     this.resetSilenceTimer();
     const last = this.turns.at(-1);
     if (last?.role === role) {
@@ -731,6 +866,7 @@ export class LiveCallController {
       this.emitFinishedTurns(false);
     }
     if (role !== "caller") return;
+    if (delta.trim()) this.heardCaller(startMs ?? endMs);
     this.transcriptWaiters = this.transcriptWaiters.filter((waiter) => {
       if (endMs < waiter.offsetMs) return true;
       waiter.resolve();
@@ -758,7 +894,7 @@ export class LiveCallController {
   private delegationPrompt(): string {
     // The spoken transcript can lag or omit earlier answers, so list them
     // explicitly; otherwise the agent re-answers requests it already handled.
-    const earlier = this.delegations.filter((item) => !item.failed && !item.superseded).map((item) => `- ${item.answer}`);
+    const earlier = this.delegations.filter((item) => !item.failed && !item.superseded && !item.endedCall).map((item) => `- ${item.answer}`);
     return [
       `Conversation so far:\n${this.conversationText()}`,
       // The delegation event carries no request text, so a late attach leaves
@@ -791,7 +927,7 @@ export class LiveCallController {
     // A step that only called direct-answer tools is the last one; its result follows at once.
     if (step.toolCalls.every((call) => DIRECT_ANSWER_TOOLS.includes(call.toolName))) return;
     const done = step.toolResults.map((result) => `${PROGRESS[result.toolName] ?? `ran ${result.toolName}`}${succeeded(result.output) ? "" : " (it didn't go through)"}`);
-    const changed = steps.some((item) => item.toolResults.some((result) => ACTION_TOOLS.has(result.toolName) && result.toolName !== "endCall" && succeeded(result.output)));
+    const changed = steps.some((item) => item.toolResults.some((result) => ACTION_TOOLS.has(result.toolName) && succeeded(result.output)));
     const content = `Progress on the caller's request: ${done.join("; ") || "working on it"}. ${changed ? "" : "Nothing has been booked, changed or saved yet."}`.trim();
     this.send({ type: "session.thinking.append", delegation_id: delegationId, content: fitToAppend(content), event_id: `progress_${delegationId}_${steps.length}` }, { kind: "update", delegationId });
   }
@@ -800,6 +936,8 @@ export class LiveCallController {
     const delegationId = event.delegation.id;
     const revision = ++this.latestRevision;
     const receivedAt = performance.now();
+    // Another request means the caller isn't done after all.
+    this.cancelHangup();
     this.runningDelegations += 1;
     this.resetSilenceTimer();
     const previous = this.delegationQueue;
@@ -818,14 +956,16 @@ export class LiveCallController {
       let modelSteps = 0;
       let directAnswer = false;
       let failed = false;
+      let ended = false;
       let usage: LanguageModelUsage | undefined;
       const stepMs: number[] = [];
       const steps: StepLike[] = [];
       let toolMs = 0;
       let stepStartedAt = queueReadyAt;
-      // A slow answer gets a spoken update, so the caller knows it's still coming.
+      // A slow answer gets a spoken update, so the caller knows it's still
+      // coming. Once the call is ending, the goodbye was the last word.
       const stillWorking = setTimeout(() => {
-        if (revision === this.latestRevision) this.send({ type: "session.commentary.append", delegation_id: delegationId, content: STILL_WORKING, event_id: `working_${delegationId}` }, { kind: "update", delegationId });
+        if (revision === this.latestRevision && !this.ending && !this.pendingHangup && !endsCall(steps)) this.send({ type: "session.commentary.append", delegation_id: delegationId, content: STILL_WORKING, event_id: `working_${delegationId}` }, { kind: "update", delegationId });
       }, STILL_WORKING_MS);
       const delegationAbort = new AbortController();
       const abortOnCallEnd = () => delegationAbort.abort();
@@ -839,6 +979,8 @@ export class LiveCallController {
       });
       try {
         const { agent } = await this.ready;
+        // endWhenCallerDone() reads this when the agent ends the call.
+        this.answering = { offsetMs: event.offset_ms, revision };
         const result = await Promise.race([timedOut, agent.generate({
           prompt: this.delegationPrompt(),
           abortSignal: delegationAbort.signal,
@@ -854,6 +996,7 @@ export class LiveCallController {
         tools = result.steps.flatMap((step) => step.toolCalls.map((call) => call.toolName));
         modelSteps = result.steps.length;
         usage = result.totalUsage;
+        ended = endsCall(result.steps as unknown as StepLike[]);
         this.rememberResults(result.steps as unknown as StepLike[]);
         // When the loop stopped on a tool GPT-Live can speak from directly, the
         // last step has no text of its own.
@@ -864,9 +1007,11 @@ export class LiveCallController {
         else failed = true;
       } catch (error) {
         failed = true;
+        ended = endsCall(steps);
         if (this.abort.signal.aborted) return;
         console.error(`[live] ${this.options.sessionId} delegation ${delegationId} failed`, error instanceof Error ? error.message : error);
       } finally {
+        this.answering = undefined;
         clearTimeout(stillWorking);
         clearTimeout(timeoutTimer);
         this.abort.signal.removeEventListener("abort", abortOnCallEnd);
@@ -878,12 +1023,16 @@ export class LiveCallController {
       // request's backend sees it.
       const superseded = revision < this.latestRevision;
       if (superseded) {
-        if (!failed) this.unheardResults.push(answer);
+        if (!failed && !ended) this.unheardResults.push(answer);
         this.send({ type: "session.thinking.append", delegation_id: delegationId, content: fitToAppend(`The caller made a newer request before this one finished, so this result is background only: ${answer}`), event_id: `answer_${delegationId}` }, { kind: "update", delegationId });
+      } else if (ended && (this.hangupCancelled || this.pendingHangup?.callerSpoke) && !this.ending) {
+        // The caller spoke again, so GPT-Live replies to them: a goodbye now could cut them off.
+        this.send({ type: "session.thinking.append", delegation_id: delegationId, content: CALLER_SPOKE_AGAIN, event_id: `answer_${delegationId}` }, { kind: "update", delegationId });
       } else {
         this.unheardResults = [];
         this.lastAnswerSentAt = performance.now();
-        this.send({ type: "session.commentary.append", delegation_id: delegationId, content: answer, event_id: `answer_${delegationId}` }, { kind: "answer", delegationId });
+        // GPT-Live says its goodbye when it hears the call is ending, and the hangup waits for it.
+        this.send({ type: "session.commentary.append", delegation_id: delegationId, content: ended && failed ? CALL_ENDING : answer, event_id: `answer_${delegationId}` }, { kind: "answer", delegationId });
       }
 
       const timing: DelegationTiming = {
@@ -901,6 +1050,7 @@ export class LiveCallController {
         answer,
         failed,
         superseded,
+        endedCall: ended,
         ...(usage ? { usage } : {}),
       };
       this.delegations.push(timing);

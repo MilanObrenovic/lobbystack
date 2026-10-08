@@ -38,7 +38,32 @@ describe("buildLiveInstructions", () => {
   it("keeps GPT-Live's waiting line neutral until the backend confirms an action", () => {
     const instructions = buildLiveInstructions(demoSnapshot, callStart);
     expect(instructions).toContain("say one short neutral line such as \"One moment.\"");
-    expect(instructions).toContain("Don't say you've booked, saved, sent or confirmed anything until the backend's result says it's done.");
+    expect(instructions).toContain("Don't say you've booked, cancelled, saved, sent or confirmed anything until the backend's result says it's done.");
+  });
+
+  // Only the backend can hang up. GPT-Live rarely delegated a goodbye while
+  // another rule said not to delegate what it could answer itself, or while it
+  // could say the goodbye before the result.
+  it("sends every ending to the backend and keeps the goodbye for the result, with no rule saying otherwise", () => {
+    const instructions = buildLiveInstructions(demoSnapshot, callStart);
+    const [delegate, rest] = instructions.split("Do not delegate to the backend when:\n");
+    const doNotDelegate = rest!.split("\n").filter((line, index, lines) => lines.slice(0, index + 1).every((item) => item.startsWith("- ")));
+    expect(doNotDelegate).toHaveLength(3);
+    expect(doNotDelegate.join("\n")).not.toMatch(/goodbye|done|end the call|ends on its own/i);
+    expect(rest).toContain(`${doNotDelegate.at(-1)}\nEnding the call always goes to the backend, even though you could answer a goodbye yourself.`);
+    expect(delegate).toContain("- The caller says goodbye or is done (\"that's it\", \"nothing else\"), so the backend can end the call.");
+    expect(rest).toContain("While you wait, say one short neutral line such as \"One moment.\" When the caller is done, say nothing while you wait.");
+    expect(instructions).not.toMatch(/goodbye, then delegate|goodbye instead/);
+    expect(delegate).toContain("- The call is spam or the caller is abusive, so the backend can end the call.");
+    expect(delegate).toContain("- Ending the call: hang up when the caller is done, or on a spam or abusive call.");
+  });
+
+  // The result that ends the call is spoken, so the goodbye comes with it, once.
+  it("says one goodbye once a backend result says the call is ending", () => {
+    const instructions = buildLiveInstructions(demoSnapshot, callStart);
+    expect(instructions).toContain("When one arrives, answer the caller from it, then offer the next step, unless it says the call is ending.");
+    expect(instructions).toContain("When a backend result says the call is ending, say one short goodbye, then stop talking. If the caller speaks again before the call ends, reply as usual. If they ask for more, help them, and when they're done, delegate again.");
+    expect(instructions).not.toContain("say a short goodbye.");
   });
 
   it("has the lines OpenAI's template requires, names the call's language, and the greeting to open with once told to start", () => {
@@ -138,6 +163,15 @@ describe("buildAgentInstructions", () => {
     expect(buildAgentInstructions(demoSnapshot, "web_chat")).not.toContain("Transcripts can contain mistakes");
   });
 
+  // GPT-Live says goodbye when it hears the call is ending, so a reply would be a second one.
+  it("has the voice agent end the call without a reply when the caller is done, where it can hang up", () => {
+    const line = "When the request is that the caller is done or is saying goodbye, end the call with endCall and the reason caller_finished, and don't write a reply: the voice model says goodbye when it hears the call is ending. For a spam or abusive call, use the reason spam or abuse.";
+    expect(buildAgentInstructions(demoSnapshot, "voice", { endsCalls: true })).toContain(line);
+    expect(buildAgentInstructions(demoSnapshot, "web_voice", { endsCalls: true })).toContain(line);
+    expect(buildAgentInstructions(demoSnapshot, "voice")).not.toContain("endCall");
+    expect(buildAgentInstructions(demoSnapshot, "web_chat", { endsCalls: true })).not.toContain("endCall");
+  });
+
   it("tells the agent not to ask for a number the call already carries", () => {
     expect(buildAgentInstructions(demoSnapshot, "voice", { callerPhone: "+14165550134" })).toContain("You already have the caller's phone number from the call. Don't ask for it");
     expect(buildAgentInstructions(demoSnapshot, "web_voice")).not.toContain("You already have the caller's phone number");
@@ -145,10 +179,79 @@ describe("buildAgentInstructions", () => {
 
   it("offers a text confirmation only when the business can text the caller", () => {
     const tollFree = { ...demoSnapshot, contactChannels: { smsNumber: "+18445550100" } };
-    expect(buildAgentInstructions(tollFree, "voice", { callerPhone: "+14165550134" })).toContain("Can I text this number with your appointment confirmation and a reminder?");
+    expect(buildAgentInstructions(tollFree, "voice", { callerPhone: "+14165550134" })).toContain("Can I text this number with your appointment confirmation and reminder? Message and data rates may apply. Reply STOP to opt out or HELP for help.");
     const abroad = buildAgentInstructions(tollFree, "voice", { callerPhone: "+381695021111" });
     expect(abroad).toContain("This business can't text the caller's number");
     expect(abroad).not.toContain("Can I text this number");
+  });
+});
+
+describe("texts about the caller's appointments", () => {
+  const phone = { callerPhone: "+14165550134" };
+  // A business without an SMS number can't text anyone.
+  const noSms = { ...demoSnapshot, contactChannels: {} };
+
+  it("has the agent follow the answer on file when booking and ask only when it's not_asked", () => {
+    const instructions = buildAgentInstructions(demoSnapshot, "voice", phone);
+    expect(instructions).toContain("findAvailability returns smsConsentOnFile");
+    expect(instructions).toContain("When it's not_asked, or missing, ask together with the time you offer, in the language of the call: \"Can I text this number with your appointment confirmation and reminder? Message and data rates may apply. Reply STOP to opt out or HELP for help.\" Pass their answer to bookAppointment as smsConsent.");
+    expect(instructions).toContain("When it's subscribed, don't ask: tell the caller they'll get a confirmation text.");
+    expect(instructions).toContain("When it's declined or opted_out, don't ask and don't mention texts. Pass smsConsent as not_asked whenever you didn't ask.");
+  });
+
+  it("has the agent ask about a cancellation text only when the caller hasn't answered before", () => {
+    const instructions = buildAgentInstructions(demoSnapshot, "voice", phone);
+    expect(instructions).toContain("Once verifyAppointmentForChange or verifyAppointmentChangeOtp verifies a cancellation, its result has smsConsentOnFile.");
+    // The same disclosure as the booking question, as the consent proof page documents it.
+    expect(instructions).toContain("When it's not_asked, ask once, together with the final confirmation and in the language of the call: \"Can I text this number to confirm the cancellation? Message and data rates may apply. Reply STOP to opt out or HELP for help.\" Pass their answer to cancelAppointment as smsConsent.");
+    expect(instructions).toContain("When it's subscribed, don't ask: tell the caller they'll get a text confirming the cancellation.");
+    // Request-only booking still cancels directly, so it gets the same rule.
+    expect(buildAgentInstructions({ ...demoSnapshot, bookingMode: "request" }, "voice", phone)).toContain("Can I text this number to confirm the cancellation?");
+  });
+
+  it("never offers a text when the business can't text the caller", () => {
+    for (const instructions of [buildAgentInstructions(noSms, "voice", phone), buildAgentInstructions({ ...demoSnapshot, contactChannels: { smsNumber: "+18445550100" } }, "voice", { callerPhone: "+381695021111" })]) {
+      expect(instructions).not.toContain("smsConsentOnFile");
+      expect(instructions).toContain("This business can't text the caller's number, so don't offer a text confirmation or reminder. Pass smsConsent as not_asked.");
+      expect(instructions).toContain("This business can't text the caller's number, so don't offer or mention a text about a cancellation.");
+    }
+  });
+
+  it("leaves texts out where the agent can't cancel or the caller has no trusted number", () => {
+    for (const instructions of [buildAgentInstructions(demoSnapshot, "web_voice"), buildAgentInstructions(demoSnapshot, "web_chat"), buildAgentInstructions(demoSnapshot, "voice", { ...phone, intakeOnly: true })]) {
+      expect(instructions).not.toContain("smsConsentOnFile");
+      expect(instructions).not.toContain("text about a cancellation");
+    }
+  });
+});
+
+describe("cancellations without a trusted caller number", () => {
+  it("tells the agent to say it can't cancel here and to pass the request to the team", () => {
+    const browser = buildAgentInstructions(demoSnapshot, "web_voice");
+    expect(browser).toContain("You can't cancel appointments on this call. When the caller asks to cancel one, tell them that plainly and that the team will take care of the cancellation.");
+    expect(browser).toContain("save the request with requestAppointmentCancellation");
+    expect(browser).toContain("Never say or suggest the appointment is already cancelled.");
+    expect(buildAgentInstructions(demoSnapshot, "web_chat")).toContain("You can't cancel appointments in this chat.");
+  });
+
+  it("keeps direct cancellation on phone calls from a trusted number, with a request when it can't find or verify the appointment", () => {
+    const phone = buildAgentInstructions(demoSnapshot, "voice", { callerPhone: "+14165550134" });
+    expect(phone).not.toContain("You can't cancel appointments");
+    // The name isn't part of verification, and a missing time or service gets asked for and retried before the fallback.
+    expect(phone).toContain("To verify an appointment the caller wants to change, you need its time or its service, not their name.");
+    expect(phone).toContain("When verification fails because the caller hasn't said either yet, ask for it and verify again.");
+    expect(phone).toContain("or the caller isn't calling from the number it was booked with, don't take a message");
+    expect(phone).toContain("save the request with requestAppointmentCancellation");
+    for (const instructions of [buildAgentInstructions({ ...demoSnapshot, bookingMode: "off" }, "web_voice"), buildAgentInstructions(demoSnapshot, "voice", { callerPhone: "+14165550134", intakeOnly: true })]) {
+      expect(instructions).not.toContain("requestAppointmentCancellation");
+    }
+  });
+
+  it("tells GPT-Live a cancellation the backend can't make goes to the team and stays booked", () => {
+    expect(buildLiveInstructions(demoSnapshot, callStart)).toContain("When it can't find or verify the appointment, as on a call from another number, the backend passes a cancellation request to the team, and the appointment stays booked until the team cancels it.");
+    const operatorOnly = buildLiveInstructions({ ...demoSnapshot, appointmentChangePolicy: { enabled: true, allowCancel: true, allowReschedule: true, verificationMode: "operator_only" } }, callStart);
+    expect(operatorOnly).toContain("- Appointment cancellations: the backend passes a cancellation request to the team.");
+    expect(operatorOnly).not.toContain("reschedule or cancel an appointment");
   });
 });
 
