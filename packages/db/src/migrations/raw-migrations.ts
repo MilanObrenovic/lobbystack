@@ -85,6 +85,7 @@ export const SCHEMA_MIGRATIONS = [
   "0077_service_deletion.sql",
   "0078_shared_sms_sender_opt_out.sql",
   "0079_staff_employees.sql",
+  "0080_list_business_members.sql",
 ] as const;
 
 const CONCURRENT_INDEX_DIRECTIVE = /^-- lobbystack:concurrent-index ([a-z][a-z0-9_]*)$/m;

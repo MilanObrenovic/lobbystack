@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { businessInvitations, businessMemberships, users } from "@lobbystack/db";
+import { businessInvitations } from "@lobbystack/db";
 import { inviteMember, removeMember, revokeInvitation, updateMemberRole } from "@lobbystack/domain";
 import { asApiResponse, businessIdFromRequest, jsonError, readJson, requireApiSession, withOperatorTransaction } from "@/lib/api-helpers";
 import { createDomainContext } from "@/lib/domain-context";
@@ -15,7 +15,9 @@ export async function GET(request: Request) {
   try {
     return NextResponse.json(await withOperatorTransaction(request, async ({ businessId, tx }) => {
       const [rows, invitations] = await Promise.all([
-        tx.select({ membershipId: businessMemberships.id, userId: users.id, name: users.name, email: users.email, role: businessMemberships.role, status: businessMemberships.status, joinedAt: businessMemberships.createdAt }).from(businessMemberships).innerJoin(users, eq(users.id, businessMemberships.userId)).where(eq(businessMemberships.businessId, businessId)),
+        // users_self_access hides other members' users rows from this role, so read them through the function.
+        tx.execute<{ membership_id: string; user_id: string; name: string | null; email: string; role: string; status: string; joined_at: Date }>(sql`select membership_id, user_id, name, email, role, status, joined_at from app.list_business_members(${businessId}::uuid)`)
+          .then((result) => result.rows.map((row) => ({ membershipId: row.membership_id, userId: row.user_id, name: row.name, email: row.email, role: row.role, status: row.status, joinedAt: row.joined_at }))),
         tx.select({ invitationId: businessInvitations.id, email: businessInvitations.email, role: businessInvitations.role, status: businessInvitations.status, expiresAt: businessInvitations.expiresAt, invitedAt: businessInvitations.createdAt }).from(businessInvitations).where(eq(businessInvitations.businessId, businessId)),
       ]);
       return { members: rows, invitations };

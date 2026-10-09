@@ -54,7 +54,12 @@ export function AcceptInviteSurface() {
     setErrorMessage(null);
     try {
       const response = await fetch("/api/team/accept", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null) as { code?: string } | null;
+        setErrorMessage(failure?.code === "invitation_email_mismatch" ? t("acceptInvite.wrongAccount", { email: invitation?.email ?? "" }) : t("acceptInvite.failed"));
+        setIsSubmitting(false);
+        return;
+      }
       toast.success(t("acceptInvite.success", { businessName: invitation?.businessName ?? t("acceptInvite.workspaceFallback") }));
       router.replace("/settings/team");
       router.refresh();

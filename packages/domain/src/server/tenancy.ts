@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
 import { enqueueOutbox, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
 import { businessInvitations, businessMemberships, businesses, receptionistProfiles, staff, users } from "@lobbystack/db";
@@ -232,7 +232,7 @@ export async function inviteMember(
 
 export async function acceptInvitation(
   context: DomainContext,
-  input: { userId: string; tokenHash: string },
+  input: { userId: string; email: string; tokenHash: string },
 ): Promise<{ businessId: string; role: string }> {
   const resolved = await context.db.execute<{ business_id: string }>(sql`select app.resolve_business_by_invitation(${input.tokenHash}) as business_id`);
   const businessId = resolved.rows[0]?.business_id;
@@ -245,6 +245,10 @@ export async function acceptInvitation(
     if (!invitation || invitation.expiresAt <= new Date()) {
       throw new Error("Invitation is invalid or expired.");
     }
+    // The link works only for the invited address, so a member who opens it can't take it or lose their role.
+    if (normalizeAuthEmail(input.email) !== invitation.normalizedEmail) {
+      throw Object.assign(new Error("This invitation was sent to a different email address."), { status: 403, code: "invitation_email_mismatch" });
+    }
     await tx.insert(businessMemberships).values({
       businessId: invitation.businessId,
       userId: input.userId,
@@ -253,9 +257,12 @@ export async function acceptInvitation(
     }).onConflictDoUpdate({
       target: [businessMemberships.businessId, businessMemberships.userId],
       set: { role: invitation.role, status: "active", updatedAt: new Date() },
+      // An active member keeps their role; only a removed member is brought back with the invited one.
+      setWhere: ne(businessMemberships.status, "active"),
     });
+    const [membership] = await tx.select({ role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.businessId, invitation.businessId), eq(businessMemberships.userId, input.userId))).limit(1);
     await tx.update(businessInvitations).set({ status: "accepted", acceptedByUserId: input.userId, acceptedAt: new Date(), updatedAt: new Date() }).where(eq(businessInvitations.id, invitation.id));
-    return { businessId: invitation.businessId, role: invitation.role };
+    return { businessId: invitation.businessId, role: membership?.role ?? invitation.role };
   });
 }
 
@@ -301,10 +308,10 @@ export async function removeMember(
   await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
     const membership = (await tx.select({ role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.id, input.membershipId), eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.status, "active"))).limit(1))[0];
-    if (!membership) throw new Error("Membership not found.");
+    if (!membership) throw Object.assign(new Error("Membership not found."), { status: 404, code: "not_found" });
     if (membership.role === "business_owner") {
       const owners = await tx.select({ id: businessMemberships.id }).from(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.role, "business_owner"), eq(businessMemberships.status, "active")));
-      if (owners.length <= 1) throw new Error("The final owner cannot be removed.");
+      if (owners.length <= 1) throw Object.assign(new Error("The final owner cannot be removed."), { status: 409, code: "final_owner" });
     }
     await tx.update(businessMemberships).set({ status: "removed", updatedAt: new Date() }).where(and(eq(businessMemberships.id, input.membershipId), eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.status, "active")));
   });
