@@ -199,14 +199,23 @@ describe("employees", () => {
 
   it("tells GPT-Live to ask for an employee preference before delegating a booking", () => {
     const instructions = buildLiveInstructions(withEmployees, callStart);
-    expect(instructions).toContain("Employees callers can book with: Ana Petrović, Marko Jovanović.");
+    expect(instructions).toContain("Employees: Ana Petrović, Marko Jovanović.");
     expect(instructions).toContain("ask whether they'd like a specific employee before you delegate");
+  });
+
+  it("answers who works here from the employee list instead of searching or delegating, even when the business takes no bookings", () => {
+    for (const bookingMode of ["instant", "off"] as const) {
+      expect(buildAgentInstructions({ ...withEmployees, bookingMode }, "web_chat")).toContain("Employees: Ana Petrović, Marko Jovanović. Answer questions about who works here from this list; don't search for it.");
+      expect(buildLiveInstructions({ ...withEmployees, bookingMode }, callStart)).toContain("Employees: Ana Petrović, Marko Jovanović. Answer questions about who works here from this list yourself, without delegating.");
+    }
+    expect(buildAgentInstructions(demoSnapshot, "web_chat")).not.toContain("who works here");
+    expect(buildLiveInstructions(demoSnapshot, callStart)).not.toContain("who works here");
   });
 
   it("leaves employee guidance out when the business has none, books nothing, or runs a demo", () => {
     expect(buildAgentInstructions(demoSnapshot, "web_chat")).not.toContain("specific employee");
     expect(buildAgentInstructions({ ...withEmployees, bookingMode: "off" }, "web_chat")).not.toContain("specific employee");
-    expect(buildLiveInstructions({ ...withEmployees, bookingMode: "off" }, callStart)).not.toContain("Employees callers can book with");
+    expect(buildLiveInstructions({ ...withEmployees, bookingMode: "off" }, callStart)).not.toContain("specific employee");
     expect(buildAgentInstructions(withEmployees, "web_chat", { intakeOnly: true })).not.toContain("specific employee");
   });
 

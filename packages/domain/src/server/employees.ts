@@ -1,18 +1,23 @@
-import { and, asc, count, desc, eq, ilike, ne, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, ne, or, type SQL } from "drizzle-orm";
 
-import { businesses, employees, enqueueOutbox, staff, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
+import { businesses, enqueueOutbox, staff, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
 
 import { requireBusinessAdmin, requireBusinessMembership } from "../authz";
 import type { DomainContext } from "./context";
 
-const employeeColumns = { id: employees.id, name: employees.name, phone: employees.phone, createdAt: employees.createdAt, updatedAt: employees.updatedAt };
+// Employees are the staff members a business lists by name. Deleted ones stay as inactive staff for their past appointments.
+const employeeColumns = { id: staff.id, name: staff.name, phone: staff.transferNumber, createdAt: staff.createdAt, updatedAt: staff.updatedAt };
+
+function activeEmployees(businessId: string, ...conditions: SQL[]) {
+  return and(eq(staff.businessId, businessId), eq(staff.isEmployee, true), eq(staff.active, true), ...conditions);
+}
 
 async function refreshSnapshot(tx: DatabaseTransaction, businessId: string, employeeId: string, reason: string) {
   await enqueueOutbox(tx, { topic: "snapshot.refresh", businessId, aggregateType: "employee", aggregateId: employeeId, dedupeKey: `employee:${employeeId}:snapshot:${Date.now()}`, payload: { businessId, reason } });
 }
 
 async function assertPhoneAvailable(tx: DatabaseTransaction, input: { businessId: string; phone: string; employeeId?: string }) {
-  const duplicate = await tx.select({ id: employees.id }).from(employees).where(and(eq(employees.businessId, input.businessId), eq(employees.phone, input.phone), ...(input.employeeId ? [ne(employees.id, input.employeeId)] : []))).limit(1);
+  const duplicate = await tx.select({ id: staff.id }).from(staff).where(activeEmployees(input.businessId, eq(staff.transferNumber, input.phone), ...(input.employeeId ? [ne(staff.id, input.employeeId)] : []))).limit(1);
   if (duplicate.length) throw Object.assign(new Error("An employee with this phone number already exists."), { status: 409, code: "employee_phone_exists" });
 }
 
@@ -31,17 +36,17 @@ export async function listEmployees(
     const limit = Math.min(Math.max(Math.trunc(input.limit ?? 50), 1), 100);
     const offset = Math.max(Math.trunc(input.offset ?? 0), 0);
     const search = input.search?.trim();
-    const filter = and(eq(employees.businessId, input.businessId), ...(search ? [or(ilike(employees.name, `%${search}%`), ilike(employees.phone, `%${search.replace(/[\s()-]/g, "")}%`))!] : []));
+    const filter = activeEmployees(input.businessId, ...(search ? [or(ilike(staff.name, `%${search}%`), ilike(staff.transferNumber, `%${search.replace(/[\s()-]/g, "")}%`))!] : []));
     const [rows, total] = await Promise.all([
       tx.select(employeeColumns)
-        .from(employees).where(filter).orderBy(desc(employees.createdAt), asc(employees.id)).limit(limit + 1).offset(offset),
-      tx.select({ count: count() }).from(employees).where(filter),
+        .from(staff).where(filter).orderBy(desc(staff.createdAt), asc(staff.id)).limit(limit + 1).offset(offset),
+      tx.select({ count: count() }).from(staff).where(filter),
     ]);
     return { employees: rows.slice(0, limit), pagination: { limit, offset, total: Number(total[0]?.count ?? 0), hasNext: rows.length > limit } };
   });
 }
 
-/** Adds an employee and the staff member that bookings are assigned to. `phone` must be E.164. */
+/** Adds an employee: a staff member bookings can be assigned to. `phone` must be E.164. */
 export async function createEmployee(
   context: DomainContext,
   input: { userId: string; businessId: string; name: string; phone: string },
@@ -52,9 +57,7 @@ export async function createEmployee(
     await assertPhoneAvailable(tx, input);
     const [business] = await tx.select({ timezone: businesses.timezone }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1);
     if (!business) throw Object.assign(new Error("Business not found."), { status: 404 });
-    const [member] = await tx.insert(staff).values({ businessId: input.businessId, name, timezone: business.timezone }).returning({ id: staff.id });
-    if (!member) throw new Error("Staff member could not be created.");
-    const [employee] = await tx.insert(employees).values({ businessId: input.businessId, name, phone: input.phone, staffId: member.id }).returning(employeeColumns);
+    const [employee] = await tx.insert(staff).values({ businessId: input.businessId, name, timezone: business.timezone, transferNumber: input.phone, isEmployee: true }).returning(employeeColumns);
     if (!employee) throw new Error("Employee could not be created.");
     await refreshSnapshot(tx, input.businessId, employee.id, "employee_created");
     return employee;
@@ -69,39 +72,34 @@ export async function updateEmployee(
     await requireBusinessAdmin(tx, input);
     const name = requireName(input.name);
     await assertPhoneAvailable(tx, input);
-    const now = new Date();
-    const [employee] = await tx.update(employees).set({ name, phone: input.phone, updatedAt: now })
-      .where(and(eq(employees.id, input.employeeId), eq(employees.businessId, input.businessId)))
-      .returning({ ...employeeColumns, staffId: employees.staffId });
+    const [employee] = await tx.update(staff).set({ name, transferNumber: input.phone, updatedAt: new Date() })
+      .where(activeEmployees(input.businessId, eq(staff.id, input.employeeId)))
+      .returning(employeeColumns);
     if (!employee) return null;
-    const { staffId, ...result } = employee;
-    if (staffId) await tx.update(staff).set({ name, updatedAt: now }).where(and(eq(staff.id, staffId), eq(staff.businessId, input.businessId)));
     await refreshSnapshot(tx, input.businessId, employee.id, "employee_updated");
-    return result;
+    return employee;
   });
 }
 
-/** Removes the employee. Its staff member is deactivated, not deleted, so past appointments keep their assignee. */
+/** Deactivates the employee's staff member rather than deleting it, so their appointments keep their assignee. */
 export async function deleteEmployee(
   context: DomainContext,
   input: { userId: string; businessId: string; employeeId: string },
 ): Promise<boolean> {
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
-    const [deleted] = await tx.delete(employees).where(and(eq(employees.id, input.employeeId), eq(employees.businessId, input.businessId))).returning({ id: employees.id, staffId: employees.staffId });
+    const [deleted] = await tx.update(staff).set({ active: false, updatedAt: new Date() }).where(activeEmployees(input.businessId, eq(staff.id, input.employeeId))).returning({ id: staff.id });
     if (!deleted) return false;
-    if (deleted.staffId) await tx.update(staff).set({ active: false, updatedAt: new Date() }).where(and(eq(staff.id, deleted.staffId), eq(staff.businessId, input.businessId)));
     await refreshSnapshot(tx, input.businessId, deleted.id, "employee_deleted");
     return true;
   });
 }
 
-/** The business's bookable employees, with the staff member each one books under. */
+/** The business's active employees, oldest first. */
 export async function listBookableEmployees(tx: DatabaseTransaction, businessId: string) {
-  return await tx.select({ name: employees.name, staffId: staff.id }).from(employees)
-    .innerJoin(staff, and(eq(staff.id, employees.staffId), eq(staff.businessId, businessId), eq(staff.active, true)))
-    .where(eq(employees.businessId, businessId))
-    .orderBy(asc(employees.createdAt), asc(employees.id));
+  return await tx.select({ name: staff.name, staffId: staff.id }).from(staff)
+    .where(activeEmployees(businessId))
+    .orderBy(asc(staff.createdAt), asc(staff.id));
 }
 
 /** Matches a name the caller gave to one employee: an exact match, else a single partial match. */

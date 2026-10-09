@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, ilike, lt, ne, or } from "drizzle-orm";
 import { DateTime } from "luxon";
 
-import { appointments, contacts, employees, receptionistProfiles, services, withBusinessTransaction } from "@lobbystack/db";
+import { appointments, contacts, receptionistProfiles, services, staff, withBusinessTransaction } from "@lobbystack/db";
 import { normalizeAppointmentChangePolicy, type HoursWindow } from "@lobbystack/shared";
 import { getPostHogDistinctIdForBusinessSystem } from "@lobbystack/telemetry";
 
@@ -204,7 +204,7 @@ export async function bookForCaller(
     });
     await recordProductEventBestEffort(context, { name: "appointment.booked", businessId: input.businessId, distinctId, properties: { appointmentId: appointment.appointmentId, channel: input.channel, serviceId: service.id, sourceChannel: input.channel } });
     const employeeName = await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) =>
-      (await tx.select({ name: employees.name }).from(employees).where(and(eq(employees.businessId, input.businessId), eq(employees.staffId, appointment.staffId))).limit(1))[0]?.name);
+      (await tx.select({ name: staff.name }).from(staff).where(and(eq(staff.businessId, input.businessId), eq(staff.id, appointment.staffId), eq(staff.isEmployee, true))).limit(1))[0]?.name);
     return { ok: true as const, appointmentId: appointment.appointmentId, serviceName: service.name, startsAt: input.startsAt, ...(employeeName ? { employeeName } : {}) };
   } catch (error) {
     const reason = bookingFailureReason(error);

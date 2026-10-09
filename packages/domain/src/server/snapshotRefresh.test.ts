@@ -67,7 +67,6 @@ function makeTx(selectRows: Record<string, unknown>) {
         }
         return {
           where: () => whenable(),
-          innerJoin: () => ({ where: () => whenable() }),
         };
       },
     };
@@ -111,7 +110,7 @@ describe("refreshBusinessSnapshot write-through", () => {
     mocks.withBusinessTransaction.mockImplementation(async (_db, _ctx, callback) => callback(makeTx({
       businesses: [businessRow],
       receptionist_profiles: [profileRow],
-      employees: [{ name: "Ana Petrović", staffId: "staff-ana" }, { name: "Marko Jovanović", staffId: "staff-marko" }],
+      staff: [{ name: "Ana Petrović", staffId: "staff-ana" }, { name: "Marko Jovanović", staffId: "staff-marko" }],
     })));
     const cache = memoryCache();
     await refreshBusinessSnapshot({ db: {} as never, snapshotCache: cache }, { businessId });

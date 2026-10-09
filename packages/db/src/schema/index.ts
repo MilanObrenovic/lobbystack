@@ -223,10 +223,15 @@ export const staff = pgTable(
     timezone: varchar("timezone", { length: 80 }).notNull(),
     active: boolean("active").default(true).notNull(),
     transferNumber: text("transfer_number"),
+    // Listed on the Employees page. The default staff member that stands for the business is not one.
+    isEmployee: boolean("is_employee").default(false).notNull(),
     ...legacyId,
     ...timestamps,
   },
-  (table) => [index("staff_business_active_idx").on(table.businessId, table.active)],
+  (table) => [
+    index("staff_business_active_idx").on(table.businessId, table.active),
+    uniqueIndex("staff_employee_phone_unique").on(table.businessId, table.transferNumber).where(sql`${table.isEmployee} and ${table.active} and ${table.transferNumber} is not null`),
+  ],
 );
 
 export const services = pgTable(
@@ -370,19 +375,6 @@ export const contacts = pgTable(
     ...timestamps,
   },
   (table) => [uniqueIndex("contacts_business_phone_unique").on(table.businessId, table.phone).where(sql`${table.phone} is not null`), index("contacts_business_email_idx").on(table.businessId, table.email)],
-);
-
-export const employees = pgTable(
-  "employees",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    phone: varchar("phone", { length: 32 }).notNull(),
-    staffId: uuid("staff_id").references(() => staff.id, { onDelete: "set null" }),
-    ...timestamps,
-  },
-  (table) => [uniqueIndex("employees_business_phone_unique").on(table.businessId, table.phone), uniqueIndex("employees_staff_unique").on(table.staffId).where(sql`${table.staffId} is not null`), index("employees_business_created_idx").on(table.businessId, table.createdAt)],
 );
 
 export const widgetKeys = pgTable(

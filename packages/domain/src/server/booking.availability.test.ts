@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appointments, businesses, businessHours, calendarConnections, closures, contacts, employees, notifications, services, staff, staffServiceAssignments } from "@lobbystack/db";
+import { appointments, businesses, businessHours, calendarConnections, closures, contacts, notifications, services, staff, staffServiceAssignments } from "@lobbystack/db";
 
 const mocks = vi.hoisted(() => ({
   withBusinessTransaction: vi.fn(),
@@ -17,7 +17,6 @@ import { bookAppointment } from "./booking";
 
 type TransactionConfig = {
   staffRows?: unknown[];
-  employeeRows?: unknown[];
   assignments?: unknown[];
   assignmentsAfterLock?: unknown[];
   connections?: unknown[];
@@ -35,7 +34,6 @@ function createRecordingTransaction(config: TransactionConfig = {}) {
     if (table === services) return [{ id: "svc-1", name: "General Checkup", durationMinutes: 30 }];
     if (table === businesses) return [{ timezone: "UTC" }];
     if (table === staff) return config.staffRows ?? [{ id: "staff-1" }, { id: "staff-2" }, { id: "staff-3" }];
-    if (table === employees) return config.employeeRows ?? [];
     if (table === staffServiceAssignments) return executeCalls.length && config.assignmentsAfterLock
       ? config.assignmentsAfterLock
       : config.assignments ?? [];
@@ -105,17 +103,16 @@ describe("booking availability reference locking", () => {
     expect(recording.fromCounts.get(services)).toBe(4);
     expect(recording.fromCounts.get(businesses)).toBe(4);
     expect(recording.fromCounts.get(staff)).toBe(4);
-    expect(recording.fromCounts.get(employees)).toBe(4);
     expect(recording.fromCounts.get(staffServiceAssignments)).toBe(4);
     expect(recording.fromCounts.get(calendarConnections)).toBe(4);
     expect(recording.fromCounts.get(businessHours)).toBe(4);
     expect(recording.fromCounts.get(closures)).toBe(4);
     expect(recording.fromCounts.get(appointments)).toBe(3);
-    expect(recording.selectCount()).toBe(35);
+    expect(recording.selectCount()).toBe(31);
   });
 
   it("only considers employees once the business has added some, not the default staff member", async () => {
-    const recording = useTransaction({ hours: [], employeeRows: [{ staffId: "staff-2" }, { staffId: "staff-3" }] });
+    const recording = useTransaction({ hours: [], staffRows: [{ id: "staff-1", isEmployee: false }, { id: "staff-2", isEmployee: true }, { id: "staff-3", isEmployee: true }] });
 
     await expect(bookAppointment(context, input)).rejects.toThrow("No staff member is available for this service.");
 
