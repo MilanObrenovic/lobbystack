@@ -31,7 +31,7 @@ beforeEach(() => { vi.clearAllMocks(); });
 
 describe("booking with an employee", () => {
   it("looks up and books only the employee the caller asked for", async () => {
-    vi.mocked(resolveEmployee).mockResolvedValue({ ok: true, staffId: "staff-ana", name: "Ana Petrović" });
+    vi.mocked(resolveEmployee).mockResolvedValue({ ok: true, staffId: "staff-ana", name: "Ana Petrović", phone: null });
     vi.mocked(findOpenings).mockResolvedValueOnce({ ok: true, serviceName: "General Checkup", date: "2026-10-06", timezone: "America/Toronto", openings: [{ startsAt: "2026-10-06T14:00:00.000Z", displayTime: "Tuesday Oct 6, 10:00 AM" }] } as never);
     const { run } = tools();
     await expect(run("findAvailability", { serviceName: "General Checkup", date: "2026-10-06", employeeName: "ana" })).resolves.toMatchObject({ employeeName: "Ana Petrović" });
