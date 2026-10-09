@@ -129,7 +129,7 @@ export function LiveEmployeesSurface() {
       {businesses.isLoading || employees.isLoading ? <TableCardSkeleton columns={4} /> : (
         <>
           <TableCard>
-            <Table className="min-w-240 w-full table-fixed">
+            <Table className="min-w-[60rem] w-full table-fixed">
               <colgroup><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[56%]" /><col className={DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS} /></colgroup>
               <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead className={header.column.id === "added" || header.column.id === "actions" ? "text-right" : undefined} key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
               <TableBody>
