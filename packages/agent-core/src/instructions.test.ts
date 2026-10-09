@@ -225,6 +225,17 @@ describe("employees", () => {
   it("asks for a preferred employee in request mode and notes it on the request", () => {
     expect(buildAgentInstructions({ ...withEmployees, bookingMode: "request" }, "web_chat")).toContain("include their choice in the request's notes");
   });
+
+  it("transfers to an employee by name only on phone calls where the business allows transfers", () => {
+    const transfers = { ...withEmployees, transferPolicy: { mode: "on_request" as const, transferNumber: "+14165550199" } };
+    expect(buildAgentInstructions(transfers, "voice", { callerPhone: "+14165550134" })).toContain("pass that employee's name as employeeName to transferCall");
+    expect(buildLiveInstructions(transfers, callStart)).toContain("- Transfers: connect the caller to a person, or to an employee they ask for by name, when the business allows it.");
+    for (const transferPolicy of [{ mode: "on_request" as const }, { mode: "never" as const, transferNumber: "+14165550199" }]) {
+      expect(buildAgentInstructions({ ...withEmployees, transferPolicy }, "voice", { callerPhone: "+14165550134" })).not.toContain("employeeName to transferCall");
+      expect(buildLiveInstructions({ ...withEmployees, transferPolicy }, callStart)).not.toContain("- Transfers:");
+    }
+    expect(buildAgentInstructions(transfers, "web_chat")).not.toContain("employeeName to transferCall");
+  });
 });
 
 describe("texts about the caller's appointments", () => {

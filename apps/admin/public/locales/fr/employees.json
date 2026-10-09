@@ -34,6 +34,7 @@
       "phone": {
         "label": "Numéro de téléphone",
         "country": "Pays",
+        "hint": "Facultatif. Les appelants qui demandent cet employé sont transférés ici ; sinon, ils joignent le numéro de transfert de l'entreprise.",
         "invalid": "Saisissez un numéro de téléphone valide.",
         "exists": "Un employé avec ce numéro de téléphone existe déjà."
       }

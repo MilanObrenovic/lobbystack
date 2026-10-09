@@ -16,7 +16,8 @@ async function refreshSnapshot(tx: DatabaseTransaction, businessId: string, empl
   await enqueueOutbox(tx, { topic: "snapshot.refresh", businessId, aggregateType: "employee", aggregateId: employeeId, dedupeKey: `employee:${employeeId}:snapshot:${Date.now()}`, payload: { businessId, reason } });
 }
 
-async function assertPhoneAvailable(tx: DatabaseTransaction, input: { businessId: string; phone: string; employeeId?: string }) {
+async function assertPhoneAvailable(tx: DatabaseTransaction, input: { businessId: string; phone: string | null; employeeId?: string }) {
+  if (!input.phone) return;
   const duplicate = await tx.select({ id: staff.id }).from(staff).where(activeEmployees(input.businessId, eq(staff.transferNumber, input.phone), ...(input.employeeId ? [ne(staff.id, input.employeeId)] : []))).limit(1);
   if (duplicate.length) throw Object.assign(new Error("An employee with this phone number already exists."), { status: 409, code: "employee_phone_exists" });
 }
@@ -46,10 +47,10 @@ export async function listEmployees(
   });
 }
 
-/** Adds an employee: a staff member bookings can be assigned to. `phone` must be E.164. */
+/** Adds an employee: a staff member bookings can be assigned to. `phone` is E.164, or null when calls for them go to the business. */
 export async function createEmployee(
   context: DomainContext,
-  input: { userId: string; businessId: string; name: string; phone: string },
+  input: { userId: string; businessId: string; name: string; phone: string | null },
 ) {
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
@@ -66,7 +67,7 @@ export async function createEmployee(
 
 export async function updateEmployee(
   context: DomainContext,
-  input: { userId: string; businessId: string; employeeId: string; name: string; phone: string },
+  input: { userId: string; businessId: string; employeeId: string; name: string; phone: string | null },
 ) {
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
@@ -97,7 +98,7 @@ export async function deleteEmployee(
 
 /** The business's active employees, oldest first. */
 export async function listBookableEmployees(tx: DatabaseTransaction, businessId: string) {
-  return await tx.select({ name: staff.name, staffId: staff.id }).from(staff)
+  return await tx.select({ name: staff.name, staffId: staff.id, phone: staff.transferNumber }).from(staff)
     .where(activeEmployees(businessId))
     .orderBy(asc(staff.createdAt), asc(staff.id));
 }
@@ -109,6 +110,6 @@ export async function resolveEmployee(context: DomainContext, input: { businessI
   const exact = rows.filter((row) => row.name.trim().toLowerCase() === wanted);
   const matches = exact.length || !wanted ? exact : rows.filter((row) => row.name.toLowerCase().includes(wanted));
   return matches.length === 1
-    ? { ok: true as const, staffId: matches[0]!.staffId, name: matches[0]!.name }
+    ? { ok: true as const, staffId: matches[0]!.staffId, name: matches[0]!.name, phone: matches[0]!.phone }
     : { ok: false as const, employees: rows.map((row) => row.name) };
 }

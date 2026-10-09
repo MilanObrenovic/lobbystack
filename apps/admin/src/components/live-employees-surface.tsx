@@ -23,7 +23,7 @@ import { TableCardSkeleton } from "@/components/loading-skeletons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -34,7 +34,7 @@ import { formatPhoneNumberDisplay, getDefaultPhoneCountry, getPhoneCountryOption
 type Employee = {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -89,7 +89,7 @@ export function LiveEmployeesSurface() {
       id: "phone",
       accessorKey: "phone",
       header: () => t("table.phone"),
-      cell: ({ row }) => <span className="ph-no-capture block truncate text-sm text-muted-foreground">{formatPhoneNumberDisplay(row.original.phone, locale)}</span>,
+      cell: ({ row }) => <span className="ph-no-capture block truncate text-sm text-muted-foreground">{row.original.phone ? formatPhoneNumberDisplay(row.original.phone, locale) : "—"}</span>,
     },
     {
       id: "added",
@@ -157,18 +157,20 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange }: { business
   const [name, setName] = useState("");
   const [country, setCountry] = useState<Country>(defaultCountry);
   const [phone, setPhone] = useState("");
+  // What was typed, so a blank phone (allowed) can be told apart from an incomplete one.
+  const [phoneDraft, setPhoneDraft] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [phoneExists, setPhoneExists] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setName(employee?.name ?? ""); setPhone(employee?.phone ?? ""); setCountry(employee ? (inferPhoneCountry(employee.phone, defaultCountry) ?? defaultCountry) as Country : defaultCountry); setSubmitted(false); setPhoneExists(false);
+    setName(employee?.name ?? ""); setPhone(employee?.phone ?? ""); setPhoneDraft(employee?.phone ?? ""); setCountry(employee ? (inferPhoneCountry(employee.phone, defaultCountry) ?? defaultCountry) as Country : defaultCountry); setSubmitted(false); setPhoneExists(false);
   }, [defaultCountry, employee, open]);
 
   const save = useMutation({
     mutationFn: () => {
       const query = `businessId=${encodeURIComponent(businessId)}`;
-      const body = JSON.stringify({ name: name.trim(), phone });
+      const body = JSON.stringify({ name: name.trim(), phone: phone || null });
       return employee
         ? requestJson(`/api/employees/${encodeURIComponent(employee.id)}?${query}`, { method: "PATCH", body })
         : requestJson(`/api/employees?${query}`, { method: "POST", body });
@@ -185,13 +187,14 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange }: { business
   });
 
   const nameMissing = submitted && !name.trim();
-  const phoneError = submitted && !phone ? t("add.fields.phone.invalid") : phoneExists ? t("add.fields.phone.exists") : null;
+  const phoneIncomplete = /\d/.test(phoneDraft) && !phone;
+  const phoneError = submitted && phoneIncomplete ? t("add.fields.phone.invalid") : phoneExists ? t("add.fields.phone.exists") : null;
   const selected = countries.find((option) => option.code === country) ?? countries[0];
 
   return <Dialog onOpenChange={onOpenChange} open={open}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader><DialogTitle>{t(employee ? "edit.title" : "add.title")}</DialogTitle><DialogDescription>{t(employee ? "edit.description" : "add.description")}</DialogDescription></DialogHeader>
-      <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (!save.isPending && name.trim() && phone) save.mutate(); }}>
+      <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (!save.isPending && name.trim() && !phoneIncomplete) save.mutate(); }}>
         <FieldGroup>
           <Field data-invalid={nameMissing || undefined}>
             <FieldLabel htmlFor={nameId}>{t("add.fields.name.label")}</FieldLabel>
@@ -199,13 +202,13 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange }: { business
             {nameMissing ? <FieldError id={`${nameId}-error`}>{t("add.fields.name.required")}</FieldError> : null}
           </Field>
           <Field data-invalid={phoneError ? true : undefined}>
-            <FieldLabel htmlFor={phoneId}>{t("add.fields.phone.label")}</FieldLabel>
+            <FieldContent><FieldLabel htmlFor={phoneId}>{t("add.fields.phone.label")}</FieldLabel><FieldDescription>{t("add.fields.phone.hint")}</FieldDescription></FieldContent>
             <div className="flex min-w-0">
-              <Select onValueChange={(value) => { if (value && value !== country) { setCountry(value as Country); setPhone(""); setPhoneExists(false); } }} value={country}>
+              <Select onValueChange={(value) => { if (value && value !== country) { setCountry(value as Country); setPhone(""); setPhoneDraft(""); setPhoneExists(false); } }} value={country}>
                 <SelectTrigger aria-label={t("add.fields.phone.country")} className="w-20 shrink-0 rounded-r-none px-4 font-medium text-muted-foreground" data-phone-country-prefix><span>{selected?.callingCode ?? ""}</span></SelectTrigger>
                 <SelectContent className="min-w-72"><SelectGroup>{countries.map((option) => <SelectItem key={option.code} value={option.code}><span>{option.label}</span><span className="text-muted-foreground">{option.callingCode}</span></SelectItem>)}</SelectGroup></SelectContent>
               </Select>
-              <PhoneInput aria-describedby={phoneError ? `${phoneId}-error` : undefined} aria-invalid={phoneError ? true : undefined} className="rounded-l-none border-l-0" containerClassName="min-w-0 flex-1" country={country} id={phoneId} limitNationalDigits locale={locale} onChange={(value) => { setPhone(value ?? ""); setPhoneExists(false); }} onRawValueChange={(raw) => { if (raw.trim().startsWith("+")) { const inferred = inferPhoneCountry(raw, country); if (inferred && inferred !== country) setCountry(inferred as Country); } }} value={phone} />
+              <PhoneInput aria-describedby={phoneError ? `${phoneId}-error` : undefined} aria-invalid={phoneError ? true : undefined} className="rounded-l-none border-l-0" containerClassName="min-w-0 flex-1" country={country} id={phoneId} limitNationalDigits locale={locale} onChange={(value) => { setPhone(value ?? ""); setPhoneExists(false); }} onRawValueChange={(raw) => { setPhoneDraft(raw); if (raw.trim().startsWith("+")) { const inferred = inferPhoneCountry(raw, country); if (inferred && inferred !== country) setCountry(inferred as Country); } }} value={phone} />
             </div>
             {phoneError ? <FieldError id={`${phoneId}-error`}>{phoneError}</FieldError> : null}
           </Field>

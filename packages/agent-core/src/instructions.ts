@@ -23,6 +23,11 @@ function employeeNames(snapshot: BusinessContextSnapshot): string {
   return (snapshot.employees ?? []).map((employee) => employee.name).join(", ");
 }
 
+// Employees are reached through the business's transfer rules, so they need its transfer number too.
+function canTransfer(snapshot: BusinessContextSnapshot): boolean {
+  return Boolean(snapshot.transferPolicy.transferNumber) && snapshot.transferPolicy.mode !== "never";
+}
+
 function employeeGuidance(snapshot: BusinessContextSnapshot, bookingMode: BookingMode): string {
   if (!snapshot.employees?.length || bookingMode === "off") return "";
   return bookingMode === "instant"
@@ -95,6 +100,9 @@ export function buildAgentInstructions(snapshot: BusinessContextSnapshot, channe
       : "",
     "If you are missing something you need (the service, the caller's name or number), say exactly what to ask the caller.",
     "Transfer to a person only when the transfer rules allow it; otherwise offer to take a message.",
+    channel === "voice" && !options.intakeOnly && snapshot.employees?.length && canTransfer(snapshot)
+      ? "When the caller asks to speak with a specific employee, pass that employee's name as employeeName to transferCall."
+      : "",
     // The voice model says goodbye once it hears the call is ending, and a
     // reply here would be a second one.
     voice && options.endsCalls
@@ -193,7 +201,11 @@ function backendCapabilities(snapshot: BusinessContextSnapshot): string[] {
     bookingMode === "request" ? "- Appointment requests: pass a requested day and time to the team, who confirm it." : "",
     cancellations,
     "- Messages: take a message for the team.",
-    snapshot.transferPolicy.transferNumber && snapshot.transferPolicy.mode !== "never" ? "- Transfers: connect the caller to a person when the business allows it." : "",
+    canTransfer(snapshot)
+      ? snapshot.employees?.length
+        ? "- Transfers: connect the caller to a person, or to an employee they ask for by name, when the business allows it."
+        : "- Transfers: connect the caller to a person when the business allows it."
+      : "",
     "- Ending the call: hang up when the caller is done, or on a spam or abusive call.",
   ].filter(Boolean);
 }

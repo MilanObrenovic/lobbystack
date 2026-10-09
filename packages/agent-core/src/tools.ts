@@ -464,12 +464,31 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
         callerRequested: z.boolean().describe("True only if the caller explicitly asked for a person."),
         urgent: z.boolean().describe("True only if the caller described an urgent situation."),
         reason: z.string().optional(),
+        employeeName: z.string().optional().describe("Only when the caller asked for a specific employee: that employee's name."),
       }),
       execute: async (input) => {
-        const destination = snapshot.transferPolicy.transferNumber;
-        if (!destination || !isTransferPermitted(snapshot, input)) return { ok: false, reason: "Transfers aren't allowed right now. Offer to take a message." };
+        const businessNumber = snapshot.transferPolicy.transferNumber;
+        // The business's transfer rules decide whether anyone can be reached, an employee included.
+        if (!businessNumber || !isTransferPermitted(snapshot, input)) return { ok: false, reason: "Transfers aren't allowed right now. Offer to take a message." };
+        let destination = businessNumber;
+        let employeeName: string | undefined;
+        if (input.employeeName?.trim()) {
+          const match = await resolveEmployee(domain, { businessId, name: input.employeeName });
+          if (!match.ok) {
+            return {
+              ok: false,
+              reason: match.employees.length
+                ? `No single employee matches "${input.employeeName}". The employees are: ${match.employees.join(", ")}. Ask the caller which one they mean.`
+                : "This business has no employees to transfer to by name. Leave employeeName out to reach the business.",
+            };
+          }
+          // An employee without a number of their own is reached through the business.
+          destination = match.phone ?? businessNumber;
+          employeeName = match.name;
+        }
         const started = await transfer(destination);
-        return started ? { ok: true, transferring: true } : { ok: false, reason: "The transfer couldn't be started. Offer to take a message." };
+        if (!started) return { ok: false, reason: "The transfer couldn't be started. Offer to take a message." };
+        return employeeName ? { ok: true, transferring: true, employeeName } : { ok: true, transferring: true };
       },
     });
   }

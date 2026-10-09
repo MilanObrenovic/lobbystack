@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createEmployee, listEmployees } from "@lobbystack/domain";
 import { asApiResponse, jsonError, readJson, requireOperatorBusiness, withOperatorTransaction } from "@/lib/api-helpers";
 import { createDomainContext } from "@/lib/domain-context";
-import { normalizePhoneNumber } from "@/lib/phone";
+import { optionalEmployeePhone } from "@/lib/employee-phone";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +22,8 @@ export async function POST(request: Request) {
     const fields = typeof body === "object" && body !== null ? body as { name?: unknown; phone?: unknown } : {};
     const name = typeof fields.name === "string" ? fields.name.trim().slice(0, 200) : "";
     if (!name) return jsonError("Employee name is required.", 400, "employee_name_required");
-    const phone = typeof fields.phone === "string" ? normalizePhoneNumber(fields.phone) : undefined;
-    if (!phone) return jsonError("Enter a valid phone number.", 400, "employee_phone_invalid");
+    const phone = optionalEmployeePhone(fields.phone);
+    if (phone === undefined) return jsonError("Enter a valid phone number.", 400, "employee_phone_invalid");
     const employee = await createEmployee(createDomainContext(), { userId: session.user.id, businessId, name, phone });
     return NextResponse.json({ employee }, { status: 201 });
   } catch (error) { return asApiResponse(error); }
