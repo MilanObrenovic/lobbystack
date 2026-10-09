@@ -10,7 +10,7 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table";
-import { Ellipsis, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
 import type { Country } from "react-phone-number-input/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -18,6 +18,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { DataTablePagination, paginationFeatures } from "@/components/data-table/pagination";
+import { DATA_TABLE_ROW_ACTIONS_CELL_CLASS, DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS, DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS, DataTableRowActions } from "@/components/data-table/row-controls";
 import { PageHeader } from "@/components/page-header";
 import { TableCardSkeleton } from "@/components/loading-skeletons";
 import { Button } from "@/components/ui/button";
@@ -83,7 +84,7 @@ export function LiveEmployeesSurface() {
       id: "name",
       accessorKey: "name",
       header: () => t("table.name"),
-      cell: ({ row }) => <span className="ph-mask block truncate font-semibold" title={row.original.name}>{row.original.name}</span>,
+      cell: ({ row }) => <div className="flex min-w-0 items-center gap-2"><UserRound aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" /><span className="ph-mask block truncate font-semibold" title={row.original.name}>{row.original.name}</span></div>,
     },
     {
       id: "phone",
@@ -94,21 +95,21 @@ export function LiveEmployeesSurface() {
     {
       id: "added",
       accessorKey: "createdAt",
-      header: () => <span className="block text-right">{t("table.added")}</span>,
-      cell: ({ row }) => <span className="block truncate text-right text-sm text-muted-foreground">{formatDateTime(row.original.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })}</span>,
+      header: () => <span className={`relative block text-right ${DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS}`}>{t("table.added")}</span>,
+      cell: ({ row }) => <span className={`relative block truncate text-right text-sm text-muted-foreground ${DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS}`}>{formatDateTime(row.original.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })}</span>,
     },
     {
       id: "actions",
       header: () => null,
       cell: ({ row }) => (
-        <div className="flex w-16 justify-end pr-0" data-slot="data-table-row-actions"><DropdownMenu>
-          <DropdownMenuTrigger render={<Button aria-label={t("table.actions.moreOptions")} size="icon-sm" variant="ghost" />}><Ellipsis /></DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-0 w-fit p-1">
+        <DataTableRowActions><DropdownMenu>
+          <DropdownMenuTrigger render={<Button aria-label={t("table.actions.moreOptions")} size="icon-sm" title={t("table.actions.moreOptions")} type="button" variant="ghost" />}><MoreHorizontal /></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-0 w-fit p-1" side="bottom" sideOffset={8}>
             <DropdownMenuItem disabled={!canMutate} onClick={() => openEditor(row.original)}><Pencil />{t("table.actions.editEmployee")}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled={!canMutate} onClick={() => setPendingDelete(row.original)} variant="destructive"><Trash2 />{t("table.actions.deleteEmployee")}</DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu></div>
+        </DropdownMenu></DataTableRowActions>
       ),
     },
   ], [canMutate, locale, t]);
@@ -128,11 +129,11 @@ export function LiveEmployeesSurface() {
       {businesses.isLoading || employees.isLoading ? <TableCardSkeleton columns={4} /> : (
         <>
           <TableCard>
-            <Table className="min-w-160 w-full table-fixed">
-              <colgroup><col className="w-[40%]" /><col className="w-[28%]" /><col className="w-[24%]" /><col className="w-[8%]" /></colgroup>
+            <Table className="min-w-240 w-full table-fixed">
+              <colgroup><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[56%]" /><col className={DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS} /></colgroup>
               <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead className={header.column.id === "added" || header.column.id === "actions" ? "text-right" : undefined} key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row) => <TableRow className={canMutate ? "h-12 cursor-pointer transition-colors hover:bg-muted/40" : "h-12 transition-colors hover:bg-muted/40"} key={row.id} onClick={() => { if (canMutate) openEditor(row.original); }}>{row.getAllCells().map((cell) => <TableCell className={cell.column.id === "added" ? "max-w-0 whitespace-nowrap text-right" : cell.column.id === "actions" ? "w-16 text-right" : "max-w-0"} key={cell.id} onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
+                {table.getRowModel().rows.map((row) => <TableRow className={canMutate ? "h-12 cursor-pointer transition-colors hover:bg-muted/40" : "h-12 transition-colors hover:bg-muted/40"} key={row.id} onClick={() => { if (canMutate) openEditor(row.original); }}>{row.getAllCells().map((cell) => <TableCell className={cell.column.id === "added" ? "w-0 max-w-0 text-right whitespace-nowrap" : cell.column.id === "actions" ? DATA_TABLE_ROW_ACTIONS_CELL_CLASS : "max-w-0"} key={cell.id} onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
                 {table.getRowModel().rows.length === 0 ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={4}>{search.trim() ? t("table.empty") : t("table.emptyState")}</TableCell></TableRow> : null}
               </TableBody>
             </Table>
