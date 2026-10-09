@@ -1,11 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { appointmentTimesMatch, serviceNamesMatch, storedContactNameMatchesIfPresent, substantiveServiceNameFactMatches } from "./appointmentFacts";
+import { appointmentTimesMatch, personNamesMatch, serviceNamesMatch, substantiveServiceNameFactMatches } from "./appointmentFacts";
 describe("appointment fact verification", () => {
-  it("requires the stored caller name when present", () => {
-    expect(storedContactNameMatchesIfPresent("Alex Morgan", undefined)).toBe(false);
-    expect(storedContactNameMatchesIfPresent("Alex Morgan", "Taylor")).toBe(false);
-    expect(storedContactNameMatchesIfPresent("Alex Morgan", "Alex")).toBe(true);
-    expect(storedContactNameMatchesIfPresent(undefined, undefined)).toBe(true);
+  it("matches a name only when both sides have one", () => {
+    expect(personNamesMatch("Alex Morgan", undefined)).toBe(false);
+    expect(personNamesMatch("Alex Morgan", "Taylor")).toBe(false);
+    expect(personNamesMatch("Alex Morgan", "Alex")).toBe(true);
+    expect(personNamesMatch(undefined, undefined)).toBe(false);
+  });
+
+  // A booking saves the name as the receptionist heard it; on staging "Raphael Morency" was saved as "Rafael Morenzi".
+  it("matches a caller's name against the spelling a transcript saved, and accented spellings", () => {
+    expect(personNamesMatch("Rafael Morenzi", "Raphael Morency")).toBe(true);
+    expect(personNamesMatch("Jonathan Lee", "Jonathon Lee")).toBe(true);
+    expect(personNamesMatch("Émilie Tremblay", "Emilie Tremblay")).toBe(true);
+    expect(personNamesMatch("Đorđe Petrović", "Djordje Petrovic")).toBe(true);
+    // One part is enough: the same surname comes back spelled three ways across calls.
+    expect(personNamesMatch("Rafael Morenzi", "Rafael Marancy")).toBe(true);
+    expect(personNamesMatch("Rafael Morenzi", "Raphael")).toBe(true);
+    expect(personNamesMatch("Mary Smith", "Mark Jones")).toBe(false);
+    expect(personNamesMatch("Rafael Morenzi", "Taylor Brooks")).toBe(false);
+    expect(personNamesMatch("Milan Obrenovic", "%")).toBe(false);
   });
   it("matches localized service facts and rejects generic fragments", () => {
     const service = { name: "Dental examination", slug: "dental-exam", localizedNames: { fr: "Examen dentaire" } };
@@ -14,6 +28,18 @@ describe("appointment fact verification", () => {
     expect(substantiveServiceNameFactMatches(service, "de")).toBe(false);
     expect(serviceNamesMatch(service, "Haircut")).toBe(false);
   });
+  // The agent passes the time the caller said without an offset. Read in the server's zone (UTC on Railway),
+  // 3 PM Toronto became 11 AM and never matched; the business's zone has to decide it.
+  it("reads a time without an offset in the appointment's zone, whatever the server's zone", () => {
+    const tokyo = { startsAt: "2026-10-09T06:00:00.000Z", timezone: "Asia/Tokyo" };
+    expect(appointmentTimesMatch(tokyo, "2026-10-09T15:00")).toBe(true);
+    expect(appointmentTimesMatch(tokyo, "2026-10-09 15:00")).toBe(true);
+    expect(appointmentTimesMatch(tokyo, "2026-10-09T15:00Z")).toBe(false);
+    const toronto = { startsAt: "2026-10-09T19:00:00.000Z", timezone: "America/Toronto" };
+    expect(appointmentTimesMatch(toronto, "2026-10-09T15:00")).toBe(true);
+    expect(appointmentTimesMatch(toronto, "2026-10-09T11:00")).toBe(false);
+  });
+
   it("matches absolute and spoken local times within the reference tolerance", () => {
     const appointment = { startsAt: "2026-09-04T14:30:00Z", timezone: "America/Toronto" };
     expect(appointmentTimesMatch(appointment, "2026-09-04T14:45:00Z")).toBe(true);

@@ -1,10 +1,13 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
+import { demoSnapshot } from "@lobbystack/shared";
+import { MockLanguageModelV4 } from "ai/test";
 import OpenAI from "openai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocketServer, type WebSocket } from "ws";
 
+import { createReceptionistAgent } from "../agent";
 import { LiveCallController, type LiveCallControllerOptions, type LiveCallSummary } from "./callController";
 
 // Runs the controller on the SDK's real sideband connection, against a local
@@ -55,7 +58,7 @@ async function sideband(attaches: Array<504 | ((socket: WebSocket) => void)>, op
 
 const send = (socket: WebSocket, event: Record<string, unknown>) => socket.send(JSON.stringify(event));
 // Calls `reply` for each command the controller sends.
-const onCommand = (socket: WebSocket, reply: (event: { type: string; event_id?: string }) => void) => socket.on("message", (data) => reply(JSON.parse(String(data))));
+const onCommand = (socket: WebSocket, reply: (event: { type: string; event_id?: string; delegation_id?: string; content?: string }) => void) => socket.on("message", (data) => reply(JSON.parse(String(data))));
 
 describe("LiveCallController sideband", () => {
   it("retries an attach OpenAI's edge answers with a 504, and runs the call on the new connection", async () => {
@@ -156,6 +159,72 @@ describe("LiveCallController sideband", () => {
     expect(order).toEqual(["announcement", "refer"]);
     expect(refer).toHaveBeenCalledWith("live_1", { target_uri: "tel:+14165550199" });
     expect(transfers).toEqual(["referring", "referred", "completed"]);
+  });
+
+  // GPT-Live hands the call over, and the real agent ends it with endCall, the
+  // way the worker's call control does for a caller who is done. GPT-Live says
+  // its goodbye once it hears the call is ending.
+  it.each([{ phone: true, ends: "SIP hangup" }, { phone: false, ends: "session.close" }])("ends the call with a $ends after the goodbye GPT-Live says when it hears the call is ending", async ({ phone }) => {
+    let peer!: WebSocket;
+    const commands: Array<{ type: string; event_id?: string; delegation_id?: string; content?: string }> = [];
+    const holder: { controller?: LiveCallController } = {};
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => ({
+        content: [{ type: "tool-call", toolCallId: "call_end", toolName: "endCall", input: JSON.stringify({ reason: "caller_finished" }) }],
+        finishReason: { unified: "tool-calls", raw: undefined },
+        usage: { inputTokens: { total: 1_000, noCache: 1_000, cacheRead: undefined, cacheWrite: undefined }, outputTokens: { total: 10, text: 10, reasoning: undefined } },
+        warnings: [],
+      }),
+    });
+    const agent = createReceptionistAgent({
+      model,
+      context: { domain: { db: {} as never }, snapshot: demoSnapshot, channel: phone ? "voice" : "web_voice", callId: "call_1", callControl: { hangup: async () => holder.controller!.endWhenCallerDone() } },
+      directToolAnswers: true,
+    });
+    const { controller, hangup, closed } = await sideband([(socket) => {
+      peer = socket;
+      send(socket, { type: "session.started" });
+      for (const [type, delta, start, end] of [
+        ["session.output_transcript.delta", "Thanks for calling Northside Plumbing.", 0, 500],
+        ["session.input_transcript.delta", "Are you open on Saturday?", 600, 1_000],
+        ["session.output_transcript.delta", "Yes, from 9 to noon. Anything else?", 1_100, 1_500],
+        ["session.input_transcript.delta", "No, that's it. Thanks!", 1_600, 2_000],
+      ] as const) send(socket, { type, delta, start_ms: start, end_ms: end });
+      send(socket, { type: "session.delegation.created", delegation: { id: "item_1", target: "client", type: "delegation" }, offset_ms: 2_050 });
+      onCommand(socket, (event) => {
+        commands.push(event);
+        if (event.type === "session.commentary.append") {
+          send(socket, { type: "session.commentary.appended", client_event_id: event.event_id });
+          send(socket, { type: "session.output_transcript.delta", delta: "You're welcome. Goodbye!", start_ms: 2_300, end_ms: 2_600 });
+        }
+        if (event.type === "session.close") send(socket, { type: "session.closed", reason: "close_requested", usage: { seconds: 3 } });
+      });
+    }], { phone, setup: { agent } });
+    holder.controller = controller;
+    hangup.mockImplementation((async () => send(peer, { type: "session.closed", reason: "close_requested", usage: { seconds: 3 } })) as never);
+    controller.start();
+    await vi.waitFor(() => expect(closed).toHaveLength(1), { timeout: 5_000 });
+    expect(commands.filter((event) => event.type === "session.commentary.append")).toEqual([expect.objectContaining({ delegation_id: "item_1", content: "The call is ending." })]);
+    expect(commands.filter((event) => event.type === "session.thinking.append")).toEqual([]);
+    expect(hangup).toHaveBeenCalledTimes(phone ? 1 : 0);
+    expect(commands.map((event) => event.type).filter((type) => type === "session.close")).toEqual(phone ? [] : ["session.close"]);
+    expect(closed[0]).toMatchObject({ closeReason: "close_requested", usageConfirmed: true, delegations: [expect.objectContaining({ tools: ["endCall"], endedCall: true, directAnswer: true })] });
+  }, 10_000);
+
+  // The SDK's sideband types leave the reflected caller audio out, so this
+  // checks that the real connection still delivers it to the controller.
+  it("measures the caller audio OpenAI reflects to the sideband", async () => {
+    const silence = Buffer.alloc(960).toString("base64");
+    const voice = Buffer.from(new Int16Array(480).map((_, index) => (index % 2 ? 3_000 : -3_000)).buffer).toString("base64");
+    const { controller, closed } = await sideband([(socket) => {
+      send(socket, { type: "session.started" });
+      for (let chunk = 0; chunk < 50; chunk += 1) send(socket, { type: "session.input_audio.append", audio: silence });
+      send(socket, { type: "session.input_audio.append", audio: voice });
+      send(socket, { type: "session.closed", reason: "remote_hangup", usage: { seconds: 2 } });
+    }]);
+    controller.start();
+    await vi.waitFor(() => expect(closed).toHaveLength(1));
+    expect(closed[0]?.inputAudio).toEqual({ chunks: 51, coveredMs: 1_020, loudMs: 20, payloadBytes: 51 * silence.length });
   });
 
   it("passes a keypad press to the agent as caller input", async () => {

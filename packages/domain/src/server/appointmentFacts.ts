@@ -6,8 +6,31 @@ function getServiceNameCandidates(service: ServiceFact): string[] {
   return [...new Set([service.name, service.slug, service.localizedNames?.en, service.localizedNames?.fr].map(value => value?.trim()).filter((value): value is string => Boolean(value)))];
 }
 
+// Lowercase ASCII without accents, so "Émilie" compares as "emilie". NFD leaves đ alone.
 function normalizeComparable(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
+  return value.normalize("NFD").replace(/\p{M}/gu, "").replace(/[đĐ]/g, "dj").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+// Spellings a transcript swaps for the same sound, so a caller saying
+// "Raphael Morency" matches a booking the receptionist heard as "Rafael Morenzi".
+function soundKey(token: string): string {
+  return token.replace(/ph/g, "f").replace(/ck|q/g, "k").replace(/c(?=[eiy])/g, "s").replace(/c/g, "k").replace(/z/g, "s").replace(/y/g, "i").replace(/(.)\1+/g, "$1");
+}
+
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) current[j] = Math.min(previous[j]! + 1, current[j - 1]! + 1, previous[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
+    previous = current;
+  }
+  return previous[b.length]!;
+}
+
+// One more slip is allowed in a longer name part ("Jonathon"), not a short one, so "Mary" never passes for "Mark".
+function nameTokensMatch(stored: string, provided: string): boolean {
+  const [a, b] = [soundKey(stored), soundKey(provided)];
+  return a === b || (Math.min(a.length, b.length) >= 5 && editDistance(a, b) <= 1);
 }
 
 function tokenizeComparable(value: string): Array<string> {
@@ -17,7 +40,13 @@ function tokenizeComparable(value: string): Array<string> {
     .filter((token) => token.length >= 2);
 }
 
-function personNamesMatch(storedName: string | undefined, providedName: string | undefined): boolean {
+/**
+ * Whether a name a caller gave fits the stored one: one part of it is enough,
+ * matched by sound-alike spelling. Speech recognition spells the same surname
+ * differently from call to call ("Morenzi", "Morency", "Marancy"), so this
+ * only links a cancellation request to an appointment the team then approves.
+ */
+export function personNamesMatch(storedName: string | undefined, providedName: string | undefined): boolean {
   if (!storedName?.trim() || !providedName?.trim()) {
     return false;
   }
@@ -32,15 +61,8 @@ function personNamesMatch(storedName: string | undefined, providedName: string |
   }
 
   const storedTokens = tokenizeComparable(storedName);
-  const providedTokens = new Set(tokenizeComparable(providedName));
-  return storedTokens.length > 0 && storedTokens.every((token) => providedTokens.has(token));
-}
-
-export function storedContactNameMatchesIfPresent(
-  storedName: string | undefined,
-  providedName: string | undefined,
-): boolean {
-  return !storedName?.trim() || personNamesMatch(storedName, providedName);
+  const providedTokens = tokenizeComparable(providedName);
+  return storedTokens.some((token) => providedTokens.some((provided) => nameTokensMatch(token, provided)));
 }
 
 export function serviceNamesMatch(service: ServiceFact, providedServiceName: string): boolean {
@@ -97,12 +119,15 @@ export function appointmentTimesMatch(
   providedStartsAt: string,
 ): boolean {
   const actualMs = Date.parse(appointment.startsAt);
-  const providedMs = Date.parse(providedStartsAt);
   if (!Number.isFinite(actualMs)) {
     return false;
   }
 
-  if (Number.isFinite(providedMs) && Math.abs(actualMs - providedMs) <= 30 * 60 * 1000) {
+  // A time without an offset is the business's local time, the way the caller
+  // said it. Date.parse would read it in the server's zone, UTC on Railway.
+  const raw = providedStartsAt.trim();
+  const provided = [DateTime.fromISO(raw, { zone: appointment.timezone }), DateTime.fromSQL(raw, { zone: appointment.timezone })].find((value) => value.isValid);
+  if (provided && Math.abs(actualMs - provided.toMillis()) <= 30 * 60 * 1000) {
     return true;
   }
 

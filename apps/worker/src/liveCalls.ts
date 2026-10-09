@@ -1,7 +1,7 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { closeLiveSession, createAgentModel, createReceptionistAgent, LiveCallController, liveDelegationEnvironment, WRAP_UP_MAX_MS, type AgentChannel, type CallControl, type LiveCallSetup, type LiveCallSummary, type LiveCallWrapUp } from "@lobbystack/agent-core";
+import { callerIsDone, closeLiveSession, createAgentModel, createReceptionistAgent, LiveCallController, liveDelegationEnvironment, WRAP_UP_MAX_MS, type AgentChannel, type CallControl, type LiveCallSetup, type LiveCallSummary, type LiveCallWrapUp } from "@lobbystack/agent-core";
 import {
   blockLiveCaller,
   extendLiveCallReservation,
@@ -410,9 +410,16 @@ export function createLiveCallHandler(input: { domain: DomainContext; attachLock
 
     const callControl: CallControl = {
       // The tool returns at once, so its answer reaches GPT-Live; the call
-      // ends after the receptionist has said goodbye.
+      // ends after the receptionist has said goodbye. A caller who is done can
+      // still say more first, and the call goes on. Spam and abuse end anyway.
       hangup: async (reason) => {
         end = reason;
+        if (reason === "caller_finished") {
+          controller?.endWhenCallerDone(() => {
+            if (end === "caller_finished") end = undefined;
+          });
+          return;
+        }
         if (reason === "abuse" && phone) await blockLiveCaller(input.domain, call);
         controller?.endAfterGoodbye();
       },
@@ -447,9 +454,15 @@ export function createLiveCallHandler(input: { domain: DomainContext; attachLock
         },
         directToolAnswers: true,
       });
+      const callerDone = async (conversation: string, abortSignal: AbortSignal) => {
+        const startedAt = performance.now();
+        const done = await callerIsDone(model, conversation, abortSignal);
+        console.info(JSON.stringify({ event: "live.caller_done_check", sessionId: request.sessionId, done, ms: Math.round(performance.now() - startedAt) }));
+        return done;
+      };
       // A recovered call, or one with a saved transcript, is already under
       // way, so the greeting fallback must not fire.
-      return { agent, ...(recovery || saved > 0 ? {} : { greeting: snapshot.greeting }) };
+      return { agent, callerDone, ...(recovery || saved > 0 ? {} : { greeting: snapshot.greeting }) };
     });
 
     const finish = async (summary: LiveCallSummary) => {
@@ -508,7 +521,7 @@ export function createLiveCallHandler(input: { domain: DomainContext; attachLock
           return;
         }
         setPresence(request, false);
-        console.info(JSON.stringify({ event: "live.closed", sessionId: summary.sessionId, channel: request.channel, durationMs: summary.durationMs, billedSeconds: summary.billedSeconds, usageConfirmed: summary.usageConfirmed, closeReason: summary.closeReason, end, delegations: summary.delegations.length, outputAudio: summary.outputAudio, lateAttach: summary.lateAttach, firstEventMs: summary.firstEventMs }));
+        console.info(JSON.stringify({ event: "live.closed", sessionId: summary.sessionId, channel: request.channel, durationMs: summary.durationMs, billedSeconds: summary.billedSeconds, usageConfirmed: summary.usageConfirmed, closeReason: summary.closeReason, end, delegations: summary.delegations.length, outputAudio: summary.outputAudio, inputAudio: summary.inputAudio, lateAttach: summary.lateAttach, firstEventMs: summary.firstEventMs }));
         const pending = finish(summary).catch(logError(request.sessionId, "finish failed"));
         finishing.add(pending);
         // The lock outlives the finish, so a recovery job can't take an

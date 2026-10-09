@@ -2,10 +2,12 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { and, eq, gt, inArray, lt, or } from "drizzle-orm";
 
-import { appointmentChangeVerifications, appointments, auditLogs, contacts, enqueueOutbox, phoneNumbers, receptionistProfiles, services, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
-import { normalizeAppointmentChangePolicy } from "@lobbystack/shared";
+import { appointmentChangeVerifications, appointments, auditLogs, contacts, enqueueOutbox, receptionistProfiles, services, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
+import { canTextNumber, normalizeAppointmentChangePolicy } from "@lobbystack/shared";
 
-import { appointmentTimesMatch, serviceNamesMatch, storedContactNameMatchesIfPresent, substantiveServiceNameFactMatches } from "./appointmentFacts";
+import { appointmentTimesMatch, serviceNamesMatch, substantiveServiceNameFactMatches } from "./appointmentFacts";
+import { smsConsentOnFile, type SmsConsentOnFile } from "./contactSmsConsent";
+import { resolveSmsSender } from "./smsSender";
 
 import type { DomainContext } from "./context";
 import { VERIFICATION_CODE_TTL_MS, newVerificationCode, verificationCodeSecret } from "./verificationCode";
@@ -30,21 +32,23 @@ async function auditAppointmentChange(tx: DatabaseTransaction, input: { business
 
 export async function createAppointmentChangeVerification(
   context: DomainContext,
-  input: { businessId: string; appointmentId?: string; callerPhone: string; action: "cancel" | "reschedule"; callerName?: string; appointmentStartsAt?: string; serviceName?: string },
-): Promise<{ verificationId: string; appointmentId: string; contactId: string; status: string; expiresAt: string } | null> {
+  input: { businessId: string; appointmentId?: string; callerPhone: string; action: "cancel" | "reschedule"; appointmentStartsAt?: string; serviceName?: string },
+): Promise<{ verificationId: string; appointmentId: string; contactId: string; status: string; expiresAt: string; smsConsent: SmsConsentOnFile } | null> {
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
     const profile = (await tx.select({ policy: receptionistProfiles.appointmentChangePolicy }).from(receptionistProfiles).where(eq(receptionistProfiles.businessId, input.businessId)).limit(1))[0];
     const policy = normalizeAppointmentChangePolicy(profile?.policy);
     if (!policy.enabled || policy.verificationMode === "operator_only" || (input.action === "cancel" ? !policy.allowCancel : !policy.allowReschedule)) return null;
     if (!input.appointmentStartsAt?.trim() && !input.serviceName?.trim()) return null;
-    const candidates = await tx.select({ id: appointments.id, contactId: appointments.contactId, startsAt: appointments.startsAt, timezone: appointments.timezone, name: contacts.name, serviceName: services.name, serviceSlug: services.slug, localizedNames: services.localizedNames }).from(appointments)
+    // The caller's number and the appointment's time or service identify the
+    // appointment. The name doesn't: speech recognition spells the same name
+    // differently from call to call, so it can't block a change.
+    const candidates = await tx.select({ id: appointments.id, contactId: appointments.contactId, startsAt: appointments.startsAt, timezone: appointments.timezone, serviceName: services.name, serviceSlug: services.slug, localizedNames: services.localizedNames, smsConsentStatus: contacts.smsConsentStatus, operatorBlockedAt: contacts.operatorBlockedAt }).from(appointments)
       .innerJoin(contacts, and(eq(contacts.id, appointments.contactId), eq(contacts.businessId, input.businessId)))
       .innerJoin(services, and(eq(services.id, appointments.serviceId), eq(services.businessId, input.businessId)))
       .where(and(input.appointmentId ? eq(appointments.id, input.appointmentId) : undefined, eq(appointments.businessId, input.businessId), eq(contacts.phone, input.callerPhone), eq(appointments.status, "confirmed")));
     const matches = candidates.filter((row) => {
       const service = { name: row.serviceName, slug: row.serviceSlug, localizedNames: row.localizedNames };
-      return storedContactNameMatchesIfPresent(row.name ?? undefined, input.callerName)
-        && (!input.appointmentStartsAt?.trim() || appointmentTimesMatch({ startsAt: row.startsAt.toISOString(), timezone: row.timezone }, input.appointmentStartsAt))
+      return (!input.appointmentStartsAt?.trim() || appointmentTimesMatch({ startsAt: row.startsAt.toISOString(), timezone: row.timezone }, input.appointmentStartsAt))
         && (!input.serviceName?.trim() || (input.appointmentId ? serviceNamesMatch : substantiveServiceNameFactMatches)(service, input.serviceName));
     });
     if (matches.length !== 1) return null;
@@ -56,7 +60,7 @@ export async function createAppointmentChangeVerification(
     const [verification] = await tx.insert(appointmentChangeVerifications).values({ businessId: input.businessId, appointmentId: appointment.id, contactId: appointment.contactId, callerPhone: input.callerPhone, action: input.action, status, expiresAt, attemptCount: 0 }).returning({ id: appointmentChangeVerifications.id });
     if (!verification) throw new Error("Appointment change verification could not be created.");
     await auditAppointmentChange(tx, { businessId: input.businessId, appointmentId: appointment.id, verificationId: verification.id, eventType: "appointment_change.verification_created", payload: { action: input.action } });
-    return { verificationId: verification.id, appointmentId: appointment.id, contactId: appointment.contactId, status, expiresAt: expiresAt.toISOString() };
+    return { verificationId: verification.id, appointmentId: appointment.id, contactId: appointment.contactId, status, expiresAt: expiresAt.toISOString(), smsConsent: smsConsentOnFile(appointment) };
   });
 }
 
@@ -74,11 +78,16 @@ export async function issueAppointmentChangeOtp(
       return { ok: false, status: "expired", reason: "The verification session has expired." };
     }
     if (current.attemptCount >= OTP_MAX_ATTEMPTS) return { ok: false, status: "failed", reason: "Too many verification attempts." };
-    const sender = (await tx.select({ e164: phoneNumbers.e164 }).from(phoneNumbers).where(and(eq(phoneNumbers.businessId, input.businessId), eq(phoneNumbers.status, "active"), eq(phoneNumbers.smsEnabled, true))).limit(1))[0];
+    // The code comes from the number that sends the business's other texts.
+    // A toll-free sender can't reach a number outside North America, and a
+    // caller who texted STOP to it gets nothing from it.
+    const sender = await resolveSmsSender(tx, input.businessId);
     if (!sender) return { ok: false, status: "unavailable", reason: "SMS delivery is not configured for this business." };
+    const contact = (await tx.select({ smsConsentStatus: contacts.smsConsentStatus }).from(appointmentChangeVerifications).innerJoin(contacts, and(eq(contacts.id, appointmentChangeVerifications.contactId), eq(contacts.businessId, input.businessId))).where(eq(appointmentChangeVerifications.id, current.id)).limit(1))[0];
+    if (!canTextNumber(sender, current.callerPhone) || contact?.smsConsentStatus === "opted_out") return { ok: false, status: "unavailable", reason: "The business can't text this caller's number." };
     const code = newVerificationCode();
     await tx.update(appointmentChangeVerifications).set({ codeHash: hashOtp(code), status: "otp_queued", expiresAt: new Date(now.getTime() + OTP_TTL_MS), updatedAt: now }).where(and(eq(appointmentChangeVerifications.id, current.id), inArray(appointmentChangeVerifications.status, ["otp_pending", "otp_sent"])));
-    await enqueueOutbox(tx, { topic: "appointment.sendChangeOtp", businessId: input.businessId, aggregateType: "appointment_change_verification", aggregateId: current.id, dedupeKey: `appointment-change-otp:${current.id}:${now.getTime()}`, payload: { verificationId: current.id, code, to: current.callerPhone, from: sender.e164 } });
+    await enqueueOutbox(tx, { topic: "appointment.sendChangeOtp", businessId: input.businessId, aggregateType: "appointment_change_verification", aggregateId: current.id, dedupeKey: `appointment-change-otp:${current.id}:${now.getTime()}`, payload: { verificationId: current.id, code, to: current.callerPhone, from: sender } });
     await auditAppointmentChange(tx, { businessId: input.businessId, appointmentId: current.appointmentId, verificationId: current.id, eventType: "appointment_change.otp_queued" });
     return { ok: true, status: "otp_queued", verificationId: current.id, otpPhone: current.callerPhone };
   });
@@ -137,9 +146,9 @@ export async function releaseAppointmentChangeOtp(
 export async function verifyAppointmentChangeOtp(
   context: DomainContext,
   input: { businessId: string; verificationId: string; code: string },
-): Promise<{ ok: boolean; status: string; verificationId: string; reason?: string }> {
+): Promise<{ ok: boolean; status: string; verificationId: string; reason?: string; smsConsent?: SmsConsentOnFile }> {
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
-    const current = (await tx.select({ id: appointmentChangeVerifications.id, appointmentId: appointmentChangeVerifications.appointmentId, status: appointmentChangeVerifications.status, codeHash: appointmentChangeVerifications.codeHash, expiresAt: appointmentChangeVerifications.expiresAt, attemptCount: appointmentChangeVerifications.attemptCount }).from(appointmentChangeVerifications).where(and(eq(appointmentChangeVerifications.id, input.verificationId), eq(appointmentChangeVerifications.businessId, input.businessId))).limit(1))[0];
+    const current = (await tx.select({ id: appointmentChangeVerifications.id, appointmentId: appointmentChangeVerifications.appointmentId, contactId: appointmentChangeVerifications.contactId, action: appointmentChangeVerifications.action, status: appointmentChangeVerifications.status, codeHash: appointmentChangeVerifications.codeHash, expiresAt: appointmentChangeVerifications.expiresAt, attemptCount: appointmentChangeVerifications.attemptCount }).from(appointmentChangeVerifications).where(and(eq(appointmentChangeVerifications.id, input.verificationId), eq(appointmentChangeVerifications.businessId, input.businessId))).limit(1))[0];
     if (!current) return { ok: false, status: "missing", verificationId: input.verificationId, reason: "The verification session was not found." };
     const now = new Date();
     if (current.expiresAt <= now || ["expired", "superseded", "used"].includes(current.status)) {
@@ -157,7 +166,10 @@ export async function verifyAppointmentChangeOtp(
     }
     await tx.update(appointmentChangeVerifications).set({ status: "otp_verified", attemptCount: current.attemptCount + 1, updatedAt: now }).where(eq(appointmentChangeVerifications.id, current.id));
     await auditAppointmentChange(tx, { businessId: input.businessId, appointmentId: current.appointmentId, verificationId: current.id, eventType: "appointment_change.otp_verified" });
-    return { ok: true, status: "otp_verified", verificationId: current.id };
+    if (current.action !== "cancel") return { ok: true, status: "otp_verified", verificationId: current.id };
+    // Verified now, so the agent may learn whether the caller gets a cancellation text.
+    const contact = (await tx.select({ smsConsentStatus: contacts.smsConsentStatus, operatorBlockedAt: contacts.operatorBlockedAt }).from(contacts).where(and(eq(contacts.id, current.contactId), eq(contacts.businessId, input.businessId))).limit(1))[0];
+    return { ok: true, status: "otp_verified", verificationId: current.id, smsConsent: smsConsentOnFile(contact) };
   });
 }
 
