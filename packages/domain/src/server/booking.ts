@@ -66,10 +66,8 @@ async function loadAvailabilityReference(tx: DatabaseTransaction, input: { busin
   const startsAt = new Date(input.startsAt);
   if (!Number.isFinite(startsAt.getTime()) || !Number.isSafeInteger(service.durationMinutes) || service.durationMinutes <= 0) throw new Error("A valid appointment time and duration are required.");
   const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
-  const activeStaff = await tx.select({ id: staff.id, isEmployee: staff.isEmployee }).from(staff).where(and(eq(staff.businessId, input.businessId), eq(staff.active, true))).orderBy(asc(staff.id));
-  // Once a business adds employees, they take the bookings instead of the default staff member that stands for the business.
-  const bookable = activeStaff.filter((row) => row.isEmployee);
-  const activeStaffIds = (bookable.length ? bookable : activeStaff).map((row) => row.id);
+  const activeStaff = await tx.select({ id: staff.id }).from(staff).where(and(eq(staff.businessId, input.businessId), eq(staff.active, true))).orderBy(asc(staff.id));
+  const activeStaffIds = activeStaff.map((row) => row.id);
   const assignments = await tx.select({ staffId: staffServiceAssignments.staffId }).from(staffServiceAssignments).where(and(eq(staffServiceAssignments.businessId, input.businessId), eq(staffServiceAssignments.serviceId, input.serviceId)));
   const connections = activeStaffIds.length
     ? await tx.select().from(calendarConnections).where(and(eq(calendarConnections.businessId, input.businessId), ne(calendarConnections.status, "disconnected"), or(isNull(calendarConnections.staffId), inArray(calendarConnections.staffId, activeStaffIds))))

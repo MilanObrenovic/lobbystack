@@ -231,7 +231,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
   };
 
   if (bookingMode === "instant") {
-    const employeeName = z.string().optional().describe("Only when the caller asked for a specific employee: that employee's name. Leave it out to book the first available employee.");
+    const employeeName = z.string().optional().describe("Only when the caller asked for a specific employee: that employee's name. Leave it out to book whoever is available first.");
     // The staff member a requested employee books under, or why no single employee matched.
     const employeeFor = async (name: string | undefined) => {
       if (!name?.trim()) return { ok: true as const };

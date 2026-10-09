@@ -42,7 +42,7 @@ describe("booking with an employee", () => {
     expect(vi.mocked(bookForCaller).mock.lastCall?.[1]).toMatchObject({ staffId: "staff-ana" });
   });
 
-  it("books the first available employee when the caller has no preference", async () => {
+  it("books whoever is available first when the caller has no preference", async () => {
     vi.mocked(checkOpening).mockResolvedValueOnce({ ok: true, serviceName: "General Checkup", available: true } as never);
     await tools().run("bookAppointment", booking);
     expect(resolveEmployee).not.toHaveBeenCalled();

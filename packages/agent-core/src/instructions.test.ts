@@ -189,12 +189,15 @@ describe("buildAgentInstructions", () => {
 describe("employees", () => {
   const withEmployees = { ...demoSnapshot, bookingMode: "instant" as const, employees: [{ name: "Ana Petrović" }, { name: "Marko Jovanović" }] };
 
-  it("asks the caller for an employee preference before looking up times, and books the first available one otherwise", () => {
+  it("asks the caller for an employee preference before looking up times, and books whoever is available first otherwise", () => {
     const instructions = buildAgentInstructions(withEmployees, "web_chat");
     expect(instructions).toContain("Employees: Ana Petrović, Marko Jovanović.");
     expect(instructions).toContain("Before you look up open times, ask whether the caller would like a specific employee");
     expect(instructions).toContain("pass that name as employeeName to findAvailability and bookAppointment");
-    expect(instructions).toContain("the first available employee gets the appointment");
+    expect(instructions).toContain("leave employeeName out and whoever is available first gets the appointment");
+    // The default staff member can take the booking, so the agent names someone only when the result does.
+    expect(instructions).toContain("When bookAppointment's result names an employee, tell the caller who they're booked with.");
+    expect(instructions).not.toContain("first available employee");
   });
 
   it("tells GPT-Live to ask for an employee preference before delegating a booking", () => {
