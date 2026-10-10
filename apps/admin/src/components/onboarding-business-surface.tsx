@@ -43,6 +43,7 @@ export function OnboardingBusinessSurface({ createNew = false }: { createNew?: b
       await queryClient.invalidateQueries({ queryKey: ["businesses"] });
       navigate("/onboarding/website");
     },
+    meta: { inlineError: true },
   });
   useEffect(() => { prefetch("/onboarding/website"); }, [prefetch]);
   useEffect(() => {
@@ -68,6 +69,7 @@ export function OnboardingBusinessSurface({ createNew = false }: { createNew?: b
       await queryClient.invalidateQueries({ queryKey: ["businesses"] });
       navigate("/onboarding/website");
     },
+    meta: { inlineError: true },
   });
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {

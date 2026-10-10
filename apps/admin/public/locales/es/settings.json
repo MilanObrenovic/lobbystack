@@ -318,6 +318,7 @@
         "invoice": "Factura"
       },
       "invoice": "Factura",
+      "refundedAmount": "Reembolsado: {{amount}}",
       "statusLabels": {
         "paid": "Pagado",
         "pending": "Pendiente",
@@ -785,7 +786,7 @@
       },
       "widgetChat": {
         "title": "Nuevo mensaje del chat del sitio web",
-        "description": "Cuando un visitante envía un mensaje desde el widget de su sitio web."
+        "description": "Cuando un visitante envía un mensaje desde el widget de su sitio web. Recibe como máximo una alerta por conversación al día."
       },
       "webhookDisabled": {
         "title": "Endpoint de webhook desactivado",

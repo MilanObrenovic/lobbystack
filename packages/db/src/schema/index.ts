@@ -545,6 +545,7 @@ export const calls = pgTable(
     uniqueIndex("calls_gateway_session_unique").on(table.gatewaySessionId),
     index("calls_business_started_idx").on(table.businessId, table.startedAt),
     index("calls_business_recording_idx").on(table.businessId, table.recordingObjectId).where(sql`${table.recordingObjectId} is not null`),
+    index("calls_open_live_started_idx").on(table.startedAt).where(sql`${table.endedAt} is null and ${table.provider} = 'openai_live'`),
   ],
 );
 
@@ -587,7 +588,7 @@ export const transcripts = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     ...timestamps,
   },
-  (table) => [uniqueIndex("transcripts_call_sequence_unique").on(table.callId, table.sequence), index("transcripts_call_idx").on(table.callId, table.sequence)],
+  (table) => [uniqueIndex("transcripts_call_sequence_unique").on(table.callId, table.sequence)],
 );
 
 export const appointments = pgTable(
@@ -674,7 +675,7 @@ export const knowledgeChunks = pgTable(
     tokenCount: integer("token_count"),
     ...timestamps,
   },
-  (table) => [uniqueIndex("knowledge_chunks_document_sequence_unique").on(table.documentId, table.sequence), index("knowledge_chunks_business_idx").on(table.businessId), index("knowledge_chunks_business_embedding_fingerprint_idx").on(table.businessId, table.embeddingFingerprint), index("knowledge_chunks_keyword_idx").using("gin", sql`to_tsvector('simple', ${table.content})`)],
+  (table) => [uniqueIndex("knowledge_chunks_document_sequence_unique").on(table.documentId, table.sequence), index("knowledge_chunks_business_embedding_fingerprint_idx").on(table.businessId, table.embeddingFingerprint), index("knowledge_chunks_keyword_idx").using("gin", sql`to_tsvector('simple', ${table.content})`)],
 );
 
 export const knowledgeSnippets = pgTable(
@@ -909,6 +910,7 @@ export const billingTransactions = pgTable(
     sourceId: text("source_id").notNull(),
     status: varchar("status", { length: 32 }).notNull(),
     amountCents: integer("amount_cents").notNull(),
+    refundedAmountCents: integer("refunded_amount_cents").default(0).notNull(),
     currency: varchar("currency", { length: 8 }).notNull(),
     description: text("description"),
     invoiceUrl: text("invoice_url"),
