@@ -6,12 +6,16 @@ const mocks = vi.hoisted(() => ({ enqueueOutbox: vi.fn(), tx: undefined as unkno
 vi.mock("@lobbystack/db", async (original) => ({ ...(await original<typeof import("@lobbystack/db")>()), enqueueOutbox: mocks.enqueueOutbox, withBusinessTransaction: async (_db: unknown, _context: unknown, callback: (tx: unknown) => unknown) => await callback(mocks.tx) }));
 vi.mock("../authz", async (original) => ({ ...(await original<typeof import("../authz")>()), requireBusinessAdmin: vi.fn() }));
 
-import { createBusiness, ianaTimeZone, updateBusiness, updateBusinessInTransaction } from "./tenancy";
+import { createBusiness, ianaTimeZone, inviteMember, updateBusiness, updateBusinessInTransaction } from "./tenancy";
 
 beforeEach(() => { vi.clearAllMocks(); });
 
 it.each(["", " ", "!!!", "a", "a".repeat(121)])("rejects invalid normalized explicit slug %j as a client error", async slug => {
   await expect(createBusiness({ db: undefined as never }, { userId: "unused", name: "Test", slug, timezone: "UTC", businessType: "test" })).rejects.toMatchObject({ status: 400 });
+});
+
+it.each(["a@x.com, b@y.com", "a@x.com;b@y.com", "Ann <a@x.com>", "g:a@x.com", "a@x", "not-an-email"])("rejects invite email %j that is not exactly one address", async email => {
+  await expect(inviteMember({ db: undefined as never }, { userId: "unused", businessId: "unused", email, role: "viewer" })).rejects.toMatchObject({ status: 400 });
 });
 
 describe("business timezone", () => {

@@ -318,6 +318,7 @@
         "invoice": "Invoice"
       },
       "invoice": "Invoice",
+      "refundedAmount": "Refunded {{amount}}",
       "statusLabels": {
         "paid": "Paid",
         "pending": "Pending",
@@ -785,7 +786,7 @@
       },
       "widgetChat": {
         "title": "New website chat message",
-        "description": "When a visitor sends a message through your website widget."
+        "description": "When a visitor sends a message through your website widget. You get at most one alert per chat each day."
       },
       "webhookDisabled": {
         "title": "Webhook endpoint turned off",

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 
 import type { TraceContextCarrier } from "@lobbystack/contracts";
 import { redactOtelExceptionText } from "@lobbystack/telemetry/node";
@@ -132,4 +132,36 @@ export async function markOutboxFailed(
       .where(fence);
     return deadLettered;
   });
+}
+
+/**
+ * Deletes up to `limit` messages published before `publishedBefore` and returns
+ * how many it removed. Unpublished and dead-lettered rows are never published,
+ * so they stay. Onboarding follow-ups stay too: their dedupe key is what stops
+ * a resubmitted attribution form from scheduling a second check-in.
+ */
+export async function prunePublishedOutbox(
+  db: Database,
+  options: { publishedBefore: Date; limit: number },
+): Promise<number> {
+  return await withDispatcherTransaction(db, async (tx) => {
+    const batch = tx
+      .select({ id: outboxMessages.id })
+      .from(outboxMessages)
+      .where(and(lt(outboxMessages.publishedAt, options.publishedBefore), ne(outboxMessages.topic, "onboarding.sendFollowup")))
+      .limit(options.limit)
+      .for("update", { skipLocked: true });
+    const deleted = await tx.delete(outboxMessages).where(inArray(outboxMessages.id, batch)).returning({ id: outboxMessages.id });
+    return deleted.length;
+  });
+}
+
+/**
+ * Lists every business for the worker's scheduler, with whether it is active:
+ * it has an active member, and it finished onboarding or had a call, a
+ * message or a member sign-in in the last 30 days. Runs as the dispatcher.
+ */
+export async function listSchedulerBusinesses(db: Database): Promise<Array<{ id: string; active: boolean }>> {
+  const result = await withDispatcherTransaction(db, async (tx) => await tx.execute<{ id: string; active: boolean }>(sql`select business_id as id, active from app.list_scheduler_businesses()`));
+  return result.rows;
 }

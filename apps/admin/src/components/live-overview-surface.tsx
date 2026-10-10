@@ -101,7 +101,7 @@ export function LiveOverviewSurface() {
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <section className="animate-in fade-in slide-in-from-bottom-2 duration-200 flex flex-col gap-3 xl:h-full">
             <div className="flex items-center justify-between gap-4 px-1"><h2 className="type-section-title">{t("home.actionRequired.title")}</h2>{summary.isLoading ? <Skeleton className="h-6 w-12 rounded-full" /> : <Badge variant="outline">{(summary.data?.actionRequired.length ?? 0).toLocaleString(intlLocale(i18n.language))}</Badge>}</div>
-            {summary.isLoading ? <ActionRequiredSkeleton /> : summary.data?.actionRequired.length ? <Card className="border-border/70">
+            {summary.isLoading ? <ActionRequiredSkeleton /> : summary.data?.actionRequired.length ? <Card className="ph-mask border-border/70">
                   <CardContent>
                     <ItemGroup>
                       {summary.data!.actionRequired.map((item, index) => (
@@ -196,7 +196,7 @@ export function LiveOverviewSurface() {
           <section className="animate-in fade-in slide-in-from-bottom-2 duration-200 flex flex-col gap-3 xl:h-full">
             <div className="flex items-center justify-between gap-4 px-1"><h2 className="type-section-title">{t("home.upcoming.title")}</h2>{summary.isLoading ? <Skeleton className="h-6 w-12 rounded-full" /> : <Badge variant="outline">{(summary.data?.upcoming.length ?? 0).toLocaleString(intlLocale(i18n.language))}</Badge>}</div>
             {summary.isLoading ? <UpcomingSkeleton /> : summary.data?.upcoming.length ? (
-              <Card className="border-border/70"><CardContent className="flex flex-col gap-4">
+              <Card className="ph-mask border-border/70"><CardContent className="flex flex-col gap-4">
                 {summary.data.upcoming.map((appointment, index) => {
                   const contactName = getContactDisplayName({ name: appointment.contactName, phone: appointment.contactPhone, email: appointment.contactEmail, channels: [appointment.sourceChannel] }, i18n.language, t);
                   return <div key={appointment.id}>
@@ -217,7 +217,7 @@ export function LiveOverviewSurface() {
         </div>
         {summary.isLoading ? <OverviewChartSkeleton /> : <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
           <Card className="col-span-1 lg:col-span-4"><CardHeader><CardTitle>{t("home.chart.title")}</CardTitle></CardHeader><CardContent className="ps-2"><OverviewCallChart data={(summary.data?.monthlyCalls ?? []).map((item) => ({ name: formatDateTime(item.monthStart, i18n.language, { month: "short", timeZone: "UTC" }), total: item.total }))} /></CardContent></Card>
-          <Card className="col-span-1 lg:col-span-3"><CardHeader><CardTitle>{t("home.recentCalls.title")}</CardTitle><CardDescription>{t("home.recentCalls.description", { count: summary.data?.recentCalls.length ?? 0 })}</CardDescription></CardHeader><CardContent><div className="flex flex-col gap-6">{(summary.data?.recentCalls ?? []).map((call) => <div className="flex items-center gap-4" key={call.id}><Avatar className="h-9 w-9"><AvatarFallback>{initials(call.contactName)}</AvatarFallback></Avatar><div className="flex flex-1 flex-wrap items-center justify-between"><div className="flex flex-col gap-1"><p className="type-item-title leading-none">{getContactDisplayName({ name: call.contactName, phone: call.contactPhone, email: call.contactEmail, channels: [call.transport] }, i18n.language, t)}</p><p className="type-body-muted">{call.contactName && hasDisplayablePhone(call.contactPhone) ? formatPhoneNumberDisplay(call.contactPhone, i18n.language) : formatDateTime(call.startedAt, i18n.language, { dateStyle: "medium", timeStyle: "short" })}</p></div><div className="type-item-title">{call.durationSeconds ? t("home.recentCalls.durationValue", { value: call.durationSeconds }) : call.status}</div></div></div>)}</div></CardContent></Card>
+          <Card className="ph-mask col-span-1 lg:col-span-3"><CardHeader><CardTitle>{t("home.recentCalls.title")}</CardTitle><CardDescription>{t("home.recentCalls.description", { count: summary.data?.recentCalls.length ?? 0 })}</CardDescription></CardHeader><CardContent><div className="flex flex-col gap-6">{(summary.data?.recentCalls ?? []).map((call) => <div className="flex items-center gap-4" key={call.id}><Avatar className="h-9 w-9"><AvatarFallback>{initials(call.contactName)}</AvatarFallback></Avatar><div className="flex flex-1 flex-wrap items-center justify-between"><div className="flex flex-col gap-1"><p className="type-item-title leading-none">{getContactDisplayName({ name: call.contactName, phone: call.contactPhone, email: call.contactEmail, channels: [call.transport] }, i18n.language, t)}</p><p className="type-body-muted">{call.contactName && hasDisplayablePhone(call.contactPhone) ? formatPhoneNumberDisplay(call.contactPhone, i18n.language) : formatDateTime(call.startedAt, i18n.language, { dateStyle: "medium", timeStyle: "short" })}</p></div><div className="type-item-title">{call.durationSeconds ? t("home.recentCalls.durationValue", { value: call.durationSeconds }) : call.status}</div></div></div>)}</div></CardContent></Card>
         </div>}
       </div>
     </div>

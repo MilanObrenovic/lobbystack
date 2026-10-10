@@ -72,7 +72,8 @@ export default defineRailway((ctx) => {
       // Railway sends SIGKILL this long after SIGTERM, and the worker drains its
       // calls for this long minus a margin, so a 30-minute call finishes during
       // a deploy. See "Deploy the worker during calls" in docs/voice/runtime.md.
-      ...(production ? { RAILWAY_DEPLOYMENT_DRAINING_SECONDS: "1860" } : {}),
+      // Staging keeps its own shorter drain, set in the dashboard.
+      RAILWAY_DEPLOYMENT_DRAINING_SECONDS: production ? "1860" : preserve(),
       // New phone numbers join this Twilio Elastic SIP trunk, which sends their
       // calls to GPT-Live. Provisioning fails without it.
       TWILIO_SIP_TRUNK_SID: preserve(),
@@ -99,7 +100,6 @@ export default defineRailway((ctx) => {
       SMTP_PASSWORD: preserve(),
       TWILIO_ACCOUNT_SID: preserve(),
       TWILIO_AUTH_TOKEN: preserve(),
-      TWILIO_VERIFY_SERVICE_SID: preserve(),
       TWILIO_ALERT_ACCOUNT_SID: preserve(),
       TWILIO_ALERT_SMS_FROM: preserve(),
       TWILIO_ALERT_API_KEY_SID: preserve(),
@@ -156,7 +156,7 @@ export default defineRailway((ctx) => {
       // The landing page's demo call starts at /api/voice/live/session with no
       // signed token; the admin only accepts it for this business, from these sites.
       WEB_CALL_PUBLIC_BUSINESS_SLUG: production ? "lobbystack-mp35s9y1" : "lobbystack",
-      ...(production ? { WEB_CALL_ALLOWED_ORIGINS: "https://lobbystack.com,https://www.lobbystack.com" } : {}),
+      WEB_CALL_ALLOWED_ORIGINS: production ? "https://lobbystack.com,https://www.lobbystack.com" : preserve(),
       OPENAI_API_KEY: preserve(),
       NUMBER_CLAIM_TOKEN_SECRET: preserve(),
       POLAR_ACCESS_TOKEN: preserve(),
@@ -172,7 +172,6 @@ export default defineRailway((ctx) => {
       SITE_URL: preserve(),
       TWILIO_ACCOUNT_SID: preserve(),
       TWILIO_AUTH_TOKEN: preserve(),
-      TWILIO_VERIFY_SERVICE_SID: preserve(),
       TWILIO_SMS_WEBHOOK_URL: production ? preserve() : `${stagingAdminUrl}/api/webhooks/twilio/sms`,
       TWILIO_ALERT_ACCOUNT_SID: preserve(),
       TWILIO_ALERT_SMS_FROM: preserve(),
@@ -228,9 +227,13 @@ export default defineRailway((ctx) => {
   });
   const migrator = service("migrator", {
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile.migrator", watchPatterns: migratorWatchPatterns },
-    start: production
+    // Without a health check Railway marks a deployment successful as soon as
+    // its container starts. A failed pre-deploy command fails the deployment,
+    // so `railway up --ci` in CI and scripts/staging-start.sh see the result.
+    preDeploy: production
       ? "sh -c 'node_modules/.bin/tsx dist/cli.js migrate && node_modules/.bin/tsx dist/cli.js bootstrap && node_modules/.bin/tsx dist/cli.js check && VERIFY_RLS_BEHAVIOR=true node_modules/.bin/tsx dist/cli.js verify-rls'"
       : "sh -c 'node_modules/.bin/tsx dist/cli.js migrate && node_modules/.bin/tsx dist/cli.js migrate && node_modules/.bin/tsx dist/cli.js check && VERIFY_RLS_BEHAVIOR=true node_modules/.bin/tsx dist/cli.js verify-rls'",
+    start: "true",
     replicas: { "us-east4-eqdc4a": 1 },
     deploy: { restartPolicyType: "NEVER" },
     env: {

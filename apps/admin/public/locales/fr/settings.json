@@ -318,6 +318,7 @@
         "invoice": "Facture"
       },
       "invoice": "Facture",
+      "refundedAmount": "Remboursé : {{amount}}",
       "statusLabels": {
         "paid": "Payé",
         "pending": "En attente",
@@ -785,7 +786,7 @@
       },
       "widgetChat": {
         "title": "Nouveau message sur le clavardage du site",
-        "description": "Lorsqu’un visiteur envoie un message via le widget de votre site."
+        "description": "Lorsqu’un visiteur envoie un message via le widget de votre site. Vous recevez au plus une alerte par conversation chaque jour."
       },
       "webhookDisabled": {
         "title": "Point de terminaison webhook désactivé",

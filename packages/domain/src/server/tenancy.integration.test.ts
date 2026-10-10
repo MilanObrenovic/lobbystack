@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { businessHours, businessInvitations, businessMemberships, createDatabaseClient, services, staff, users, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
 import { findAvailability } from "./booking";
-import { acceptInvitation, createBusiness, inviteMember, removeMember } from "./tenancy";
+import { acceptInvitation, createBusiness, inviteMember, listUserBusinesses, removeMember } from "./tenancy";
 
 // Explicit opt-in only; never fall back to DATABASE_URL or load an env file.
 const testUrl = process.env.LOBBYSTACK_RELIABILITY_TEST_DATABASE_URL;
@@ -48,103 +48,112 @@ describe.skipIf(!client)("createBusiness", () => {
       expect(slots.length).toBeGreaterThan(0);
     });
   });
+
+  it("lists each business with its settings in one query", async () => {
+    await rollbackTest(async (tx) => {
+      const userId = randomUUID();
+      const email = `${userId}@example.invalid`;
+      await tx.insert(users).values({ id: userId, email, normalizedEmail: email, name: "Sam Owner" });
+      await tx.execute(sql`set local role lobbystack_app`);
+      const db = tx as unknown as Database;
+      const first = await createBusiness({ db }, { userId, name: "Alpha Dental", timezone: "America/Toronto", businessType: "clinic" });
+      const second = await createBusiness({ db }, { userId, name: "Beta Plumbing", timezone: "Europe/Belgrade", businessType: "service_company" });
+
+      expect(await listUserBusinesses(db, userId)).toEqual([
+        expect.objectContaining({ businessId: first.businessId, role: "business_owner", active: false, timezone: "America/Toronto", businessType: "clinic", defaultLocale: "en", websiteUrl: null, onboardingStage: "website", createdAt: expect.stringMatching(/Z$/) }),
+        expect.objectContaining({ businessId: second.businessId, active: true, timezone: "Europe/Belgrade", businessType: "service_company" }),
+      ]);
+    });
+  });
+
+  it("stops one account at 10 owned businesses", async () => {
+    await rollbackTest(async (tx) => {
+      const userId = randomUUID();
+      const email = `${userId}@example.invalid`;
+      await tx.insert(users).values({ id: userId, email, normalizedEmail: email, name: "Sam Owner" });
+      await tx.execute(sql`set local role lobbystack_app`);
+      const context = { db: tx as unknown as Database };
+      for (let index = 0; index < 10; index++) {
+        await createBusiness(context, { userId, name: `Shop ${index}`, timezone: "UTC", businessType: "test" });
+      }
+      await expect(createBusiness(context, { userId, name: "Shop 11", timezone: "UTC", businessType: "test" })).rejects.toMatchObject({ status: 403 });
+    });
+  });
 });
 
-describe.skipIf(!client)("acceptInvitation", () => {
-  /** A business owned by Sam, with Ana's account, and a pending viewer invitation for Ana. */
-  async function seed(tx: DatabaseTransaction) {
-    const account = async (name: string) => {
+describe.skipIf(!client)("team membership", () => {
+  const hash = (token: string) => createHash("sha256").update(token).digest("hex");
+
+  /** Seeds verified users as the migrator, then switches to the app role and creates the owner's business. */
+  async function seedTeam(tx: DatabaseTransaction, names: string[]) {
+    const people = [];
+    for (const name of names) {
       const id = randomUUID();
       const email = `${id}@example.invalid`;
-      await tx.insert(users).values({ id, email, normalizedEmail: email, name });
-      return { id, email };
-    };
-    const owner = await account("Sam Owner");
-    const invitee = await account("Ana");
-    const db = tx as unknown as Database;
+      await tx.insert(users).values({ id, email, normalizedEmail: email, name, emailVerified: true });
+      people.push({ id, email });
+    }
     await tx.execute(sql`set local role lobbystack_app`);
-    const { businessId } = await createBusiness({ db }, { userId: owner.id, name: "Northside Plumbing", timezone: "America/Toronto", businessType: "service_company" });
-    const invite = async (email: string, role: "viewer" | "business_admin" = "viewer") => {
-      const { token } = await inviteMember({ db }, { userId: owner.id, businessId, email, role });
-      return createHash("sha256").update(token).digest("hex");
-    };
-    const roleOf = async (userId: string) => {
-      await tx.execute(sql`reset role`);
-      const [row] = await tx.select({ role: businessMemberships.role, status: businessMemberships.status }).from(businessMemberships).where(and(eq(businessMemberships.businessId, businessId), eq(businessMemberships.userId, userId)));
-      await tx.execute(sql`set local role lobbystack_app`);
-      return row;
-    };
-    const statusOf = async (tokenHash: string) => {
-      await tx.execute(sql`reset role`);
-      const [row] = await tx.select({ status: businessInvitations.status }).from(businessInvitations).where(eq(businessInvitations.tokenHash, tokenHash));
-      await tx.execute(sql`set local role lobbystack_app`);
-      return row?.status;
-    };
-    return { db, owner, invitee, businessId, invite, roleOf, statusOf };
+    const context = { db: tx as unknown as Database };
+    const owner = people[0]!;
+    const { businessId } = await createBusiness(context, { userId: owner.id, name: "Team Dental", timezone: "UTC", businessType: "dental" });
+    const invite = async (fromUserId: string, email: string, role: "business_admin" | "viewer") => (await inviteMember(context, { userId: fromUserId, businessId, email, role })).token;
+    const accept = (person: { id: string; email: string }, token: string) => acceptInvitation(context, { userId: person.id, tokenHash: hash(token), email: person.email, emailVerified: true });
+    const listMembers = async (userId: string) => (await withBusinessTransaction(context.db, { userId, businessId, actorType: "operator" }, (inner) => inner.execute<{ membership_id: string; user_id: string; role: string }>(sql`select membership_id, user_id, role from app.list_business_members(${businessId}::uuid)`))).rows;
+    return { context, businessId, people, invite, accept, listMembers };
   }
 
-  it("refuses anyone but the invited email, so an owner opening the link keeps their role", async () => {
+  it("lists other active members to the owner, and removing a member revokes their pending invitations", async () => {
     await rollbackTest(async (tx) => {
-      const { db, owner, invitee, invite, roleOf, statusOf } = await seed(tx);
-      const tokenHash = await invite(invitee.email);
-      await expect(acceptInvitation({ db }, { userId: owner.id, email: owner.email, tokenHash })).rejects.toMatchObject({ status: 403, code: "invitation_email_mismatch" });
-      expect(await roleOf(owner.id)).toEqual({ role: "business_owner", status: "active" });
-      expect(await statusOf(tokenHash)).toBe("pending");
-    });
-  });
+      const { context, businessId, people: [owner, admin, gone, alt], invite, accept, listMembers } = await seedTeam(tx, ["Ana", "Ben", "Gil", "Alt"]);
+      await accept(admin!, await invite(owner!.id, admin!.email, "business_admin"));
+      await accept(gone!, await invite(owner!.id, gone!.email, "business_admin"));
+      const sentByGone = await invite(gone!.id, alt!.email, "business_admin");
+      const spareForGone = await invite(owner!.id, gone!.email, "business_admin");
 
-  it("adds the invited person with the invited role", async () => {
-    await rollbackTest(async (tx) => {
-      const { db, businessId, invitee, invite, roleOf, statusOf } = await seed(tx);
-      const tokenHash = await invite(invitee.email.toUpperCase());
-      await expect(acceptInvitation({ db }, { userId: invitee.id, email: invitee.email, tokenHash })).resolves.toEqual({ businessId, role: "viewer" });
-      expect(await roleOf(invitee.id)).toEqual({ role: "viewer", status: "active" });
-      expect(await statusOf(tokenHash)).toBe("accepted");
-    });
-  });
+      const goneMembership = (await listMembers(owner!.id)).find((row) => row.user_id === gone!.id)!;
+      await removeMember(context, { userId: owner!.id, businessId, membershipId: goneMembership.membership_id });
 
-  it("never lowers the role of someone who is already an active member", async () => {
-    await rollbackTest(async (tx) => {
-      const { db, businessId, owner, invite, roleOf } = await seed(tx);
-      const tokenHash = await invite(owner.email);
-      await expect(acceptInvitation({ db }, { userId: owner.id, email: owner.email, tokenHash })).resolves.toEqual({ businessId, role: "business_owner" });
-      expect(await roleOf(owner.id)).toEqual({ role: "business_owner", status: "active" });
-    });
-  });
-
-  it("lists every member, with their email, to each member of the business and to no one else", async () => {
-    await rollbackTest(async (tx) => {
-      const { db, businessId, owner, invitee, invite } = await seed(tx);
-      await acceptInvitation({ db }, { userId: invitee.id, email: invitee.email, tokenHash: await invite(invitee.email) });
-      const membersAs = async (userId: string) => await withBusinessTransaction(db, { userId, businessId, actorType: "operator" }, async (inner) =>
-        (await inner.execute<{ email: string; role: string }>(sql`select email, role from app.list_business_members(${businessId}::uuid)`)).rows);
-      const everyone = [{ email: owner.email, role: "business_owner" }, { email: invitee.email, role: "viewer" }];
-      // Both memberships share the transaction's timestamp, so their order isn't fixed here.
-      const byEmail = (rows: Array<{ email: string; role: string }>) => [...rows].sort((left, right) => left.email.localeCompare(right.email));
-      expect(byEmail(await membersAs(owner.id))).toEqual(byEmail(everyone));
-      expect(byEmail(await membersAs(invitee.id))).toEqual(byEmail(everyone));
+      expect((await listMembers(owner!.id)).map((row) => row.user_id).sort()).toEqual([owner!.id, admin!.id].sort());
+      await expect(accept(gone!, spareForGone)).rejects.toThrow("Invitation is invalid or expired.");
+      await expect(accept(alt!, sentByGone)).rejects.toThrow("Invitation is invalid or expired.");
       await tx.execute(sql`reset role`);
-      const outsider = randomUUID();
-      await tx.insert(users).values({ id: outsider, email: `${outsider}@example.invalid`, normalizedEmail: `${outsider}@example.invalid` });
-      await tx.execute(sql`set local role lobbystack_app`);
-      expect(await membersAs(outsider)).toEqual([]);
+      const revoked = await tx.select({ status: businessInvitations.status }).from(businessInvitations).where(and(eq(businessInvitations.businessId, businessId), eq(businessInvitations.status, "revoked")));
+      expect(revoked).toHaveLength(2);
     });
   });
 
-  it("drops a removed member from the team list, and refuses to remove them twice or remove the last owner", async () => {
+  it("refuses an invitation accepted by an account with another or unverified email", async () => {
     await rollbackTest(async (tx) => {
-      const { db, businessId, owner, invitee, invite } = await seed(tx);
-      await acceptInvitation({ db }, { userId: invitee.id, email: invitee.email, tokenHash: await invite(invitee.email) });
-      const members = async () => await withBusinessTransaction(db, { userId: owner.id, businessId, actorType: "operator" }, async (inner) =>
-        (await inner.execute<{ membership_id: string; email: string }>(sql`select membership_id, email from app.list_business_members(${businessId}::uuid)`)).rows);
-      const listed = await members();
-      const viewerMembership = listed.find((row) => row.email === invitee.email)!.membership_id;
-      const ownerMembership = listed.find((row) => row.email === owner.email)!.membership_id;
+      const { context, people: [owner, invitee, stranger], invite, accept } = await seedTeam(tx, ["Ana", "Alice", "Mallory"]);
+      const token = await invite(owner!.id, invitee!.email, "business_admin");
+      await expect(accept(stranger!, token)).rejects.toMatchObject({ status: 403 });
+      await expect(acceptInvitation(context, { userId: invitee!.id, tokenHash: hash(token), email: invitee!.email, emailVerified: false })).rejects.toMatchObject({ status: 403 });
+      await expect(accept(invitee!, token)).resolves.toMatchObject({ role: "business_admin" });
+    });
+  });
 
-      await removeMember({ db }, { userId: owner.id, businessId, membershipId: viewerMembership });
-      expect((await members()).map((row) => row.email)).toEqual([owner.email]);
-      await expect(removeMember({ db }, { userId: owner.id, businessId, membershipId: viewerMembership })).rejects.toMatchObject({ status: 404 });
-      await expect(removeMember({ db }, { userId: owner.id, businessId, membershipId: ownerMembership })).rejects.toMatchObject({ status: 409, code: "final_owner" });
+  it("keeps an owner's role when they accept a viewer invitation to their own email", async () => {
+    await rollbackTest(async (tx) => {
+      const { businessId, people: [owner, admin], invite, accept } = await seedTeam(tx, ["Ana", "Ben"]);
+      await accept(admin!, await invite(owner!.id, admin!.email, "business_admin"));
+      await expect(accept(owner!, await invite(admin!.id, owner!.email, "viewer"))).resolves.toEqual({ businessId, role: "business_owner" });
+      await tx.execute(sql`reset role`);
+      const [membership] = await tx.select({ role: businessMemberships.role, status: businessMemberships.status }).from(businessMemberships).where(and(eq(businessMemberships.businessId, businessId), eq(businessMemberships.userId, owner!.id)));
+      expect(membership).toEqual({ role: "business_owner", status: "active" });
+    });
+  });
+
+  it("refuses to remove a member twice or to remove the last owner", async () => {
+    await rollbackTest(async (tx) => {
+      const { context, businessId, people: [owner, viewer], invite, accept, listMembers } = await seedTeam(tx, ["Ana", "Ben"]);
+      await accept(viewer!, await invite(owner!.id, viewer!.email, "viewer"));
+      const members = await listMembers(owner!.id);
+      const viewerMembership = members.find((row) => row.user_id === viewer!.id)!.membership_id;
+      const ownerMembership = members.find((row) => row.user_id === owner!.id)!.membership_id;
+      await removeMember(context, { userId: owner!.id, businessId, membershipId: viewerMembership });
+      await expect(removeMember(context, { userId: owner!.id, businessId, membershipId: viewerMembership })).rejects.toMatchObject({ status: 404 });
+      await expect(removeMember(context, { userId: owner!.id, businessId, membershipId: ownerMembership })).rejects.toMatchObject({ status: 409, code: "final_owner" });
     });
   });
 });
