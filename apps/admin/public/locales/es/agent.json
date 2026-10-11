@@ -161,6 +161,10 @@
       "deleteTitle": "¿Eliminar el servicio?",
       "deleteDescription": "Su recepcionista dejará de ofrecerlo. Las citas pasadas lo siguen mostrando."
     },
+    "employees": {
+      "title": "Empleados",
+      "description": "Personas con las que su recepcionista puede reservar citas y a las que puede transferir llamadas."
+    },
     "rules": {
       "title": "Reglas",
       "description": "Instrucciones que indican cómo debe gestionar su recepcionista las llamadas y los mensajes.",

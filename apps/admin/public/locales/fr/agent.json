@@ -161,6 +161,10 @@
       "deleteTitle": "Supprimer le service ?",
       "deleteDescription": "Votre réceptionniste ne le proposera plus. Les rendez-vous passés l'affichent toujours."
     },
+    "employees": {
+      "title": "Employés",
+      "description": "Personnes avec qui votre réceptionniste peut prendre des rendez-vous et vers qui transférer les appels."
+    },
     "rules": {
       "title": "Règles",
       "description": "Instructions qui guident la manière dont votre réceptionniste doit gérer les appels et les messages.",

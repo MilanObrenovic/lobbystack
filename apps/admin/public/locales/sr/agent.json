@@ -161,6 +161,10 @@
       "deleteTitle": "Obrisati uslugu?",
       "deleteDescription": "Recepcioner prestaje da je nudi. Prošli termini je i dalje prikazuju."
     },
+    "employees": {
+      "title": "Zaposleni",
+      "description": "Osobe kod kojih recepcioner može da zakaže termin i kojima može da preusmeri poziv."
+    },
     "rules": {
       "title": "Pravila",
       "description": "Uputstva po kojima recepcioner obrađuje pozive i poruke.",

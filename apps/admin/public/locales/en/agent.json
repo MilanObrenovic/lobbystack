@@ -161,6 +161,10 @@
       "deleteTitle": "Delete service?",
       "deleteDescription": "Your receptionist stops offering it. Past appointments still show it."
     },
+    "employees": {
+      "title": "Employees",
+      "description": "People your receptionist can book appointments with and transfer calls to."
+    },
     "rules": {
       "title": "Rules",
       "description": "Instructions that guide how your receptionist should handle calls and messages.",

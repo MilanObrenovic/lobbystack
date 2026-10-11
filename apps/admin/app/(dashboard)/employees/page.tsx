@@ -1,5 +1,5 @@
-import { LiveEmployeesSurface } from "@/components/live-employees-surface";
+import { permanentRedirect } from "next/navigation";
 
 export default function EmployeesPage() {
-  return <LiveEmployeesSurface />;
+  permanentRedirect("/agent/employees");
 }

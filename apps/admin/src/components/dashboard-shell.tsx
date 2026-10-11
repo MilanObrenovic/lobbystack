@@ -127,12 +127,12 @@ function ReplacementSidebar({ user }: Pick<DashboardShellProps, "user">) {
     { label: t("nav:items.calls"), href: "/calls", icon: Phone },
     ...(["/messages", "/settings/widget"].some(route => pathname === route || pathname.startsWith(`${route}/`)) ? [{ label: t("nav:items.messages"), href: "/messages", icon: MessageSquareMore }] : []),
     { label: t("nav:items.contacts"), href: "/contacts", icon: Users },
-    { label: t("nav:items.employees"), href: "/employees", icon: IdCard },
   ];
   const receptionist: NavigationItem[] = [
     { label: t("agent:sections.basicSettings.title"), href: "/agent", icon: ClipboardCheck },
     { label: t("agent:sections.knowledge.title"), href: "/agent/knowledge", icon: BookText },
     { label: t("agent:sections.services.title"), href: "/agent/services", icon: Blocks },
+    { label: t("agent:sections.employees.title"), href: "/agent/employees", icon: IdCard },
     { label: t("agent:sections.rules.title"), href: "/agent/rules", icon: Workflow },
   ];
   const other: NavigationItem[] = [

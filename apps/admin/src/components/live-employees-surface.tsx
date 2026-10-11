@@ -19,7 +19,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { DataTablePagination, paginationFeatures } from "@/components/data-table/pagination";
 import { DATA_TABLE_ROW_ACTIONS_CELL_CLASS, DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS, DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS, DataTableRowActions } from "@/components/data-table/row-controls";
-import { PageHeader } from "@/components/page-header";
 import { TableCardSkeleton } from "@/components/loading-skeletons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -118,7 +117,6 @@ export function LiveEmployeesSurface() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <PageHeader title={t("page.title")} />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-sm flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
