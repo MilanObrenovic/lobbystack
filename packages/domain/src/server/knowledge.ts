@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { and, asc, desc, eq, ilike, lt, ne, sql } from "drizzle-orm";
 
 import { agentRules, businessContextSnapshots, businessHours, businesses, closures, enqueueOutbox, knowledgeChunks, knowledgeDocuments, knowledgeSnippets, phoneNumbers, receptionistProfiles, services, staffServiceAssignments, storageObjects, websiteIngestionJobs, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
-import { getKnowledgeStorageLimitBytes, normalizeAppointmentChangePolicy, normalizeBookingMode, normalizeTransferMode, type BusinessContextSnapshot } from "@lobbystack/shared";
+import { getKnowledgeStorageLimitBytes, normalizeAppointmentChangePolicy, normalizeBookingMode, normalizeRuntimeLocale, normalizeTransferMode, runtimeLocales, type BusinessContextSnapshot } from "@lobbystack/shared";
 import { buildBusinessContextSnapshot } from "../snapshot";
 import { countKnowledgeTokens, fuseKnowledgeRanks, KNOWLEDGE_SEARCH_TOKEN_BUDGET, knowledgeLexicalQueries, knowledgeQueryTerms, withinKnowledgeBudget, type KnowledgePassage } from "../knowledgeRanking";
 
@@ -535,7 +535,7 @@ export async function refreshBusinessSnapshot(
       displayName: business[0].name,
       ...(business[0].legalName ? { legalName: business[0].legalName } : {}),
       timezone: business[0].timezone,
-      defaultLocale: business[0].defaultLocale === "fr" ? "fr" : "en",
+      defaultLocale: normalizeRuntimeLocale(business[0].defaultLocale),
       businessType: ["clinic", "repair_shop", "salon", "service_company"].includes(business[0].businessType) ? business[0].businessType as BusinessContextSnapshot["businessType"] : "other",
       telemetryEnabled: business[0].telemetryEnabled,
       ...(phoneNumber ? { phoneNumber } : {}),
@@ -554,10 +554,7 @@ export async function refreshBusinessSnapshot(
       services: serviceRows.map((row) => ({
         id: row.id, name: row.name, durationMinutes: row.durationMinutes,
         ...(row.description ? { description: row.description } : {}),
-        ...(row.localizedNames ? { localizedNames: {
-          ...(typeof row.localizedNames.en === "string" ? { en: row.localizedNames.en } : {}),
-          ...(typeof row.localizedNames.fr === "string" ? { fr: row.localizedNames.fr } : {}),
-        } } : {}),
+        ...(row.localizedNames ? { localizedNames: Object.fromEntries(runtimeLocales.flatMap((locale) => typeof row.localizedNames?.[locale] === "string" ? [[locale, row.localizedNames[locale]]] : [])) } : {}),
       })),
       rules: ruleRows.map((row) => ({ id: row.id, title: row.title, content: row.content, order: row.sortOrder })),
       employees: employeeRows.map((row) => {

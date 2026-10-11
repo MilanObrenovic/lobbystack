@@ -3496,7 +3496,9 @@
             "type": "string",
             "enum": [
               "en",
-              "fr"
+              "fr",
+              "es",
+              "sr"
             ]
           },
           "website_url": {

@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import { businessContextSnapshots, businessMemberships, businesses, calls, enqueueOutbox, knowledgeDocuments, prospectDemos, receptionistProfiles, services, staff, staffServiceAssignments, users, websiteIngestionJobs, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
+import { normalizeRuntimeLocale } from "@lobbystack/shared";
 
 import { type TelemetryEventName, type TelemetryProperties } from "@lobbystack/telemetry";
 
@@ -179,7 +180,7 @@ export async function createProspectDemo(
   const ingestionJobId = randomUUID();
   const slug = `${cleanSlug(name)}-${Date.now().toString(36)}`;
   const token = generateToken(name);
-  const locale = input.locale === "fr" ? "fr" : "en";
+  const locale = normalizeRuntimeLocale(input.locale);
   const timezone = input.timezone?.trim() || "America/New_York";
   const suggestedPrompts = cleanPrompts(input.suggestedPrompts);
   const serviceNames = (input.services ?? []).map((value) => value.trim()).filter(Boolean);

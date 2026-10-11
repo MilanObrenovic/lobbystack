@@ -122,7 +122,7 @@ export const snapshotSchema = z.object({
   displayName: z.string().min(1),
   legalName: z.string().optional(),
   timezone: z.string().min(1),
-  defaultLocale: z.enum(["en", "fr"]),
+  defaultLocale: z.enum(["en", "fr", "es", "sr"]),
   businessType: z.string().min(1),
   telemetryEnabled: z.boolean().optional(),
   greeting: z.string(),

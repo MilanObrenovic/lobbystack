@@ -35,6 +35,13 @@ type AgentBasicSettingsPageProps = {
 
 type TimeZoneItemGroup = { value: string; label: string; items: TimeZoneOption[] };
 
+const RUNTIME_LOCALE_OPTIONS = [
+  { value: "en", labelKey: "common:language.english" },
+  { value: "fr", labelKey: "common:language.french" },
+  { value: "es", labelKey: "common:language.spanish" },
+  { value: "sr", labelKey: "common:language.serbian" },
+] as const satisfies ReadonlyArray<{ value: RuntimeLocale; labelKey: string }>;
+
 // Matches SelectTrigger, so the searchable timezone picker looks like the selects beside it.
 const COMBOBOX_TRIGGER_CLASS = "flex h-9 w-full items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-input/50 sm:w-72";
 
@@ -458,7 +465,7 @@ export function AgentBasicSettingsPage({
                 ) : (
                   <Select
                     disabled={!canManageTenant}
-                    items={[{ value: "en", label: t("common:language.english") }, { value: "fr", label: t("common:language.french") }]}
+                    items={RUNTIME_LOCALE_OPTIONS.map(({ value, labelKey }) => ({ value, label: t(labelKey) }))}
                     onValueChange={(value) => {
                       const nextLocale = ((value as RuntimeLocale | null) || "en");
                       setDefaultLocale(nextLocale);
@@ -485,8 +492,7 @@ export function AgentBasicSettingsPage({
                     <SelectTrigger aria-label={t("agent:fields.defaultLocale.label")} className="w-full sm:w-36" id="agent-default-language"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="en">{t("common:language.english")}</SelectItem>
-                        <SelectItem value="fr">{t("common:language.french")}</SelectItem>
+                        {RUNTIME_LOCALE_OPTIONS.map(({ value, labelKey }) => <SelectItem key={value} value={value}>{t(labelKey)}</SelectItem>)}
                       </SelectGroup>
                     </SelectContent>
                   </Select>

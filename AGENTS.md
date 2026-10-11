@@ -58,7 +58,7 @@
 - Avoid concatenating translated sentences; use interpolation.
 - Format dates, times, and numbers with the active locale through `Intl` or Luxon.
 - The interface languages are `en`, `fr`, `es`, and `sr`. Serbian uses Latin script only. Pass a locale through `intlLocale()` from `@lobbystack/shared` before you hand it to `Intl`, Luxon, `lang`, or `hreflang`, so `sr` becomes `sr-Latn`. A bare `sr` formats in Cyrillic.
-- The AI receptionist speaks English and French only (`RuntimeLocale`). Keep business caller languages and voice prompts on that list.
+- The AI receptionist speaks English, French, Spanish and Serbian (`RuntimeLocale`, Serbian in Latin script). Keep business caller languages and voice prompts on that list; name a language for a model with `runtimeLocaleName()`.
 
 ## Testing
 

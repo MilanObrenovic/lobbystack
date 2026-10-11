@@ -82,6 +82,11 @@ describe("buildLiveInstructions", () => {
     expect(instructions).toContain(`Open the call with this greeting as soon as you're told to start: "${demoSnapshot.greeting}" Say it once, at the start of the call only.`);
   });
 
+  it("speaks Spanish or Serbian, in Latin script, when the business chose it", () => {
+    expect(buildLiveInstructions({ ...demoSnapshot, defaultLocale: "es" }, callStart)).toContain("Speak Spanish unless the caller asks to switch");
+    expect(buildLiveInstructions({ ...demoSnapshot, defaultLocale: "sr" }, callStart)).toContain("Speak Serbian (Latin script) unless the caller asks to switch");
+  });
+
   it("keeps later rules when an earlier one is too long for the budget", () => {
     const rules = [
       { id: "r1", order: 1, title: "Huge", content: "word ".repeat(5_000) },

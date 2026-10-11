@@ -59,9 +59,22 @@ export type BusinessRole =
  * Languages the AI receptionist speaks and the business default language.
  * Interface languages (dashboard, widget UI, email) are {@link InterfaceLocale}.
  */
-export type RuntimeLocale = "en" | "fr";
+export type RuntimeLocale = "en" | "fr" | "es" | "sr";
 
-export const runtimeLocales = ["en", "fr"] as const satisfies ReadonlyArray<RuntimeLocale>;
+export const runtimeLocales = ["en", "fr", "es", "sr"] as const satisfies ReadonlyArray<RuntimeLocale>;
+
+/** A stored or requested language as one the receptionist speaks: its primary subtag when supported, else English. */
+export function normalizeRuntimeLocale(value: string | null | undefined): RuntimeLocale {
+  const primary = value?.trim().toLowerCase().split(/[-_]/)[0];
+  return (runtimeLocales as readonly string[]).includes(primary ?? "") ? primary as RuntimeLocale : "en";
+}
+
+// Language names for model prompts. Serbian is written in Latin script, never Cyrillic.
+const RUNTIME_LOCALE_NAMES: Record<RuntimeLocale, string> = { en: "English", fr: "French", es: "Spanish", sr: "Serbian (Latin script)" };
+
+export function runtimeLocaleName(locale: RuntimeLocale): string {
+  return RUNTIME_LOCALE_NAMES[locale];
+}
 
 export type HoursWindow = {
   dayOfWeek: number;

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { updateBusinessInTransaction } from "@lobbystack/domain";
 import { businesses, enqueueOutbox, receptionistProfiles } from "@lobbystack/db";
-import { defaultAppointmentChangePolicy, type AppointmentChangePolicy, type BookingMode } from "@lobbystack/shared";
+import { defaultAppointmentChangePolicy, runtimeLocales, type AppointmentChangePolicy, type BookingMode, type RuntimeLocale } from "@lobbystack/shared";
 import { asApiResponse, jsonError, readJson, withOperatorTransaction } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
@@ -85,8 +85,8 @@ export async function PATCH(request: Request) {
         throw jsonError("A profile object is required.");
       }
       const patch = readProfilePatch(body as Record<string, unknown>);
-      const locale = (body as Record<string, unknown>).locale;
-      if (locale !== undefined && locale !== "en" && locale !== "fr") throw jsonError("locale is invalid.");
+      const locale = (body as Record<string, unknown>).locale as RuntimeLocale | undefined;
+      if (locale !== undefined && !(runtimeLocales as readonly unknown[]).includes(locale)) throw jsonError("locale is invalid.");
       const timezone = (body as Record<string, unknown>).timezone;
       if (timezone !== undefined && typeof timezone !== "string") throw jsonError("timezone must be a string.");
       // Hands the summary back to AI, which rewrites it from the knowledge sources.
