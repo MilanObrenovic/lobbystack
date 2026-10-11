@@ -43,7 +43,7 @@ const RUNTIME_LOCALE_OPTIONS = [
 ] as const satisfies ReadonlyArray<{ value: RuntimeLocale; labelKey: string }>;
 
 // Matches SelectTrigger, so the searchable timezone picker looks like the selects beside it.
-const COMBOBOX_TRIGGER_CLASS = "flex h-9 w-full items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-input/50 sm:w-72";
+const COMBOBOX_TRIGGER_CLASS = "flex h-9 w-full min-w-0 items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-input/50 sm:w-56";
 
 export function resolveTransferNumberForSave({
   rawInputValue,
@@ -499,9 +499,9 @@ export function AgentBasicSettingsPage({
                 {isTimezoneSaving ? <ItemDescription>{t("agent:actions.saving")}</ItemDescription> : null}
                 {!isTimezoneSaving && timezoneStatus ? <ItemDescription className={statusClassName(timezoneStatus)}>{timezoneStatus}</ItemDescription> : null}
               </ItemContent>
-              <ItemActions className="w-full sm:w-auto">
+              <ItemActions className="w-full min-w-0 sm:w-auto">
                 {isLoadingConfiguration ? (
-                  <Skeleton className="h-10 w-full rounded-md sm:w-72" />
+                  <Skeleton className="h-10 w-full rounded-md sm:w-56" />
                 ) : (
                   <Combobox
                     disabled={isTimezoneSaving || !timezone || !canManageTenant}
@@ -514,8 +514,9 @@ export function AgentBasicSettingsPage({
                     <ComboboxTrigger aria-label={t("agent:fields.timezone.label")} className={COMBOBOX_TRIGGER_CLASS} id="agent-timezone">
                       <span className="min-w-0 flex-1 truncate text-left"><ComboboxValue /></span>
                     </ComboboxTrigger>
-                    <ComboboxContent>
-                      <ComboboxInput placeholder={t("agent:fields.timezone.search")} showTrigger={false} />
+                    <ComboboxContent className="min-w-(--anchor-width)">
+                      {/* Above the list, so the list doesn't paint over the input's focus ring. */}
+                      <ComboboxInput className="relative z-10" placeholder={t("agent:fields.timezone.search")} showTrigger={false} />
                       <ComboboxEmpty>{t("agent:fields.timezone.noResults")}</ComboboxEmpty>
                       <ComboboxList>
                         {(group: TimeZoneItemGroup) => (
