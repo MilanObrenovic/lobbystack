@@ -166,40 +166,29 @@ export function AgentBasicSettingsPage({
     );
   }, [configuration]);
 
+  const savedText = t("agent:actions.saved");
   useEffect(() => {
-    const timeouts: number[] = [];
-
-    if (greetingStatus) {
-      timeouts.push(window.setTimeout(() => {
-        setGreetingStatus(null);
-      }, 3000));
-    }
-
-    if (localeStatus) {
-      timeouts.push(window.setTimeout(() => {
-        setLocaleStatus(null);
-      }, 3000));
-    }
-
-    if (transferStatus) {
-      timeouts.push(window.setTimeout(() => {
-        setTransferStatus(null);
-        setTransferStatusTone("success");
-      }, 3000));
-    }
-
-    if (appointmentChangeStatus) {
-      timeouts.push(window.setTimeout(() => {
-        setAppointmentChangeStatus(null);
-      }, 3000));
-    }
+    const clear = [
+      [greetingStatus, () => setGreetingStatus(null)],
+      [localeStatus, () => setLocaleStatus(null)],
+      [transferStatus, () => { setTransferStatus(null); setTransferStatusTone("success"); }],
+      [appointmentChangeStatus, () => setAppointmentChangeStatus(null)],
+      [timezoneStatus, () => setTimezoneStatus(null)],
+      [bookingModeStatus, () => setBookingModeStatus(null)],
+      // "Regenerating" stays until the new summary arrives.
+      [summaryStatus === savedText ? summaryStatus : null, () => setSummaryStatus(null)],
+    ] as const;
+    const timeouts = clear.filter(([status]) => status).map(([, reset]) => window.setTimeout(reset, 3000));
 
     return () => {
       for (const timeoutId of timeouts) {
         window.clearTimeout(timeoutId);
       }
     };
-  }, [appointmentChangeStatus, greetingStatus, localeStatus, transferStatus]);
+  }, [appointmentChangeStatus, bookingModeStatus, greetingStatus, localeStatus, savedText, summaryStatus, timezoneStatus, transferStatus]);
+
+  // Green for a save that went through; other statuses keep the muted hint color.
+  const statusClassName = (status: string | null) => status === savedText ? "text-emerald-600 dark:text-emerald-400" : undefined;
 
   async function saveGreeting(): Promise<void> {
     if (!canManageTenant || !persistedProfile) {
@@ -350,7 +339,7 @@ export function AgentBasicSettingsPage({
               <ItemContent>
                 <ItemTitle>{t("agent:fields.greeting.label")}</ItemTitle>
                 <ItemDescription>{t("agent:fields.greeting.hint")}</ItemDescription>
-                {greetingStatus ? <ItemDescription>{greetingStatus}</ItemDescription> : null}
+                {greetingStatus ? <ItemDescription className={statusClassName(greetingStatus)}>{greetingStatus}</ItemDescription> : null}
               </ItemContent>
               <ItemActions className="w-full justify-end self-center sm:w-auto">
                 <Button
@@ -397,7 +386,7 @@ export function AgentBasicSettingsPage({
               <ItemContent>
                 <ItemTitle>{t("agent:fields.summary.label")}</ItemTitle>
                 <ItemDescription>{t("agent:fields.summary.hint")}</ItemDescription>
-                {summaryStatus ? <ItemDescription>{summaryStatus}</ItemDescription> : null}
+                {summaryStatus ? <ItemDescription className={statusClassName(summaryStatus)}>{summaryStatus}</ItemDescription> : null}
               </ItemContent>
               <ItemActions className="w-full justify-end self-center sm:w-auto">
                 <Button
@@ -456,7 +445,7 @@ export function AgentBasicSettingsPage({
                   <ItemDescription>{t("agent:actions.saving")}</ItemDescription>
                 ) : null}
                 {!isLocaleSaving && localeStatus ? (
-                  <ItemDescription>{localeStatus}</ItemDescription>
+                  <ItemDescription className={statusClassName(localeStatus)}>{localeStatus}</ItemDescription>
                 ) : null}
               </ItemContent>
               <ItemActions className="w-full sm:w-auto">
@@ -508,7 +497,7 @@ export function AgentBasicSettingsPage({
                 <ItemTitle>{t("agent:fields.timezone.label")}</ItemTitle>
                 <ItemDescription>{t("agent:fields.timezone.hint")}</ItemDescription>
                 {isTimezoneSaving ? <ItemDescription>{t("agent:actions.saving")}</ItemDescription> : null}
-                {!isTimezoneSaving && timezoneStatus ? <ItemDescription>{timezoneStatus}</ItemDescription> : null}
+                {!isTimezoneSaving && timezoneStatus ? <ItemDescription className={statusClassName(timezoneStatus)}>{timezoneStatus}</ItemDescription> : null}
               </ItemContent>
               <ItemActions className="w-full sm:w-auto">
                 {isLoadingConfiguration ? (
@@ -576,7 +565,7 @@ export function AgentBasicSettingsPage({
                 </div>
                 {transferStatus ? (
                   <ItemDescription
-                    className={transferStatusTone === "error" ? "text-destructive" : undefined}
+                    className={transferStatusTone === "error" ? "text-destructive" : statusClassName(transferStatus)}
                   >
                     {transferStatus}
                   </ItemDescription>
@@ -615,7 +604,7 @@ export function AgentBasicSettingsPage({
                 <ItemTitle>{t("agent:booking.mode.label")}</ItemTitle>
                 <ItemDescription>{t(`agent:booking.mode.descriptions.${bookingMode}`)}</ItemDescription>
                 {isBookingModeSaving ? <ItemDescription>{t("agent:actions.saving")}</ItemDescription> : null}
-                {!isBookingModeSaving && bookingModeStatus ? <ItemDescription>{bookingModeStatus}</ItemDescription> : null}
+                {!isBookingModeSaving && bookingModeStatus ? <ItemDescription className={statusClassName(bookingModeStatus)}>{bookingModeStatus}</ItemDescription> : null}
               </ItemContent>
               <ItemActions className="w-full sm:w-auto">
                 {isLoadingConfiguration ? (
@@ -720,7 +709,7 @@ export function AgentBasicSettingsPage({
                   {t("agent:appointmentChanges.requireOtp.hint")}
                 </ItemDescription>
                 {appointmentChangeStatus ? (
-                  <ItemDescription>{appointmentChangeStatus}</ItemDescription>
+                  <ItemDescription className={statusClassName(appointmentChangeStatus)}>{appointmentChangeStatus}</ItemDescription>
                 ) : null}
               </ItemContent>
               <ItemActions>
