@@ -192,7 +192,7 @@ export function BusinessHoursSection({ businessId, canManage }: { businessId: st
       <Dialog onOpenChange={(open) => { if (!open && !saving) close(); }} open={editing}>
         <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-lg">
           <DialogHeader><DialogTitle>{t("hours.title")}</DialogTitle></DialogHeader>
-          <div className="-mx-1 flex flex-col overflow-y-auto px-1">
+          <div className="-mx-1 flex flex-col overflow-x-hidden overflow-y-auto px-1">
             {DAY_ORDER.map((dayOfWeek) => {
               const windows = days[dayOfWeek] ?? [];
               const day = dayNames[dayOfWeek] ?? "";
@@ -204,9 +204,9 @@ export function BusinessHoursSection({ businessId, canManage }: { businessId: st
                       <div className="flex flex-col gap-2">
                         {windows.map((window, index) => (
                           <div className="flex items-center gap-2" key={index}>
-                            <Input aria-label={t("hours.opensAt", { day })} className="w-28" disabled={disabled} onChange={(event) => update(dayOfWeek, windows.map((item, position) => (position === index ? { ...item, open: event.target.value } : item)))} type="time" value={window.open} />
+                            <Input aria-label={t("hours.opensAt", { day })} className="w-28 min-w-0 shrink" disabled={disabled} onChange={(event) => update(dayOfWeek, windows.map((item, position) => (position === index ? { ...item, open: event.target.value } : item)))} type="time" value={window.open} />
                             <span aria-hidden="true" className="text-muted-foreground">–</span>
-                            <Input aria-label={t("hours.closesAt", { day })} className="w-28" disabled={disabled} onChange={(event) => update(dayOfWeek, windows.map((item, position) => (position === index ? { ...item, close: event.target.value } : item)))} type="time" value={window.close} />
+                            <Input aria-label={t("hours.closesAt", { day })} className="w-28 min-w-0 shrink" disabled={disabled} onChange={(event) => update(dayOfWeek, windows.map((item, position) => (position === index ? { ...item, close: event.target.value } : item)))} type="time" value={window.close} />
                             {windows.length > 1 ? <Button aria-label={t("hours.removeWindow")} disabled={disabled} onClick={() => update(dayOfWeek, windows.filter((_, position) => position !== index))} size="icon-sm" type="button" variant="ghost"><X /></Button> : null}
                           </div>
                         ))}
