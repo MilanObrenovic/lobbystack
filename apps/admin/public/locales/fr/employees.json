@@ -12,11 +12,11 @@
     "emptyState": "Aucun employé pour le moment.",
     "actions": {
       "moreOptions": "Plus d'options",
-      "editEmployee": "Modifier l'employé",
-      "deleteEmployee": "Supprimer l'employé",
+      "editEmployee": "Modifier",
+      "deleteEmployee": "Supprimer",
       "deleteTitle": "Supprimer l'employé ?",
       "deleteDescription": "L'employé sera définitivement retiré de votre tableau de bord.",
-      "deleteConfirm": "Supprimer l'employé",
+      "deleteConfirm": "Supprimer",
       "deleteCancel": "Annuler",
       "deleted": "Employé supprimé.",
       "deleteFailed": "Impossible de supprimer l'employé."

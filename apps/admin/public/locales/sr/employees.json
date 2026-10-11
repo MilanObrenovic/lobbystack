@@ -12,11 +12,11 @@
     "emptyState": "Još nema zaposlenih.",
     "actions": {
       "moreOptions": "Više opcija",
-      "editEmployee": "Izmeni zaposlenog",
-      "deleteEmployee": "Obriši zaposlenog",
+      "editEmployee": "Izmeni",
+      "deleteEmployee": "Obriši",
       "deleteTitle": "Obrisati zaposlenog?",
       "deleteDescription": "Zaposleni će biti trajno uklonjen sa vaše kontrolne table.",
-      "deleteConfirm": "Obriši zaposlenog",
+      "deleteConfirm": "Obriši",
       "deleteCancel": "Otkaži",
       "deleted": "Zaposleni je obrisan.",
       "deleteFailed": "Brisanje zaposlenog nije uspelo."

@@ -12,11 +12,11 @@
     "emptyState": "Todavía no hay empleados.",
     "actions": {
       "moreOptions": "Más opciones",
-      "editEmployee": "Editar empleado",
-      "deleteEmployee": "Eliminar empleado",
+      "editEmployee": "Editar",
+      "deleteEmployee": "Eliminar",
       "deleteTitle": "¿Eliminar empleado?",
       "deleteDescription": "El empleado se eliminará de forma permanente de tu panel.",
-      "deleteConfirm": "Eliminar empleado",
+      "deleteConfirm": "Eliminar",
       "deleteCancel": "Cancelar",
       "deleted": "Empleado eliminado.",
       "deleteFailed": "No se pudo eliminar el empleado."
