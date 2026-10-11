@@ -3,7 +3,7 @@
 import { requestJson } from "@/lib/request-json";
 import { useActiveBusiness } from "@/hooks/use-active-business";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   flexRender,
@@ -11,7 +11,7 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table";
-import { MoreHorizontal, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
+import { ChevronDown, MoreHorizontal, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
 import type { Country } from "react-phone-number-input/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -22,11 +22,13 @@ import { DataTablePagination, paginationFeatures } from "@/components/data-table
 import { DATA_TABLE_ROW_ACTIONS_CELL_CLASS, DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS, DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS, DataTableRowActions } from "@/components/data-table/row-controls";
 import { TableCardSkeleton } from "@/components/loading-skeletons";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/locale";
@@ -159,6 +161,44 @@ export function LiveEmployeesSurface() {
   );
 }
 
+function ServicesPicker({ id, invalid, label, onChange, services, value }: { id: string; invalid: boolean; label: string; onChange: (value: string[]) => void; services: ServiceOption[]; value: string[] }) {
+  const { t } = useTranslation("employees");
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const chosen = new Set(value);
+  const visible = services.filter((service) => service.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const allVisibleChosen = visible.length > 0 && visible.every((service) => chosen.has(service.id));
+  // Select all applies to the services the filter shows, so a search can narrow it.
+  const toggleVisible = () => {
+    const visibleIds = new Set(visible.map((service) => service.id));
+    onChange(allVisibleChosen ? value.filter((serviceId) => !visibleIds.has(serviceId)) : services.filter((service) => chosen.has(service.id) || visibleIds.has(service.id)).map((service) => service.id));
+  };
+  const toggle = (serviceId: string, checked: boolean) => onChange(services.filter((service) => service.id === serviceId ? checked : chosen.has(service.id)).map((service) => service.id));
+
+  return <Popover onOpenChange={(next) => { setOpen(next); if (!next) setQuery(""); }} open={open}>
+    <PopoverTrigger render={<button aria-describedby={invalid ? `${id}-error` : undefined} className="flex h-9 w-full items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-invalid:border-destructive data-invalid:ring-[3px] data-invalid:ring-destructive/20 dark:hover:bg-input/50" data-invalid={invalid || undefined} id={id} type="button" />}>
+      <span className={label ? "min-w-0 flex-1 truncate text-left" : "min-w-0 flex-1 truncate text-left text-muted-foreground"}>{label || t("add.fields.services.placeholder")}</span>
+      <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+    </PopoverTrigger>
+    <PopoverContent align="start" className="w-(--anchor-width) gap-0 p-0" initialFocus={searchRef}>
+      <div className="relative border-b p-2">
+        <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input aria-label={t("add.fields.services.search")} className="pl-9" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} placeholder={t("add.fields.services.search")} ref={searchRef} value={query} />
+      </div>
+      {visible.length ? <div className="flex max-h-64 flex-col overflow-y-auto p-1">
+        <label className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 font-medium hover:bg-muted/60">
+          <Checkbox checked={allVisibleChosen} onCheckedChange={toggleVisible} />{t("add.fields.services.selectAll")}
+        </label>
+        <div className="mx-3 my-1 border-t" />
+        {visible.map((service) => <label className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 hover:bg-muted/60" key={service.id}>
+          <Checkbox checked={chosen.has(service.id)} onCheckedChange={(checked) => toggle(service.id, checked)} /><span className="min-w-0 truncate">{service.name}</span>
+        </label>)}
+      </div> : <p className="px-3 py-6 text-center text-muted-foreground">{t("add.fields.services.noMatches")}</p>}
+    </PopoverContent>
+  </Popover>;
+}
+
 function serviceSummary(serviceIds: string[], services: ServiceOption[], allLabel: string): string {
   const chosen = new Set(serviceIds);
   if (services.length > 1 && services.every((service) => chosen.has(service.id))) return allLabel;
@@ -244,12 +284,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services }: 
           <Field data-invalid={servicesError ? true : undefined}>
             <FieldContent><FieldLabel htmlFor={servicesId}>{t("add.fields.services.label")}</FieldLabel><FieldDescription>{t(services.length ? "add.fields.services.hint" : "add.fields.services.empty")}</FieldDescription></FieldContent>
             {services.length ? (
-              <Select multiple onValueChange={(value) => { setServiceIds(value); setServiceInvalid(false); }} value={knownServiceIds}>
-                <SelectTrigger aria-describedby={servicesError ? `${servicesId}-error` : undefined} aria-invalid={servicesError ? true : undefined} className="w-full" id={servicesId}>
-                  <span className="min-w-0 flex-1 truncate text-left">{servicesLabel || t("add.fields.services.placeholder")}</span>
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false} className="max-h-72"><SelectGroup>{services.map((service) => <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>)}</SelectGroup></SelectContent>
-              </Select>
+              <ServicesPicker id={servicesId} invalid={Boolean(servicesError)} label={servicesLabel} onChange={(value) => { setServiceIds(value); setServiceInvalid(false); }} services={services} value={knownServiceIds} />
             ) : (
               <Button className="w-fit" nativeButton={false} render={<Link href="/agent/services" />} variant="outline">{t("add.fields.services.goToServices")}</Button>
             )}
