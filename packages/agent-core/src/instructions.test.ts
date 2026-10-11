@@ -1,7 +1,7 @@
 import { countKnowledgeTokens } from "@lobbystack/domain";
 import { demoSnapshot } from "@lobbystack/shared";
 import { DateTime } from "luxon";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { buildAgentInstructions, buildLiveInstructions } from "./instructions";
 
@@ -224,6 +224,25 @@ describe("employees", () => {
     const roster = "Employees: Ana Petrović (Colour, Haircut), Marko Jovanović (Haircut). Each employee only does the services in brackets after their name: use this to answer which services an employee does and which employees do a service, and never offer or book an employee for a service they don't do.";
     expect(buildAgentInstructions(withServices, "web_chat")).toContain(roster);
     expect(buildLiveInstructions(withServices, callStart)).toContain(roster);
+  });
+
+  it("says when an employee is away, and leaves out a vacation that has ended", () => {
+    const withVacations = { ...withEmployees, timezone: "UTC", employees: [
+      { name: "Ana Petrović", services: ["Haircut"], vacation: { startsOn: "2026-10-20", endsOn: "2026-10-24" } },
+      { name: "Marko Jovanović", services: ["Haircut"], vacation: { startsOn: "2026-10-01", endsOn: "2026-10-09" } },
+    ] };
+    try {
+      vi.useFakeTimers({ now: new Date("2026-10-12T12:00:00Z") });
+      const upcoming = buildAgentInstructions(withVacations, "web_chat");
+      expect(upcoming).toContain("Employees: Ana Petrović (Haircut; on vacation from Tuesday, October 20 to Saturday, October 24), Marko Jovanović (Haircut).");
+      expect(upcoming).toContain("An employee can't be booked on the days of their vacation: when a caller asks for one who is away, say when they're back, and offer a later day or another employee.");
+      vi.setSystemTime(new Date("2026-10-21T12:00:00Z"));
+      expect(buildLiveInstructions(withVacations, callStart)).toContain("Ana Petrović (Haircut; on vacation until Saturday, October 24)");
+      vi.setSystemTime(new Date("2026-10-25T12:00:00Z"));
+      expect(buildAgentInstructions(withVacations, "web_chat")).not.toContain("vacation");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("leaves employee guidance out when the business has none, books nothing, or runs a demo", () => {

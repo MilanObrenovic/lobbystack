@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { DateTime } from "luxon";
 import { afterAll, describe, expect, it } from "vitest";
 import { businessMemberships, businesses, createDatabaseClient, services, staff, staffServiceAssignments, users, type Database, type DatabaseTransaction } from "@lobbystack/db";
 
-import { createEmployee, deleteEmployee, listEmployees, updateEmployee } from "./employees";
+import { businessToday, createEmployee, deleteEmployee, listEmployees, updateEmployee } from "./employees";
 
 // Explicit opt-in only; never fall back to DATABASE_URL or load an env file.
 const testUrl = process.env.LOBBYSTACK_RELIABILITY_TEST_DATABASE_URL;
@@ -47,9 +48,9 @@ async function seed(tx: DatabaseTransaction) {
   const studio = await business("Studio", ["business_owner", "viewer"], ["Colour", "Haircut"]);
   const other = await business("Other studio", ["business_owner"], ["Shave"]);
   const db = tx as unknown as Database;
-  const owner = { userId: studio.userIds.business_owner!, businessId: studio.businessId, serviceIds: studio.serviceIds };
-  const viewer = { userId: studio.userIds.viewer!, businessId: studio.businessId, serviceIds: studio.serviceIds };
-  const otherOwner = { userId: other.userIds.business_owner!, businessId: other.businessId, serviceIds: other.serviceIds };
+  const owner = { userId: studio.userIds.business_owner!, businessId: studio.businessId, serviceIds: studio.serviceIds, vacation: null };
+  const viewer = { userId: studio.userIds.viewer!, businessId: studio.businessId, serviceIds: studio.serviceIds, vacation: null };
+  const otherOwner = { userId: other.userIds.business_owner!, businessId: other.businessId, serviceIds: other.serviceIds, vacation: null };
   const row = async (id: string) => (await tx.select({ name: staff.name, phone: staff.transferNumber, active: staff.active, isEmployee: staff.isEmployee, timezone: staff.timezone }).from(staff).where(eq(staff.id, id)))[0];
   const names = async (actor: { userId: string; businessId: string }) => (await listEmployees({ db }, actor)).employees.map((employee) => employee.name);
   return { db, studio, owner, viewer, otherOwner, row, names };
@@ -128,7 +129,7 @@ describe.skipIf(!client)("employees under operator RLS", () => {
       await expect(updateEmployee({ db }, { ...otherOwner, employeeId: ana.id, name: "Taken", phone: null })).resolves.toBeNull();
       await expect(deleteEmployee({ db }, { ...otherOwner, employeeId: ana.id })).resolves.toBe(false);
       // Naming the first business instead fails the membership check.
-      const intruder = { userId: otherOwner.userId, businessId: owner.businessId, serviceIds: owner.serviceIds };
+      const intruder = { userId: otherOwner.userId, businessId: owner.businessId, serviceIds: owner.serviceIds, vacation: null };
       await expect(listEmployees({ db }, intruder)).rejects.toMatchObject({ status: 403 });
       await expect(updateEmployee({ db }, { ...intruder, employeeId: ana.id, name: "Taken", phone: null })).rejects.toMatchObject({ status: 403 });
       await expect(deleteEmployee({ db }, { ...intruder, employeeId: ana.id })).rejects.toMatchObject({ status: 403 });
@@ -152,6 +153,29 @@ describe.skipIf(!client)("employees under operator RLS", () => {
       await expect(updateEmployee({ db }, { ...owner, employeeId: ana.id, name: "Ana", phone: null, serviceIds: [haircut!] })).resolves.toMatchObject({ serviceIds: [haircut] });
       expect(await tx.select({ serviceId: staffServiceAssignments.serviceId }).from(staffServiceAssignments).where(eq(staffServiceAssignments.staffId, ana.id))).toEqual([{ serviceId: haircut }]);
       await expect(updateEmployee({ db }, { ...owner, employeeId: ana.id, name: "Ana", phone: null, serviceIds: [] })).rejects.toMatchObject({ code: "employee_services_required" });
+    });
+  });
+
+  it("stores a vacation, reports the employee's status from it, and drops one that has ended", async () => {
+    await rollbackTest(async (tx) => {
+      const { db, owner } = await seed(tx);
+      const today = businessToday("Europe/Belgrade");
+      const day = (offset: number) => DateTime.fromISO(today).plus({ days: offset }).toISODate()!;
+      await expect(createEmployee({ db }, { ...owner, name: "Ana", phone: null, vacation: { startsOn: day(2), endsOn: day(1) } })).rejects.toMatchObject({ status: 400, code: "employee_vacation_invalid" });
+      await expect(createEmployee({ db }, { ...owner, name: "Ana", phone: null, vacation: { startsOn: "2026-02-30", endsOn: "2026-03-02" } })).rejects.toMatchObject({ code: "employee_vacation_invalid" });
+
+      const ana = await createEmployee({ db }, { ...owner, name: "Ana", phone: null, vacation: { startsOn: day(0), endsOn: day(3) } });
+      const status = async () => (await listEmployees({ db }, owner)).employees.find((employee) => employee.id === ana.id);
+      expect(await status()).toMatchObject({ status: "on_vacation", vacation: { startsOn: day(0), endsOn: day(3) } });
+
+      await updateEmployee({ db }, { ...owner, employeeId: ana.id, name: "Ana", phone: null, vacation: { startsOn: day(5), endsOn: day(9) } });
+      expect(await status()).toMatchObject({ status: "working", vacation: { startsOn: day(5), endsOn: day(9) } });
+
+      await updateEmployee({ db }, { ...owner, employeeId: ana.id, name: "Ana", phone: null, vacation: { startsOn: day(-9), endsOn: day(-1) } });
+      expect(await status()).toMatchObject({ status: "working", vacation: null });
+
+      await tx.delete(staffServiceAssignments).where(eq(staffServiceAssignments.staffId, ana.id));
+      expect(await status()).toMatchObject({ status: "no_services", serviceIds: [] });
     });
   });
 });

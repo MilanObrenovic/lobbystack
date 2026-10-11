@@ -125,6 +125,16 @@ describe("booking availability reference locking", () => {
     await expect(bookAppointment(context, input)).resolves.toMatchObject({ staffId: "staff-2" });
   });
 
+  it("doesn't book an employee on a day of their vacation, but does the day after", async () => {
+    const away = { id: "staff-2", isEmployee: true, vacationStartsOn: "2027-06-01", vacationEndsOn: "2027-06-07" };
+    const hours = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, openMinutes: 0, closeMinutes: 1440 }));
+    useTransaction({ hours, staffRows: [{ id: "staff-1" }, away], assignments: [{ staffId: "staff-2" }] });
+    await expect(bookAppointment(context, input)).rejects.toThrow("No staff member is available for this service.");
+
+    useTransaction({ hours, staffRows: [{ id: "staff-1" }, away], assignments: [{ staffId: "staff-2" }] });
+    await expect(bookAppointment(context, { ...input, startsAt: "2027-06-08T15:00:00.000Z" })).resolves.toMatchObject({ staffId: "staff-2" });
+  });
+
   it("only checks the employee the caller asked for", async () => {
     const recording = useTransaction({ hours: [] });
 

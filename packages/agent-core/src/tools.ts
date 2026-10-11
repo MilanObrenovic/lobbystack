@@ -245,7 +245,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
   if (bookingMode === "instant") {
     const employeeName = z.string().optional().describe("Only when the caller asked for a specific employee: that employee's name. Leave it out to book whoever is available first.");
     // The staff member a requested employee books under, or why they can't take this booking.
-    const employeeFor = async (name: string | undefined, serviceName: string) => {
+    const employeeFor = async (name: string | undefined, serviceName: string, day: string | undefined) => {
       if (!name?.trim()) return { ok: true as const };
       const match = await resolveEmployee(domain, { businessId, name });
       if (!match.ok) {
@@ -254,6 +254,13 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
           reason: match.employees.length
             ? `No single employee matches "${name}". The employees are: ${match.employees.join(", ")}. Ask the caller which one they mean.`
             : "This business doesn't book with specific employees. Leave employeeName out.",
+        };
+      }
+      if (day && match.vacation && match.vacation.startsOn <= day && day <= match.vacation.endsOn) {
+        const back = DateTime.fromISO(match.vacation.endsOn).plus({ days: 1 }).toFormat("cccc, LLLL d");
+        return {
+          ok: false as const,
+          reason: `${match.name} is on vacation from ${DateTime.fromISO(match.vacation.startsOn).toFormat("cccc, LLLL d")} to ${DateTime.fromISO(match.vacation.endsOn).toFormat("cccc, LLLL d")}, so they can't be booked that day. Tell the caller, then offer ${match.name} from ${back} on, or another employee or whoever is available first on the day they wanted.`,
         };
       }
       const check = await employeeDoesService(domain, { businessId, staffId: match.staffId, serviceName });
@@ -275,7 +282,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
         employeeName,
       }),
       execute: async ({ serviceName, date, preferredTime, employeeName: requested }) => {
-        const employee = await employeeFor(requested, serviceName);
+        const employee = await employeeFor(requested, serviceName, date);
         if (!employee.ok) return employee;
         const [hour, minute] = (preferredTime ?? "").split(":").map(Number);
         const callerPhone = callerTextable ? context.callerPhone : undefined;
@@ -313,7 +320,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
         const contactPhone = input.contactPhone?.trim() || context.callerPhone;
         if (!input.contactName?.trim()) return { ok: false, reason: "Ask for the caller's name before booking." };
         if (!contactPhone) return { ok: false, reason: "Ask for a phone number before booking." };
-        const employee = await employeeFor(input.employeeName, input.serviceName);
+        const employee = await employeeFor(input.employeeName, input.serviceName, DateTime.fromISO(input.startsAt, { zone: timezone }).toISODate() ?? undefined);
         if (!employee.ok) return employee;
         const staff = employee.staffId ? { staffId: employee.staffId } : {};
         const start = startTime(input.startsAt);
@@ -516,6 +523,10 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
                 ? `No single employee matches "${input.employeeName}". The employees are: ${match.employees.join(", ")}. Ask the caller which one they mean.`
                 : "This business has no employees to transfer to by name. Leave employeeName out to reach the business.",
             };
+          }
+          const today = DateTime.now().setZone(snapshot.timezone).toISODate()!;
+          if (match.vacation && match.vacation.startsOn <= today && today <= match.vacation.endsOn) {
+            return { ok: false, reason: `${match.name} is on vacation until ${DateTime.fromISO(match.vacation.endsOn).toFormat("cccc, LLLL d")}. Tell the caller, and offer to take a message for them or to connect the caller to the business instead.` };
           }
           // An employee without a number of their own is reached through the business.
           destination = match.phone ?? businessNumber;

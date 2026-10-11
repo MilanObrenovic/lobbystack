@@ -10,3 +10,11 @@ export function optionalEmployeePhone(value: unknown): string | null | undefined
 export function employeeServiceIds(value: unknown): string[] | null {
   return Array.isArray(value) && value.length > 0 && value.length <= 500 && value.every((id) => typeof id === "string") ? value as string[] : null;
 }
+
+/** The vacation from a request body: its days, null when there's none, or undefined when it isn't a pair of dates. */
+export function employeeVacation(value: unknown): { startsOn: string; endsOn: string } | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "object") return undefined;
+  const { startsOn, endsOn } = value as { startsOn?: unknown; endsOn?: unknown };
+  return typeof startsOn === "string" && typeof endsOn === "string" ? { startsOn, endsOn } : undefined;
+}

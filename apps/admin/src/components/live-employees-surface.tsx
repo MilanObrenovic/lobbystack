@@ -11,7 +11,9 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table";
-import { ChevronDown, MoreHorizontal, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
+import { CalendarDays, ChevronDown, MoreHorizontal, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
+import type { DateRange } from "react-day-picker";
+import { enUS, es, fr, srLatn } from "react-day-picker/locale";
 import type { Country } from "react-phone-number-input/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -21,7 +23,9 @@ import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { DataTablePagination, paginationFeatures } from "@/components/data-table/pagination";
 import { DATA_TABLE_ROW_ACTIONS_CELL_CLASS, DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS, DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS, DataTableRowActions } from "@/components/data-table/row-controls";
 import { TableCardSkeleton } from "@/components/loading-skeletons";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -31,19 +35,45 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDateTime } from "@/lib/locale";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatDateTime, intlLocale } from "@/lib/locale";
 import { formatPhoneNumberDisplay, getDefaultPhoneCountry, getPhoneCountryOptions, inferPhoneCountry } from "@/lib/phone";
+
+type Vacation = { startsOn: string; endsOn: string };
 
 type Employee = {
   id: string;
   name: string;
   phone: string | null;
   serviceIds: string[];
+  vacation: Vacation | null;
+  status: "working" | "on_vacation" | "no_services";
   createdAt: string;
   updatedAt: string;
 };
 
 type ServiceOption = { id: string; name: string };
+
+const PICKER_TRIGGER_CLASS = "flex h-9 w-full items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-invalid:border-destructive data-invalid:ring-[3px] data-invalid:ring-destructive/20 dark:hover:bg-input/50";
+const DAY_PICKER_LOCALES = { en: enUS, fr, es, sr: srLatn } as const;
+
+// Vacation days are calendar dates, YYYY-MM-DD, read and written in local time so they don't shift a day.
+function parseDay(day: string): Date {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(year!, month! - 1, date!);
+}
+
+function toDay(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatDay(day: string, locale: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { month: "short", day: "numeric" }).format(parseDay(day));
+}
+
+function formatVacation(vacation: Vacation, locale: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: "medium" }).formatRange(parseDay(vacation.startsOn), parseDay(vacation.endsOn));
+}
 
 function errorCode(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && typeof (error as { code?: unknown }).code === "string" ? (error as { code: string }).code : undefined;
@@ -61,7 +91,7 @@ export function LiveEmployeesSurface() {
   const { businesses, business } = useActiveBusiness();
   const employees = useQuery({
     queryKey: ["employees", business?.businessId, search.trim(), pagination.pageIndex, pagination.pageSize],
-    queryFn: () => requestJson<{ employees: Employee[]; services: ServiceOption[]; pagination: { total: number } }>(`/api/employees?businessId=${encodeURIComponent(business!.businessId)}&limit=${pagination.pageSize}&offset=${pagination.pageIndex * pagination.pageSize}&search=${encodeURIComponent(search.trim())}`),
+    queryFn: () => requestJson<{ employees: Employee[]; services: ServiceOption[]; today: string; pagination: { total: number } }>(`/api/employees?businessId=${encodeURIComponent(business!.businessId)}&limit=${pagination.pageSize}&offset=${pagination.pageIndex * pagination.pageSize}&search=${encodeURIComponent(search.trim())}`),
     enabled: Boolean(business),
   });
   const remove = useMutation({
@@ -72,6 +102,7 @@ export function LiveEmployeesSurface() {
 
   const rows = employees.data?.employees ?? [];
   const services = useMemo(() => employees.data?.services ?? [], [employees.data?.services]);
+  const today = employees.data?.today ?? toDay(new Date());
   const total = employees.data?.pagination.total ?? 0;
   const canMutate = business ? ["business_owner", "business_admin"].includes(business.role) : false;
 
@@ -108,6 +139,26 @@ export function LiveEmployeesSurface() {
       },
     },
     {
+      id: "status",
+      accessorKey: "status",
+      header: () => t("table.status"),
+      cell: ({ row }) => {
+        const { status, vacation } = row.original;
+        const detail = status === "on_vacation" && vacation
+          ? t("table.statusDetail.until", { date: formatDay(vacation.endsOn, locale) })
+          : status === "no_services" ? t("table.statusDetail.noServices")
+            : vacation ? t("table.statusDetail.vacationFrom", { date: formatDay(vacation.startsOn, locale) }) : "";
+        const tooltip = vacation ? t("table.statusTooltip.vacation", { dates: formatVacation(vacation, locale) }) : status === "no_services" ? t("table.statusTooltip.noServices") : "";
+        const content = <>
+          <Badge className="shrink-0" variant={status === "working" ? "secondary" : status === "on_vacation" ? "outline" : "destructive"}>{t(`table.statuses.${status}`)}</Badge>
+          {detail ? <span className="truncate text-sm text-muted-foreground">{detail}</span> : null}
+        </>;
+        return tooltip
+          ? <Tooltip><TooltipTrigger render={<div className="flex w-fit max-w-full min-w-0 items-center gap-2" />}>{content}</TooltipTrigger><TooltipContent>{tooltip}</TooltipContent></Tooltip>
+          : <div className="flex min-w-0 items-center gap-2">{content}</div>;
+      },
+    },
+    {
       id: "added",
       accessorKey: "createdAt",
       header: () => <span className={`relative block text-right ${DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS}`}>{t("table.added")}</span>,
@@ -140,22 +191,22 @@ export function LiveEmployeesSurface() {
         </div>
         {canMutate ? <div className="flex shrink-0 flex-wrap items-center gap-2"><Button onClick={() => openEditor(null)}><Plus data-icon="inline-start" />{t("add.button")}</Button></div> : null}
       </div>
-      {businesses.isLoading || employees.isLoading ? <TableCardSkeleton columns={5} /> : (
+      {businesses.isLoading || employees.isLoading ? <TableCardSkeleton columns={6} /> : (
         <>
           <TableCard>
             <Table className="min-w-[60rem] w-full table-fixed">
-              <colgroup><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[36%]" /><col className="w-[20%]" /><col className={DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS} /></colgroup>
+              <colgroup><col className="w-[15%]" /><col className="w-[14%]" /><col className="w-[21%]" /><col className="w-[25%]" /><col className="w-[19%]" /><col className={DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS} /></colgroup>
               <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead className={header.column.id === "added" || header.column.id === "actions" ? "text-right" : undefined} key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
               <TableBody>
                 {table.getRowModel().rows.map((row) => <TableRow className={canMutate ? "h-12 cursor-pointer transition-colors hover:bg-muted/40" : "h-12 transition-colors hover:bg-muted/40"} key={row.id} onClick={() => { if (canMutate) openEditor(row.original); }}>{row.getAllCells().map((cell) => <TableCell className={cell.column.id === "added" ? "w-0 max-w-0 text-right whitespace-nowrap" : cell.column.id === "actions" ? DATA_TABLE_ROW_ACTIONS_CELL_CLASS : "max-w-0"} key={cell.id} onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
-                {table.getRowModel().rows.length === 0 ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={5}>{search.trim() ? t("table.empty") : t("table.emptyState")}</TableCell></TableRow> : null}
+                {table.getRowModel().rows.length === 0 ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={6}>{search.trim() ? t("table.empty") : t("table.emptyState")}</TableCell></TableRow> : null}
               </TableBody>
             </Table>
           </TableCard>
           <DataTablePagination labels={{ rowsPerPage: t("pagination.rowsPerPage"), pageOf: (page, total) => t("pagination.pageOf", { page, total }), firstPage: t("pagination.firstPage"), previousPage: t("pagination.previousPage"), nextPage: t("pagination.nextPage"), lastPage: t("pagination.lastPage"), goToPage: (page) => t("pagination.goToPage", { page }) }} table={table} />
         </>
       )}
-      {business ? <EmployeeDialog businessId={business.businessId} employee={editingEmployee} onOpenChange={setDialogOpen} open={dialogOpen} services={services} /> : null}
+      {business ? <EmployeeDialog businessId={business.businessId} employee={editingEmployee} onOpenChange={setDialogOpen} open={dialogOpen} services={services} today={today} /> : null}
       <ConfirmActionDialog confirmVariant="destructive" cancelLabel={t("table.actions.deleteCancel")} confirmLabel={t("table.actions.deleteConfirm")} description={t("table.actions.deleteDescription")} onConfirm={async () => { if (!pendingDelete) return; await remove.mutateAsync(pendingDelete); setPendingDelete(null); toast.success(t("table.actions.deleted")); }} onOpenChange={(open) => { if (!open && !remove.isPending) setPendingDelete(null); }} open={Boolean(pendingDelete)} pending={remove.isPending} title={t("table.actions.deleteTitle")} />
     </div>
   );
@@ -177,7 +228,7 @@ function ServicesPicker({ id, invalid, label, onChange, services, value }: { id:
   const toggle = (serviceId: string, checked: boolean) => onChange(services.filter((service) => service.id === serviceId ? checked : chosen.has(service.id)).map((service) => service.id));
 
   return <Popover onOpenChange={(next) => { setOpen(next); if (!next) setQuery(""); }} open={open}>
-    <PopoverTrigger render={<button aria-describedby={invalid ? `${id}-error` : undefined} className="flex h-9 w-full items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-invalid:border-destructive data-invalid:ring-[3px] data-invalid:ring-destructive/20 dark:hover:bg-input/50" data-invalid={invalid || undefined} id={id} type="button" />}>
+    <PopoverTrigger render={<button aria-describedby={invalid ? `${id}-error` : undefined} className={PICKER_TRIGGER_CLASS} data-invalid={invalid || undefined} id={id} type="button" />}>
       <span className={label ? "min-w-0 flex-1 truncate text-left" : "min-w-0 flex-1 truncate text-left text-muted-foreground"}>{label || t("add.fields.services.placeholder")}</span>
       <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
     </PopoverTrigger>
@@ -199,13 +250,30 @@ function ServicesPicker({ id, invalid, label, onChange, services, value }: { id:
   </Popover>;
 }
 
+function VacationPicker({ id, locale, onChange, today, value }: { id: string; locale: string; onChange: (value: Vacation | null) => void; today: string; value: Vacation | null }) {
+  const { t } = useTranslation("employees");
+  const selected: DateRange | undefined = value ? { from: parseDay(value.startsOn), to: parseDay(value.endsOn) } : undefined;
+  return <div className="flex min-w-0 items-center gap-2">
+    <Popover>
+      <PopoverTrigger render={<button className={PICKER_TRIGGER_CLASS} id={id} type="button" />}>
+        <span className={value ? "min-w-0 flex-1 truncate text-left" : "min-w-0 flex-1 truncate text-left text-muted-foreground"}>{value ? formatVacation(value, locale) : t("add.fields.vacation.placeholder")}</span>
+        <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0">
+        <Calendar defaultMonth={selected?.from ?? parseDay(today)} disabled={{ before: parseDay(today) }} locale={DAY_PICKER_LOCALES[locale as keyof typeof DAY_PICKER_LOCALES] ?? enUS} mode="range" onSelect={(range: DateRange | undefined) => onChange(range?.from ? { startsOn: toDay(range.from), endsOn: toDay(range.to ?? range.from) } : null)} selected={selected} />
+      </PopoverContent>
+    </Popover>
+    {value ? <Button aria-label={t("add.fields.vacation.clear")} onClick={() => onChange(null)} size="icon" title={t("add.fields.vacation.clear")} type="button" variant="ghost"><X /></Button> : null}
+  </div>;
+}
+
 function serviceSummary(serviceIds: string[], services: ServiceOption[], allLabel: string): string {
   const chosen = new Set(serviceIds);
   if (services.length > 1 && services.every((service) => chosen.has(service.id))) return allLabel;
   return services.filter((service) => chosen.has(service.id)).map((service) => service.name).join(", ");
 }
 
-function EmployeeDialog({ businessId, employee, open, onOpenChange, services }: { businessId: string; employee: Employee | null; open: boolean; onOpenChange: (open: boolean) => void; services: ServiceOption[] }) {
+function EmployeeDialog({ businessId, employee, open, onOpenChange, services, today }: { businessId: string; employee: Employee | null; open: boolean; onOpenChange: (open: boolean) => void; services: ServiceOption[]; today: string }) {
   const { i18n, t } = useTranslation("employees");
   const locale = i18n.resolvedLanguage ?? i18n.language;
   const queryClient = useQueryClient();
@@ -214,6 +282,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services }: 
   const nameId = useId();
   const phoneId = useId();
   const servicesId = useId();
+  const vacationId = useId();
   const [name, setName] = useState("");
   const [country, setCountry] = useState<Country>(defaultCountry);
   const [phone, setPhone] = useState("");
@@ -223,18 +292,20 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services }: 
   const [phoneExists, setPhoneExists] = useState(false);
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [serviceInvalid, setServiceInvalid] = useState(false);
+  const [vacation, setVacation] = useState<Vacation | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setName(employee?.name ?? ""); setPhone(employee?.phone ?? ""); setPhoneDraft(employee?.phone ?? ""); setCountry(employee ? (inferPhoneCountry(employee.phone, defaultCountry) ?? defaultCountry) as Country : defaultCountry); setSubmitted(false); setPhoneExists(false); setServiceInvalid(false);
     // A new employee starts with every service; anyone can be narrowed down from there.
     setServiceIds(employee ? employee.serviceIds : services.map((service) => service.id));
+    setVacation(employee?.vacation ?? null);
   }, [defaultCountry, employee, open, services]);
 
   const save = useMutation({
     mutationFn: () => {
       const query = `businessId=${encodeURIComponent(businessId)}`;
-      const body = JSON.stringify({ name: name.trim(), phone: phone || null, serviceIds });
+      const body = JSON.stringify({ name: name.trim(), phone: phone || null, serviceIds, vacation });
       return employee
         ? requestJson(`/api/employees/${encodeURIComponent(employee.id)}?${query}`, { method: "PATCH", body })
         : requestJson(`/api/employees?${query}`, { method: "POST", body });
@@ -289,6 +360,10 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services }: 
               <Button className="w-fit" nativeButton={false} render={<Link href="/agent/services" />} variant="outline">{t("add.fields.services.goToServices")}</Button>
             )}
             {servicesError ? <FieldError id={`${servicesId}-error`}>{servicesError}</FieldError> : null}
+          </Field>
+          <Field>
+            <FieldContent><FieldLabel htmlFor={vacationId}>{t("add.fields.vacation.label")}</FieldLabel><FieldDescription>{t("add.fields.vacation.hint")}</FieldDescription></FieldContent>
+            <VacationPicker id={vacationId} locale={locale} onChange={setVacation} today={today} value={vacation} />
           </Field>
         </FieldGroup>
         <DialogFooter><Button className="w-full" disabled={save.isPending || !services.length} type="submit">{save.isPending ? t("add.saving") : t(employee ? "edit.save" : "add.save")}</Button></DialogFooter>

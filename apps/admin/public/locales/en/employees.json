@@ -7,6 +7,21 @@
     "phone": "Phone Number",
     "services": "Services",
     "allServices": "All services",
+    "status": "Status",
+    "statuses": {
+      "working": "Working",
+      "on_vacation": "On vacation",
+      "no_services": "Not bookable"
+    },
+    "statusDetail": {
+      "until": "Until {{date}}",
+      "vacationFrom": "Vacation from {{date}}",
+      "noServices": "No services chosen"
+    },
+    "statusTooltip": {
+      "vacation": "Vacation: {{dates}}",
+      "noServices": "Edit this employee and choose their services so callers can book them."
+    },
     "added": "Added",
     "empty": "No employees match the current search.",
     "emptyState": "No employees yet.",
@@ -51,6 +66,12 @@
         "invalid": "A service you chose was deleted. Check the list and try again.",
         "empty": "Add a service first, then choose which ones this employee does.",
         "goToServices": "Go to Services"
+      },
+      "vacation": {
+        "label": "Vacation",
+        "hint": "Optional. The receptionist won't book this employee on these days and tells callers when they're back.",
+        "placeholder": "Pick the first and last day",
+        "clear": "Remove vacation"
       }
     },
     "save": "Save",

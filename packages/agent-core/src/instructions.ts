@@ -23,12 +23,28 @@ function employeeNames(snapshot: BusinessContextSnapshot): string {
   return (snapshot.employees ?? []).map((employee) => employee.name).join(", ");
 }
 
-// Names with the services each employee does, for snapshots that have them.
+// When an employee is away, from the business's current date. A vacation that has ended says nothing.
+function vacationNote(vacation: { startsOn: string; endsOn: string } | undefined, today: string): string {
+  if (!vacation || vacation.endsOn < today) return "";
+  const day = (value: string) => DateTime.fromISO(value).toFormat("cccc, LLLL d");
+  return vacation.startsOn <= today ? `on vacation until ${day(vacation.endsOn)}` : `on vacation from ${day(vacation.startsOn)} to ${day(vacation.endsOn)}`;
+}
+
+// Names with the services each employee does and any vacation, for snapshots that have them.
 function employeeRoster(snapshot: BusinessContextSnapshot): string {
   const employees = snapshot.employees ?? [];
-  if (!employees.some((employee) => employee.services?.length)) return employeeNames(snapshot);
-  const roster = employees.map((employee) => employee.services?.length ? `${employee.name} (${employee.services.join(", ")})` : employee.name).join(", ");
-  return `${roster}. Each employee only does the services in brackets after their name: use this to answer which services an employee does and which employees do a service, and never offer or book an employee for a service they don't do`;
+  const today = DateTime.now().setZone(snapshot.timezone).toISODate()!;
+  const listsServices = employees.some((employee) => employee.services?.length);
+  const entries = employees.map((employee) => {
+    const vacation = vacationNote(employee.vacation, today);
+    const details = [employee.services?.join(", ") ?? "", vacation].filter(Boolean).join("; ");
+    return { text: details ? `${employee.name} (${details})` : employee.name, away: Boolean(vacation) };
+  });
+  return [
+    entries.map((entry) => entry.text).join(", "),
+    listsServices ? ". Each employee only does the services in brackets after their name: use this to answer which services an employee does and which employees do a service, and never offer or book an employee for a service they don't do" : "",
+    entries.some((entry) => entry.away) ? ". An employee can't be booked on the days of their vacation: when a caller asks for one who is away, say when they're back, and offer a later day or another employee" : "",
+  ].join("");
 }
 
 // Employees are reached through the business's transfer rules, so they need its transfer number too.

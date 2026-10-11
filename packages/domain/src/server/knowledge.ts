@@ -15,7 +15,7 @@ import { getPostHogDistinctIdForBusinessSystem } from "@lobbystack/telemetry";
 import { advanceOnboardingStageInTransaction } from "./onboarding";
 import { recordProductEventBestEffort } from "./productEvents";
 import { enqueueKnowledgeDerivedRefresh } from "./businessHours";
-import { listBookableEmployees } from "./employees";
+import { businessToday, currentVacation, listBookableEmployees } from "./employees";
 import { resolveBusinessBillingPlan } from "./contentRetentionPolicy";
 import { resolveSmsSender } from "./smsSender";
 
@@ -563,7 +563,8 @@ export async function refreshBusinessSnapshot(
       employees: employeeRows.map((row) => {
         const assigned = new Set(assignments.filter((assignment) => assignment.staffId === row.staffId).map((assignment) => assignment.serviceId));
         const names = serviceRows.filter((service) => assigned.has(service.id)).map((service) => service.name);
-        return { name: row.name, ...(names.length ? { services: names } : {}) };
+        const vacation = currentVacation(row, businessToday(business[0]!.timezone));
+        return { name: row.name, ...(names.length ? { services: names } : {}), ...(vacation ? { vacation } : {}) };
       }),
       snippets: snippets.map((row) => ({ id: row.id, title: row.title, content: row.content, tags: row.tags, priority: row.priority })),
       appointmentChangePolicy: normalizeAppointmentChangePolicy(currentProfile?.appointmentChangePolicy),

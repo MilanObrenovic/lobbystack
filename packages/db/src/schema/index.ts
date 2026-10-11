@@ -2,6 +2,7 @@ import { customType } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -225,6 +226,9 @@ export const staff = pgTable(
     transferNumber: text("transfer_number"),
     // Listed on the Employees page. The default staff member that stands for the business is not one.
     isEmployee: boolean("is_employee").default(false).notNull(),
+    // Inclusive dates in the business's timezone when the staff member is away. Both set or neither.
+    vacationStartsOn: date("vacation_starts_on", { mode: "string" }),
+    vacationEndsOn: date("vacation_ends_on", { mode: "string" }),
     ...legacyId,
     ...timestamps,
   },

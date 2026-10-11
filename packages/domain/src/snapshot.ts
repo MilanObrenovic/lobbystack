@@ -30,7 +30,7 @@ type SnapshotBuilderInput = {
   hours: Array<HoursWindow>;
   closures: Array<ClosureWindow>;
   services: Array<ServiceSummary>;
-  employees?: Array<{ name: string; services?: string[] }>;
+  employees?: Array<{ name: string; services?: string[]; vacation?: { startsOn: string; endsOn: string } }>;
   rules?: Array<AgentRuleSummary>;
   snippets: Array<KnowledgeSnippet>;
   knowledgeDigest?: string;

@@ -165,8 +165,8 @@ export type BusinessContextSnapshot = {
   hours: Array<HoursWindow>;
   closures: Array<ClosureWindow>;
   services: Array<ServiceSummary>;
-  /** Employees a caller can ask for by name, with the services each does. Absent in snapshots built before employees existed. */
-  employees?: Array<{ name: string; services?: string[] }>;
+  /** Employees a caller can ask for by name, with the services each does and a vacation (inclusive YYYY-MM-DD days) that hasn't ended. Absent in snapshots built before employees existed. */
+  employees?: Array<{ name: string; services?: string[]; vacation?: { startsOn: string; endsOn: string } }>;
   rules?: Array<AgentRuleSummary>;
   knowledgeSnippets?: Array<KnowledgeSnippet>;
   contactChannels: {

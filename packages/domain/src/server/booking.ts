@@ -9,6 +9,7 @@ import type { DomainContext } from "./context";
 import { recordCallOutcomeInTransaction } from "./callOutcome";
 import { consumeAppointmentChangeVerificationInTransaction } from "./appointmentChanges";
 import { findOrCreateContactByPhone } from "./contacts";
+import { businessToday, isOnVacation } from "./employees";
 import { recordSmsConsentAnswerInTransaction, smsConsentOnFile, type SmsConsentAnswer, type SmsConsentOnFile } from "./contactSmsConsent";
 import { recordProductEventBestEffort } from "./productEvents";
 import { CANCELLATION_CONFIRMATION, heldForCall, rescheduleAppointmentReminderInTransaction } from "./notifications";
@@ -51,6 +52,8 @@ type AvailabilityReference = {
   endsAt: Date;
   activeStaffIds: string[];
   employeeStaffIds: Set<string>;
+  /** Staff on vacation the day the appointment starts. */
+  awayStaffIds: Set<string>;
   assignedStaffIds: Set<string>;
   connections: Array<typeof calendarConnections.$inferSelect>;
   hours: Array<typeof businessHours.$inferSelect>;
@@ -68,7 +71,7 @@ async function loadAvailabilityReference(tx: DatabaseTransaction, input: { busin
   const startsAt = new Date(input.startsAt);
   if (!Number.isFinite(startsAt.getTime()) || !Number.isSafeInteger(service.durationMinutes) || service.durationMinutes <= 0) throw new Error("A valid appointment time and duration are required.");
   const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
-  const activeStaff = await tx.select({ id: staff.id, isEmployee: staff.isEmployee }).from(staff).where(and(eq(staff.businessId, input.businessId), eq(staff.active, true))).orderBy(asc(staff.id));
+  const activeStaff = await tx.select({ id: staff.id, isEmployee: staff.isEmployee, vacationStartsOn: staff.vacationStartsOn, vacationEndsOn: staff.vacationEndsOn }).from(staff).where(and(eq(staff.businessId, input.businessId), eq(staff.active, true))).orderBy(asc(staff.id));
   const activeStaffIds = activeStaff.map((row) => row.id);
   const assignments = await tx.select({ staffId: staffServiceAssignments.staffId }).from(staffServiceAssignments).where(and(eq(staffServiceAssignments.businessId, input.businessId), eq(staffServiceAssignments.serviceId, input.serviceId)));
   const connections = activeStaffIds.length
@@ -76,6 +79,7 @@ async function loadAvailabilityReference(tx: DatabaseTransaction, input: { busin
     : [];
   const hours = await tx.select().from(businessHours).where(eq(businessHours.businessId, input.businessId));
   const closed = await tx.select().from(closures).where(and(eq(closures.businessId, input.businessId), lt(closures.startsAt, endsAt), gt(closures.endsAt, startsAt)));
+  const day = businessToday(business.timezone, startsAt);
   return {
     businessId: input.businessId,
     serviceId: input.serviceId,
@@ -86,6 +90,7 @@ async function loadAvailabilityReference(tx: DatabaseTransaction, input: { busin
     endsAt,
     activeStaffIds,
     employeeStaffIds: new Set(activeStaff.filter((row) => row.isEmployee).map((row) => row.id)),
+    awayStaffIds: new Set(activeStaff.filter((row) => row.vacationStartsOn && row.vacationEndsOn && isOnVacation({ startsOn: row.vacationStartsOn, endsOn: row.vacationEndsOn }, day)).map((row) => row.id)),
     assignedStaffIds: new Set(assignments.map((row) => row.staffId)),
     connections,
     hours,
@@ -95,8 +100,10 @@ async function loadAvailabilityReference(tx: DatabaseTransaction, input: { busin
 
 // Unassigned services retain the existing all-active-staff default, except for
 // employees, who only do the services they are assigned. Explicit assignments
-// constrain eligibility instead of being silently ignored.
+// constrain eligibility instead of being silently ignored. Nobody on vacation
+// takes the booking.
 function doesService(reference: AvailabilityReference, staffId: string): boolean {
+  if (reference.awayStaffIds.has(staffId)) return false;
   return reference.assignedStaffIds.size ? reference.assignedStaffIds.has(staffId) : !reference.employeeStaffIds.has(staffId);
 }
 

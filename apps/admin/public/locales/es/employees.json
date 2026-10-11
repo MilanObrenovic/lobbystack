@@ -7,6 +7,21 @@
     "phone": "Número de teléfono",
     "services": "Servicios",
     "allServices": "Todos los servicios",
+    "status": "Estado",
+    "statuses": {
+      "working": "Trabajando",
+      "on_vacation": "De vacaciones",
+      "no_services": "No reservable"
+    },
+    "statusDetail": {
+      "until": "Hasta el {{date}}",
+      "vacationFrom": "Vacaciones desde el {{date}}",
+      "noServices": "Sin servicios elegidos"
+    },
+    "statusTooltip": {
+      "vacation": "Vacaciones: {{dates}}",
+      "noServices": "Edita este empleado y elige sus servicios para que los clientes puedan reservarlo."
+    },
     "added": "Añadido",
     "empty": "Ningún empleado coincide con la búsqueda.",
     "emptyState": "Todavía no hay empleados.",
@@ -51,6 +66,12 @@
         "invalid": "Se eliminó un servicio que elegiste. Revisa la lista e inténtalo de nuevo.",
         "empty": "Primero añade un servicio y luego elige los que hace este empleado.",
         "goToServices": "Ir a Servicios"
+      },
+      "vacation": {
+        "label": "Vacaciones",
+        "hint": "Opcional. El recepcionista no reserva a este empleado esos días y les dice a los clientes cuándo vuelve.",
+        "placeholder": "Elige el primer y el último día",
+        "clear": "Quitar vacaciones"
       }
     },
     "save": "Guardar",

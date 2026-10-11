@@ -7,6 +7,21 @@
     "phone": "Broj telefona",
     "services": "Usluge",
     "allServices": "Sve usluge",
+    "status": "Status",
+    "statuses": {
+      "working": "Radi",
+      "on_vacation": "Na odmoru",
+      "no_services": "Ne može se zakazati"
+    },
+    "statusDetail": {
+      "until": "Do {{date}}",
+      "vacationFrom": "Odmor od {{date}}",
+      "noServices": "Nema izabranih usluga"
+    },
+    "statusTooltip": {
+      "vacation": "Odmor: {{dates}}",
+      "noServices": "Izmenite zaposlenog i izaberite njegove usluge kako bi klijenti mogli da zakažu kod njega."
+    },
     "added": "Dodato",
     "empty": "Nijedan zaposleni ne odgovara pretrazi.",
     "emptyState": "Još nema zaposlenih.",
@@ -51,6 +66,12 @@
         "invalid": "Usluga koju ste izabrali je obrisana. Proverite listu i pokušajte ponovo.",
         "empty": "Prvo dodajte uslugu, pa izaberite koje usluge ovaj zaposleni radi.",
         "goToServices": "Idi na Usluge"
+      },
+      "vacation": {
+        "label": "Odmor",
+        "hint": "Opciono. Recepcioner ne zakazuje kod ovog zaposlenog tih dana i kaže klijentima kada se vraća.",
+        "placeholder": "Izaberite prvi i poslednji dan",
+        "clear": "Ukloni odmor"
       }
     },
     "save": "Sačuvaj",
