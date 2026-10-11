@@ -28,7 +28,7 @@ function employeeRoster(snapshot: BusinessContextSnapshot): string {
   const employees = snapshot.employees ?? [];
   if (!employees.some((employee) => employee.services?.length)) return employeeNames(snapshot);
   const roster = employees.map((employee) => employee.services?.length ? `${employee.name} (${employee.services.join(", ")})` : employee.name).join(", ");
-  return `${roster}. Each employee only does the services in brackets after their name, so don't offer one for any other service`;
+  return `${roster}. Each employee only does the services in brackets after their name: use this to answer which services an employee does and which employees do a service, and never offer or book an employee for a service they don't do`;
 }
 
 // Employees are reached through the business's transfer rules, so they need its transfer number too.

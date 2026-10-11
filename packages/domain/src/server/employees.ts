@@ -135,13 +135,19 @@ export async function listBookableEmployees(tx: DatabaseTransaction, businessId:
     .orderBy(asc(staff.createdAt), asc(staff.id));
 }
 
-/** Matches a name the caller gave to one employee: an exact match, else a single partial match. */
+/** Matches a name the caller gave to one employee: an exact match, else a single partial match, with the active services they do. */
 export async function resolveEmployee(context: DomainContext, input: { businessId: string; name: string }) {
   const wanted = input.name.trim().toLowerCase();
-  const rows = await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => await listBookableEmployees(tx, input.businessId));
-  const exact = rows.filter((row) => row.name.trim().toLowerCase() === wanted);
-  const matches = exact.length || !wanted ? exact : rows.filter((row) => row.name.toLowerCase().includes(wanted));
-  return matches.length === 1
-    ? { ok: true as const, staffId: matches[0]!.staffId, name: matches[0]!.name, phone: matches[0]!.phone }
-    : { ok: false as const, employees: rows.map((row) => row.name) };
+  return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    const rows = await listBookableEmployees(tx, input.businessId);
+    const exact = rows.filter((row) => row.name.trim().toLowerCase() === wanted);
+    const matches = exact.length || !wanted ? exact : rows.filter((row) => row.name.toLowerCase().includes(wanted));
+    if (matches.length !== 1) return { ok: false as const, employees: rows.map((row) => row.name) };
+    const match = matches[0]!;
+    const assigned = await tx.select({ name: services.name }).from(staffServiceAssignments)
+      .innerJoin(services, eq(services.id, staffServiceAssignments.serviceId))
+      .where(and(eq(staffServiceAssignments.businessId, input.businessId), eq(staffServiceAssignments.staffId, match.staffId), eq(services.active, true), isNull(services.deletedAt)))
+      .orderBy(asc(services.name));
+    return { ok: true as const, staffId: match.staffId, name: match.name, phone: match.phone, services: assigned.map((service) => service.name) };
+  });
 }

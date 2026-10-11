@@ -221,7 +221,7 @@ describe("employees", () => {
 
   it("lists the services each employee does, so the agent doesn't offer one for another service", () => {
     const withServices = { ...withEmployees, employees: [{ name: "Ana Petrović", services: ["Colour", "Haircut"] }, { name: "Marko Jovanović", services: ["Haircut"] }] };
-    const roster = "Employees: Ana Petrović (Colour, Haircut), Marko Jovanović (Haircut). Each employee only does the services in brackets after their name, so don't offer one for any other service.";
+    const roster = "Employees: Ana Petrović (Colour, Haircut), Marko Jovanović (Haircut). Each employee only does the services in brackets after their name: use this to answer which services an employee does and which employees do a service, and never offer or book an employee for a service they don't do.";
     expect(buildAgentInstructions(withServices, "web_chat")).toContain(roster);
     expect(buildLiveInstructions(withServices, callStart)).toContain(roster);
   });

@@ -5,6 +5,7 @@ import {
   findCallBooking,
   findCallerBooking,
   countKnowledgeTokens,
+  employeeDoesService,
   findOpenings,
   getSmsConsentOnFile,
   issueAppointmentChangeOtp,
@@ -243,17 +244,27 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
 
   if (bookingMode === "instant") {
     const employeeName = z.string().optional().describe("Only when the caller asked for a specific employee: that employee's name. Leave it out to book whoever is available first.");
-    // The staff member a requested employee books under, or why no single employee matched.
-    const employeeFor = async (name: string | undefined) => {
+    // The staff member a requested employee books under, or why they can't take this booking.
+    const employeeFor = async (name: string | undefined, serviceName: string) => {
       if (!name?.trim()) return { ok: true as const };
       const match = await resolveEmployee(domain, { businessId, name });
-      if (match.ok) return { ok: true as const, staffId: match.staffId, employeeName: match.name };
-      return {
-        ok: false as const,
-        reason: match.employees.length
-          ? `No single employee matches "${name}". The employees are: ${match.employees.join(", ")}. Ask the caller which one they mean.`
-          : "This business doesn't book with specific employees. Leave employeeName out.",
-      };
+      if (!match.ok) {
+        return {
+          ok: false as const,
+          reason: match.employees.length
+            ? `No single employee matches "${name}". The employees are: ${match.employees.join(", ")}. Ask the caller which one they mean.`
+            : "This business doesn't book with specific employees. Leave employeeName out.",
+        };
+      }
+      const check = await employeeDoesService(domain, { businessId, staffId: match.staffId, serviceName });
+      if (!check.does) {
+        const offers = match.services.length ? `${match.name} does: ${match.services.join(", ")}.` : `${match.name} takes no bookings right now.`;
+        return {
+          ok: false as const,
+          reason: `${match.name} doesn't do ${check.serviceName}, so it can't be booked with them. ${offers} Tell the caller, then offer ${check.serviceName} with an employee who does it or whoever is available first${match.services.length ? `, or one of ${match.name}'s services` : ""}.`,
+        };
+      }
+      return { ok: true as const, staffId: match.staffId, employeeName: match.name };
     };
     tools.findAvailability = tool({
       description: "Find open appointment times for one service on one date. Never state availability without calling this. Don't use it to recheck a time the caller already accepted; bookAppointment checks that.",
@@ -264,7 +275,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
         employeeName,
       }),
       execute: async ({ serviceName, date, preferredTime, employeeName: requested }) => {
-        const employee = await employeeFor(requested);
+        const employee = await employeeFor(requested, serviceName);
         if (!employee.ok) return employee;
         const [hour, minute] = (preferredTime ?? "").split(":").map(Number);
         const callerPhone = callerTextable ? context.callerPhone : undefined;
@@ -302,7 +313,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
         const contactPhone = input.contactPhone?.trim() || context.callerPhone;
         if (!input.contactName?.trim()) return { ok: false, reason: "Ask for the caller's name before booking." };
         if (!contactPhone) return { ok: false, reason: "Ask for a phone number before booking." };
-        const employee = await employeeFor(input.employeeName);
+        const employee = await employeeFor(input.employeeName, input.serviceName);
         if (!employee.ok) return employee;
         const staff = employee.staffId ? { staffId: employee.staffId } : {};
         const start = startTime(input.startsAt);

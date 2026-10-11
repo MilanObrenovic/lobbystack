@@ -104,19 +104,19 @@ describe("transferCall to an employee", () => {
   const ask = (employeeName: string) => ({ callerRequested: true, urgent: false, employeeName });
 
   it("transfers to the employee's own number", async () => {
-    vi.mocked(resolveEmployee).mockResolvedValueOnce({ ok: true, staffId: "staff-ana", name: "Ana Petrović", phone: "+381641234567" });
+    vi.mocked(resolveEmployee).mockResolvedValueOnce({ ok: true, staffId: "staff-ana", name: "Ana Petrović", phone: "+381641234567", services: [] });
     await expect(transferTo()(ask("Ana"), { toolCallId: "1", messages: [] })).resolves.toEqual({ ok: true, transferring: true, employeeName: "Ana Petrović" });
     expect(callControl.transfer).toHaveBeenCalledWith("+381641234567");
   });
 
   it("falls back to the business's transfer number when the employee has none", async () => {
-    vi.mocked(resolveEmployee).mockResolvedValueOnce({ ok: true, staffId: "staff-marko", name: "Marko", phone: null });
+    vi.mocked(resolveEmployee).mockResolvedValueOnce({ ok: true, staffId: "staff-marko", name: "Marko", phone: null, services: [] });
     await expect(transferTo()(ask("Marko"), { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: true, employeeName: "Marko" });
     expect(callControl.transfer).toHaveBeenCalledWith("+14165550199");
   });
 
   it("follows the business's transfer rules, even for an employee with a number", async () => {
-    vi.mocked(resolveEmployee).mockResolvedValue({ ok: true, staffId: "staff-ana", name: "Ana Petrović", phone: "+381641234567" });
+    vi.mocked(resolveEmployee).mockResolvedValue({ ok: true, staffId: "staff-ana", name: "Ana Petrović", phone: "+381641234567", services: [] });
     for (const transferPolicy of [{ mode: "on_request" as const }, { mode: "never" as const, transferNumber: "+14165550199" }]) {
       await expect(transferTo({ transferPolicy })(ask("Ana"), { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: false });
     }

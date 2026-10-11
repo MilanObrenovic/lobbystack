@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, ilike, lt, ne, or } from "drizzle-orm";
 import { DateTime } from "luxon";
 
-import { appointments, calls, contacts, conversationSessions, receptionistProfiles, services, staff, withBusinessTransaction } from "@lobbystack/db";
+import { appointments, calls, contacts, conversationSessions, receptionistProfiles, services, staff, staffServiceAssignments, withBusinessTransaction } from "@lobbystack/db";
 import { normalizeAppointmentChangePolicy, type HoursWindow } from "@lobbystack/shared";
 import { getPostHogDistinctIdForBusinessSystem } from "@lobbystack/telemetry";
 
@@ -27,6 +27,16 @@ async function resolveActiveService(context: DomainContext, businessId: string, 
     const normalized = serviceName.trim().toLowerCase();
     return (await tx.select({ id: services.id, name: services.name, durationMinutes: services.durationMinutes }).from(services).where(and(eq(services.businessId, businessId), eq(services.active, true), or(eq(services.slug, normalized), ilike(services.name, serviceName.trim())))).limit(1))[0];
   });
+}
+
+/** Whether a staff member is assigned a service. An unknown service counts as done, so the booking reports it instead. */
+export async function employeeDoesService(context: DomainContext, input: { businessId: string; staffId: string; serviceName: string }) {
+  const service = await resolveActiveService(context, input.businessId, input.serviceName);
+  if (!service) return { does: true as const };
+  const assigned = await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) =>
+    await tx.select({ staffId: staffServiceAssignments.staffId }).from(staffServiceAssignments)
+      .where(and(eq(staffServiceAssignments.businessId, input.businessId), eq(staffServiceAssignments.staffId, input.staffId), eq(staffServiceAssignments.serviceId, service.id))).limit(1));
+  return assigned.length ? { does: true as const } : { does: false as const, serviceName: service.name };
 }
 
 /** The reason a refused booking or reschedule wasn't bookable, when it was refused for that. */
