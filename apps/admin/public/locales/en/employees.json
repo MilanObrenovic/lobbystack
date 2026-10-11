@@ -71,7 +71,8 @@
         "label": "Vacation",
         "hint": "Optional. The receptionist won't book this employee on these days and tells callers when they're back.",
         "placeholder": "Pick the first and last day",
-        "clear": "Remove vacation"
+        "dates": "Vacation dates",
+        "required": "Pick the first and last day of the vacation."
       }
     },
     "save": "Save",

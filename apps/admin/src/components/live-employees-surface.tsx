@@ -11,7 +11,7 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table";
-import { CalendarDays, ChevronDown, MoreHorizontal, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
+import { CalendarDays, ChevronDown, MoreHorizontal, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { enUS, es, fr, srLatn } from "react-day-picker/locale";
 import type { Country } from "react-phone-number-input/input";
@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDateTime, intlLocale } from "@/lib/locale";
@@ -250,21 +251,19 @@ function ServicesPicker({ id, invalid, label, onChange, services, value }: { id:
   </Popover>;
 }
 
-function VacationPicker({ id, locale, onChange, today, value }: { id: string; locale: string; onChange: (value: Vacation | null) => void; today: string; value: Vacation | null }) {
+function VacationPicker({ invalid, label, locale, onChange, today, value }: { invalid: boolean; label: string; locale: string; onChange: (value: Vacation | null) => void; today: string; value: Vacation | null }) {
   const { t } = useTranslation("employees");
   const selected: DateRange | undefined = value ? { from: parseDay(value.startsOn), to: parseDay(value.endsOn) } : undefined;
-  return <div className="flex min-w-0 items-center gap-2">
-    <Popover>
-      <PopoverTrigger render={<button className={PICKER_TRIGGER_CLASS} id={id} type="button" />}>
-        <span className={value ? "min-w-0 flex-1 truncate text-left" : "min-w-0 flex-1 truncate text-left text-muted-foreground"}>{value ? formatVacation(value, locale) : t("add.fields.vacation.placeholder")}</span>
-        <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-0">
-        <Calendar defaultMonth={selected?.from ?? parseDay(today)} disabled={{ before: parseDay(today) }} locale={DAY_PICKER_LOCALES[locale as keyof typeof DAY_PICKER_LOCALES] ?? enUS} mode="range" onSelect={(range: DateRange | undefined) => onChange(range?.from ? { startsOn: toDay(range.from), endsOn: toDay(range.to ?? range.from) } : null)} selected={selected} />
-      </PopoverContent>
-    </Popover>
-    {value ? <Button aria-label={t("add.fields.vacation.clear")} onClick={() => onChange(null)} size="icon" title={t("add.fields.vacation.clear")} type="button" variant="ghost"><X /></Button> : null}
-  </div>;
+  // Turning vacation on with no dates yet goes straight to the calendar.
+  return <Popover defaultOpen={!value}>
+    <PopoverTrigger render={<button aria-label={label} className={PICKER_TRIGGER_CLASS} data-invalid={invalid || undefined} type="button" />}>
+      <span className={value ? "min-w-0 flex-1 truncate text-left" : "min-w-0 flex-1 truncate text-left text-muted-foreground"}>{value ? formatVacation(value, locale) : t("add.fields.vacation.placeholder")}</span>
+      <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+    </PopoverTrigger>
+    <PopoverContent align="start" className="w-auto p-0">
+      <Calendar defaultMonth={selected?.from ?? parseDay(today)} disabled={{ before: parseDay(today) }} locale={DAY_PICKER_LOCALES[locale as keyof typeof DAY_PICKER_LOCALES] ?? enUS} mode="range" onSelect={(range: DateRange | undefined) => onChange(range?.from ? { startsOn: toDay(range.from), endsOn: toDay(range.to ?? range.from) } : null)} selected={selected} />
+    </PopoverContent>
+  </Popover>;
 }
 
 function serviceSummary(serviceIds: string[], services: ServiceOption[], allLabel: string): string {
@@ -293,6 +292,8 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [serviceInvalid, setServiceInvalid] = useState(false);
   const [vacation, setVacation] = useState<Vacation | null>(null);
+  // Off keeps the picked dates, so turning it back on in the same dialog restores them.
+  const [vacationOn, setVacationOn] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -300,12 +301,13 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
     // A new employee starts with every service; anyone can be narrowed down from there.
     setServiceIds(employee ? employee.serviceIds : services.map((service) => service.id));
     setVacation(employee?.vacation ?? null);
+    setVacationOn(Boolean(employee?.vacation));
   }, [defaultCountry, employee, open, services]);
 
   const save = useMutation({
     mutationFn: () => {
       const query = `businessId=${encodeURIComponent(businessId)}`;
-      const body = JSON.stringify({ name: name.trim(), phone: phone || null, serviceIds, vacation });
+      const body = JSON.stringify({ name: name.trim(), phone: phone || null, serviceIds, vacation: vacationOn ? vacation : null });
       return employee
         ? requestJson(`/api/employees/${encodeURIComponent(employee.id)}?${query}`, { method: "PATCH", body })
         : requestJson(`/api/employees?${query}`, { method: "POST", body });
@@ -329,12 +331,13 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
   const knownServiceIds = serviceIds.filter((id) => services.some((service) => service.id === id));
   const servicesError = submitted && !knownServiceIds.length && services.length ? t("add.fields.services.required") : serviceInvalid ? t("add.fields.services.invalid") : null;
   const servicesLabel = serviceSummary(knownServiceIds, services, t("table.allServices"));
+  const vacationMissing = submitted && vacationOn && !vacation;
   const selected = countries.find((option) => option.code === country) ?? countries[0];
 
   return <Dialog onOpenChange={onOpenChange} open={open}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader><DialogTitle>{t(employee ? "edit.title" : "add.title")}</DialogTitle><DialogDescription>{t(employee ? "edit.description" : "add.description")}</DialogDescription></DialogHeader>
-      <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (!save.isPending && name.trim() && !phoneIncomplete && knownServiceIds.length) save.mutate(); }}>
+      <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (!save.isPending && name.trim() && !phoneIncomplete && knownServiceIds.length && (!vacationOn || vacation)) save.mutate(); }}>
         <FieldGroup>
           <Field data-invalid={nameMissing || undefined}>
             <FieldLabel htmlFor={nameId}>{t("add.fields.name.label")}</FieldLabel>
@@ -361,10 +364,16 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
             )}
             {servicesError ? <FieldError id={`${servicesId}-error`}>{servicesError}</FieldError> : null}
           </Field>
-          <Field>
-            <FieldContent><FieldLabel htmlFor={vacationId}>{t("add.fields.vacation.label")}</FieldLabel><FieldDescription>{t("add.fields.vacation.hint")}</FieldDescription></FieldContent>
-            <VacationPicker id={vacationId} locale={locale} onChange={setVacation} today={today} value={vacation} />
-          </Field>
+          <div className="flex flex-col gap-3">
+            <Field orientation="horizontal">
+              <FieldContent><FieldLabel htmlFor={vacationId}>{t("add.fields.vacation.label")}</FieldLabel><FieldDescription>{t("add.fields.vacation.hint")}</FieldDescription></FieldContent>
+              <Switch checked={vacationOn} id={vacationId} onCheckedChange={setVacationOn} />
+            </Field>
+            {vacationOn ? <Field data-invalid={vacationMissing || undefined}>
+              <VacationPicker invalid={vacationMissing} label={t("add.fields.vacation.dates")} locale={locale} onChange={setVacation} today={today} value={vacation} />
+              {vacationMissing ? <FieldError>{t("add.fields.vacation.required")}</FieldError> : null}
+            </Field> : null}
+          </div>
         </FieldGroup>
         <DialogFooter><Button className="w-full" disabled={save.isPending || !services.length} type="submit">{save.isPending ? t("add.saving") : t(employee ? "edit.save" : "add.save")}</Button></DialogFooter>
       </form>

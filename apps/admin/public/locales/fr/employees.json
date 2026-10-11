@@ -71,7 +71,8 @@
         "label": "Vacances",
         "hint": "Facultatif. Le réceptionniste ne réserve pas cet employé pendant ces jours et indique aux clients quand il revient.",
         "placeholder": "Choisissez le premier et le dernier jour",
-        "clear": "Retirer les vacances"
+        "dates": "Dates des vacances",
+        "required": "Choisissez le premier et le dernier jour des vacances."
       }
     },
     "save": "Enregistrer",

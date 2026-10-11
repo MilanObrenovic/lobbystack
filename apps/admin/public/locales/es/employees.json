@@ -71,7 +71,8 @@
         "label": "Vacaciones",
         "hint": "Opcional. El recepcionista no reserva a este empleado esos días y les dice a los clientes cuándo vuelve.",
         "placeholder": "Elige el primer y el último día",
-        "clear": "Quitar vacaciones"
+        "dates": "Fechas de vacaciones",
+        "required": "Elige el primer y el último día de las vacaciones."
       }
     },
     "save": "Guardar",

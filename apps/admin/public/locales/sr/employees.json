@@ -71,7 +71,8 @@
         "label": "Odmor",
         "hint": "Opciono. Recepcioner ne zakazuje kod ovog zaposlenog tih dana i kaže klijentima kada se vraća.",
         "placeholder": "Izaberite prvi i poslednji dan",
-        "clear": "Ukloni odmor"
+        "dates": "Datumi odmora",
+        "required": "Izaberite prvi i poslednji dan odmora."
       }
     },
     "save": "Sačuvaj",
