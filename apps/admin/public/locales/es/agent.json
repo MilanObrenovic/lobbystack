@@ -278,6 +278,8 @@
     "timezone": {
       "label": "Zona horaria del negocio",
       "hint": "Su recepcionista usa esta zona horaria para su horario de atención y los horarios de citas que ofrece a los clientes.",
+      "search": "Buscar zonas horarias...",
+      "noResults": "No se encontraron zonas horarias.",
       "regions": {
         "africa": "África",
         "america": "América",

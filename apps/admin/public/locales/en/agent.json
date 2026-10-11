@@ -278,6 +278,8 @@
     "timezone": {
       "label": "Business timezone",
       "hint": "Your receptionist uses this timezone for your opening hours and the appointment times it offers customers.",
+      "search": "Search time zones...",
+      "noResults": "No time zones found.",
       "regions": {
         "africa": "Africa",
         "america": "Americas",

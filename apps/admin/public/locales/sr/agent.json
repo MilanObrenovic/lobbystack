@@ -278,6 +278,8 @@
     "timezone": {
       "label": "Vremenska zona firme",
       "hint": "Recepcioner koristi ovu vremensku zonu za radno vreme i termine koje nudi klijentima.",
+      "search": "Pretraži vremenske zone...",
+      "noResults": "Nije pronađena nijedna vremenska zona.",
       "regions": {
         "africa": "Afrika",
         "america": "Amerika",

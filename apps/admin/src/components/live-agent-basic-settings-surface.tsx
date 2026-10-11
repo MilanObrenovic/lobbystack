@@ -17,8 +17,9 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@/components/ui/item";
-import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from "@/components/ui/native-select";
+import { Combobox, ComboboxCollection, ComboboxContent, ComboboxEmpty, ComboboxGroup, ComboboxInput, ComboboxItem, ComboboxLabel, ComboboxList, ComboboxTrigger, ComboboxValue } from "@/components/ui/combobox";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Surface } from "@/components/ui/surface";
@@ -31,6 +32,11 @@ type AgentBasicSettingsPageProps = {
   businessId: string;
   canManageTenant: boolean;
 };
+
+type TimeZoneItemGroup = { value: string; label: string; items: TimeZoneOption[] };
+
+// Matches SelectTrigger, so the searchable timezone picker looks like the selects beside it.
+const COMBOBOX_TRIGGER_CLASS = "flex h-9 w-full items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-input/50 sm:w-72";
 
 export function resolveTransferNumberForSave({
   rawInputValue,
@@ -99,7 +105,11 @@ export function AgentBasicSettingsPage({
   const savedTimezone = configuration?.business?.timezone ?? "";
   // Built once the business's zone loads, so the server render and hydration agree.
   const timeZoneGroups = useMemo(() => savedTimezone ? groupTimeZones(availableTimeZones(savedTimezone), intlLocale(i18n.language)) : [], [savedTimezone, i18n.language]);
-  const timeZoneOptions = (zones: TimeZoneOption[]) => zones.map((zone) => <NativeSelectOption key={zone.id} value={zone.id}>{zone.label}</NativeSelectOption>);
+  const timeZoneItems = useMemo<TimeZoneItemGroup[]>(() => timeZoneGroups.map((group) => ({
+    value: group.region ?? "",
+    label: group.region === null ? "" : isTimeZoneRegion(group.region) ? t(`agent:fields.timezone.regions.${group.region.toLowerCase()}`) : group.region,
+    items: group.zones,
+  })), [t, timeZoneGroups]);
 
   const [greeting, setGreeting] = useState("");
   const [summary, setSummary] = useState("");
@@ -444,15 +454,13 @@ export function AgentBasicSettingsPage({
               </ItemContent>
               <ItemActions className="w-full sm:w-auto">
                 {isLoadingConfiguration ? (
-                  <Skeleton className="h-10 w-full rounded-md sm:w-[9.5ch]" />
+                  <Skeleton className="h-10 w-full rounded-md sm:w-36" />
                 ) : (
-                  <NativeSelect
-                    aria-label={t("agent:fields.defaultLocale.label")}
-                    className="w-full sm:w-[9.5ch]"
+                  <Select
                     disabled={!canManageTenant}
-                    id="agent-default-language"
-                    onChange={(event) => {
-                      const nextLocale = ((event.target.value as RuntimeLocale | "") || "en");
+                    items={[{ value: "en", label: t("common:language.english") }, { value: "fr", label: t("common:language.french") }]}
+                    onValueChange={(value) => {
+                      const nextLocale = ((value as RuntimeLocale | null) || "en");
                       setDefaultLocale(nextLocale);
                       setLocaleStatus(null);
                       void (async () => {
@@ -474,13 +482,14 @@ export function AgentBasicSettingsPage({
                     }}
                     value={defaultLocale}
                   >
-                    <NativeSelectOption value="en">
-                      {t("common:language.english")}
-                    </NativeSelectOption>
-                    <NativeSelectOption value="fr">
-                      {t("common:language.french")}
-                    </NativeSelectOption>
-                  </NativeSelect>
+                    <SelectTrigger aria-label={t("agent:fields.defaultLocale.label")} className="w-full sm:w-36" id="agent-default-language"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="en">{t("common:language.english")}</SelectItem>
+                        <SelectItem value="fr">{t("common:language.french")}</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 )}
               </ItemActions>
             </Item>
@@ -499,16 +508,30 @@ export function AgentBasicSettingsPage({
                 {isLoadingConfiguration ? (
                   <Skeleton className="h-10 w-full rounded-md sm:w-72" />
                 ) : (
-                  <NativeSelect
-                    aria-label={t("agent:fields.timezone.label")}
-                    className="w-full sm:w-72"
+                  <Combobox
                     disabled={isTimezoneSaving || !timezone || !canManageTenant}
-                    id="agent-timezone"
-                    onChange={(event) => void saveTimezone(event.target.value)}
-                    value={timezone}
+                    isItemEqualToValue={(item: TimeZoneOption, value: TimeZoneOption) => item.id === value.id}
+                    items={timeZoneItems}
+                    itemToStringLabel={(zone: TimeZoneOption) => zone.label}
+                    onValueChange={(zone: TimeZoneOption | null) => { if (zone && zone.id !== timezone) void saveTimezone(zone.id); }}
+                    value={timeZoneGroups.flatMap((group) => group.zones).find((zone) => zone.id === timezone) ?? null}
                   >
-                    {timeZoneGroups.flatMap((group) => group.region === null ? timeZoneOptions(group.zones) : [<NativeSelectOptGroup key={group.region} label={isTimeZoneRegion(group.region) ? t(`agent:fields.timezone.regions.${group.region.toLowerCase()}`) : group.region}>{timeZoneOptions(group.zones)}</NativeSelectOptGroup>])}
-                  </NativeSelect>
+                    <ComboboxTrigger aria-label={t("agent:fields.timezone.label")} className={COMBOBOX_TRIGGER_CLASS} id="agent-timezone">
+                      <span className="min-w-0 flex-1 truncate text-left"><ComboboxValue /></span>
+                    </ComboboxTrigger>
+                    <ComboboxContent>
+                      <ComboboxInput placeholder={t("agent:fields.timezone.search")} showTrigger={false} />
+                      <ComboboxEmpty>{t("agent:fields.timezone.noResults")}</ComboboxEmpty>
+                      <ComboboxList>
+                        {(group: TimeZoneItemGroup) => (
+                          <ComboboxGroup items={group.items} key={group.value}>
+                            {group.label ? <ComboboxLabel>{group.label}</ComboboxLabel> : null}
+                            <ComboboxCollection>{(zone: TimeZoneOption) => <ComboboxItem key={zone.id} value={zone}>{zone.label}</ComboboxItem>}</ComboboxCollection>
+                          </ComboboxGroup>
+                        )}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
                 )}
               </ItemActions>
             </Item>
@@ -592,22 +615,25 @@ export function AgentBasicSettingsPage({
                 {isLoadingConfiguration ? (
                   <Skeleton className="h-10 w-full rounded-md sm:w-48" />
                 ) : (
-                  <NativeSelect
-                    aria-label={t("agent:booking.mode.label")}
-                    className="w-full sm:w-48"
+                  <Select
                     disabled={isBookingModeSaving || !persistedProfile || !canManageTenant}
-                    id="agent-booking-mode"
-                    onChange={(event) => {
-                      const nextMode = normalizeBookingMode(event.target.value);
+                    items={(["instant", "request", "off"] as const).map((mode) => ({ value: mode, label: t(`agent:booking.mode.options.${mode}`) }))}
+                    onValueChange={(value) => {
+                      const nextMode = normalizeBookingMode(value);
                       setBookingMode(nextMode);
                       void saveBookingMode(nextMode);
                     }}
                     value={bookingMode}
                   >
-                    <NativeSelectOption value="instant">{t("agent:booking.mode.options.instant")}</NativeSelectOption>
-                    <NativeSelectOption value="request">{t("agent:booking.mode.options.request")}</NativeSelectOption>
-                    <NativeSelectOption value="off">{t("agent:booking.mode.options.off")}</NativeSelectOption>
-                  </NativeSelect>
+                    <SelectTrigger aria-label={t("agent:booking.mode.label")} className="w-full sm:w-48" id="agent-booking-mode"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="instant">{t("agent:booking.mode.options.instant")}</SelectItem>
+                        <SelectItem value="request">{t("agent:booking.mode.options.request")}</SelectItem>
+                        <SelectItem value="off">{t("agent:booking.mode.options.off")}</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 )}
               </ItemActions>
             </Item>

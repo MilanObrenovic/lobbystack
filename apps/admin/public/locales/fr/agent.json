@@ -278,6 +278,8 @@
     "timezone": {
       "label": "Fuseau horaire de l’entreprise",
       "hint": "Votre réceptionniste utilise ce fuseau horaire pour vos heures d’ouverture et les créneaux qu’il propose aux clients.",
+      "search": "Rechercher un fuseau horaire...",
+      "noResults": "Aucun fuseau horaire trouvé.",
       "regions": {
         "africa": "Afrique",
         "america": "Amériques",
