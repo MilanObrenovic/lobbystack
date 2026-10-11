@@ -522,10 +522,10 @@ export function AgentBasicSettingsPage({
                 <ItemDescription>{t("agent:fields.transferNumber.hint")}</ItemDescription>
                 <div className="pt-2">
                   {isLoadingConfiguration ? (
-                    <Skeleton className="h-10 w-32 rounded-md" />
+                    <Skeleton className="h-10 w-full rounded-md sm:w-72" />
                   ) : (
                     <PhoneInput
-                      className="w-full min-w-0 sm:w-[12ch]"
+                      className="w-full min-w-0 sm:w-40"
                       containerClassName="w-full sm:w-fit"
                       disabled={!canManageTenant}
                       id="agent-transfer-number"
