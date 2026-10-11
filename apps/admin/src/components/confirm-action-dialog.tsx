@@ -50,7 +50,7 @@ export function ConfirmActionDialog({
 
   return (
     <AlertDialog onOpenChange={onOpenChange} open={open}>
-      <AlertDialogContent>
+      <AlertDialogContent onOverlayClick={() => { if (!pending) onOpenChange(false); }}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription className={descriptionClassName}>{description}</AlertDialogDescription>
