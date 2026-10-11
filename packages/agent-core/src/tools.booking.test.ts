@@ -31,7 +31,11 @@ const booking = { serviceName: "General Checkup", startsAt: "2026-10-06T10:00", 
 
 // The fixtures use early October 2026: keep those times in the future.
 vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  // clearAllMocks keeps implementations, so a test that refuses a service mustn't leak into the next.
+  vi.mocked(employeeDoesService).mockResolvedValue({ does: true });
+});
 
 describe("booking with an employee", () => {
   it("looks up and books only the employee the caller asked for", async () => {
