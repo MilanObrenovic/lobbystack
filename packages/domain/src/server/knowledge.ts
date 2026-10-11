@@ -562,7 +562,8 @@ export async function refreshBusinessSnapshot(
       rules: ruleRows.map((row) => ({ id: row.id, title: row.title, content: row.content, order: row.sortOrder })),
       employees: employeeRows.map((row) => {
         const assigned = new Set(assignments.filter((assignment) => assignment.staffId === row.staffId).map((assignment) => assignment.serviceId));
-        return { name: row.name, services: serviceRows.filter((service) => assigned.has(service.id)).map((service) => service.name) };
+        const names = serviceRows.filter((service) => assigned.has(service.id)).map((service) => service.name);
+        return { name: row.name, ...(names.length ? { services: names } : {}) };
       }),
       snippets: snippets.map((row) => ({ id: row.id, title: row.title, content: row.content, tags: row.tags, priority: row.priority })),
       appointmentChangePolicy: normalizeAppointmentChangePolicy(currentProfile?.appointmentChangePolicy),
