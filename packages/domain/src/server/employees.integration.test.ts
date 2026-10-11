@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
-import { businessMemberships, businesses, createDatabaseClient, staff, users, type Database, type DatabaseTransaction } from "@lobbystack/db";
+import { businessMemberships, businesses, createDatabaseClient, services, staff, staffServiceAssignments, users, type Database, type DatabaseTransaction } from "@lobbystack/db";
 
 import { createEmployee, deleteEmployee, listEmployees, updateEmployee } from "./employees";
 
@@ -28,12 +28,13 @@ async function rollbackTest(run: (tx: DatabaseTransaction) => Promise<void>) {
   }
 }
 
-/** Two businesses, each with the default staff member that stands for it. The first has an owner and a viewer. */
+/** Two businesses, each with the default staff member that stands for it and services. The first has an owner and a viewer. */
 async function seed(tx: DatabaseTransaction) {
-  const business = async (name: string, roles: string[]) => {
+  const business = async (name: string, roles: string[], serviceNames: string[]) => {
     const businessId = randomUUID();
     await tx.insert(businesses).values({ id: businessId, slug: businessId, name, timezone: "Europe/Belgrade", businessType: "test", telemetryEnabled: false });
     const [standIn] = await tx.insert(staff).values({ businessId, name, timezone: "Europe/Belgrade" }).returning({ id: staff.id });
+    const serviceIds = (await tx.insert(services).values(serviceNames.map((serviceName) => ({ businessId, name: serviceName, slug: serviceName.toLowerCase(), durationMinutes: 30 }))).returning({ id: services.id })).map((service) => service.id);
     const userIds: Record<string, string> = {};
     for (const role of roles) {
       const userId = randomUUID();
@@ -41,14 +42,14 @@ async function seed(tx: DatabaseTransaction) {
       await tx.insert(businessMemberships).values({ businessId, userId, role });
       userIds[role] = userId;
     }
-    return { businessId, defaultStaffId: standIn!.id, userIds };
+    return { businessId, defaultStaffId: standIn!.id, serviceIds, userIds };
   };
-  const studio = await business("Studio", ["business_owner", "viewer"]);
-  const other = await business("Other studio", ["business_owner"]);
+  const studio = await business("Studio", ["business_owner", "viewer"], ["Colour", "Haircut"]);
+  const other = await business("Other studio", ["business_owner"], ["Shave"]);
   const db = tx as unknown as Database;
-  const owner = { userId: studio.userIds.business_owner!, businessId: studio.businessId };
-  const viewer = { userId: studio.userIds.viewer!, businessId: studio.businessId };
-  const otherOwner = { userId: other.userIds.business_owner!, businessId: other.businessId };
+  const owner = { userId: studio.userIds.business_owner!, businessId: studio.businessId, serviceIds: studio.serviceIds };
+  const viewer = { userId: studio.userIds.viewer!, businessId: studio.businessId, serviceIds: studio.serviceIds };
+  const otherOwner = { userId: other.userIds.business_owner!, businessId: other.businessId, serviceIds: other.serviceIds };
   const row = async (id: string) => (await tx.select({ name: staff.name, phone: staff.transferNumber, active: staff.active, isEmployee: staff.isEmployee, timezone: staff.timezone }).from(staff).where(eq(staff.id, id)))[0];
   const names = async (actor: { userId: string; businessId: string }) => (await listEmployees({ db }, actor)).employees.map((employee) => employee.name);
   return { db, studio, owner, viewer, otherOwner, row, names };
@@ -127,11 +128,30 @@ describe.skipIf(!client)("employees under operator RLS", () => {
       await expect(updateEmployee({ db }, { ...otherOwner, employeeId: ana.id, name: "Taken", phone: null })).resolves.toBeNull();
       await expect(deleteEmployee({ db }, { ...otherOwner, employeeId: ana.id })).resolves.toBe(false);
       // Naming the first business instead fails the membership check.
-      const intruder = { userId: otherOwner.userId, businessId: owner.businessId };
+      const intruder = { userId: otherOwner.userId, businessId: owner.businessId, serviceIds: owner.serviceIds };
       await expect(listEmployees({ db }, intruder)).rejects.toMatchObject({ status: 403 });
       await expect(updateEmployee({ db }, { ...intruder, employeeId: ana.id, name: "Taken", phone: null })).rejects.toMatchObject({ status: 403 });
       await expect(deleteEmployee({ db }, { ...intruder, employeeId: ana.id })).rejects.toMatchObject({ status: 403 });
       expect(await row(ana.id)).toMatchObject({ name: "Ana", phone: "+381641234567", active: true });
+    });
+  });
+
+  it("requires at least one of the business's own services and replaces them on update", async () => {
+    await rollbackTest(async (tx) => {
+      const { db, owner, otherOwner } = await seed(tx);
+      const [colour, haircut] = owner.serviceIds;
+      await expect(createEmployee({ db }, { ...owner, name: "Ana", phone: null, serviceIds: [] })).rejects.toMatchObject({ status: 400, code: "employee_services_required" });
+      await expect(createEmployee({ db }, { ...owner, name: "Ana", phone: null, serviceIds: otherOwner.serviceIds })).rejects.toMatchObject({ status: 400, code: "employee_service_invalid" });
+      await expect(createEmployee({ db }, { ...owner, name: "Ana", phone: null, serviceIds: ["not-a-uuid"] })).rejects.toMatchObject({ status: 400, code: "employee_service_invalid" });
+
+      const ana = await createEmployee({ db }, { ...owner, name: "Ana", phone: null, serviceIds: [haircut!, colour!, haircut!] });
+      const listed = await listEmployees({ db }, owner);
+      expect(listed.services.map((service) => service.name)).toEqual(["Colour", "Haircut"]);
+      expect(listed.employees[0]).toMatchObject({ id: ana.id, serviceIds: [colour, haircut] });
+
+      await expect(updateEmployee({ db }, { ...owner, employeeId: ana.id, name: "Ana", phone: null, serviceIds: [haircut!] })).resolves.toMatchObject({ serviceIds: [haircut] });
+      expect(await tx.select({ serviceId: staffServiceAssignments.serviceId }).from(staffServiceAssignments).where(eq(staffServiceAssignments.staffId, ana.id))).toEqual([{ serviceId: haircut }]);
+      await expect(updateEmployee({ db }, { ...owner, employeeId: ana.id, name: "Ana", phone: null, serviceIds: [] })).rejects.toMatchObject({ code: "employee_services_required" });
     });
   });
 });

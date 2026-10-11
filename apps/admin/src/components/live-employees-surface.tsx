@@ -4,6 +4,7 @@ import { requestJson } from "@/lib/request-json";
 import { useActiveBusiness } from "@/hooks/use-active-business";
 
 import { useEffect, useId, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   flexRender,
   useTable,
@@ -35,9 +36,12 @@ type Employee = {
   id: string;
   name: string;
   phone: string | null;
+  serviceIds: string[];
   createdAt: string;
   updatedAt: string;
 };
+
+type ServiceOption = { id: string; name: string };
 
 function errorCode(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && typeof (error as { code?: unknown }).code === "string" ? (error as { code: string }).code : undefined;
@@ -55,7 +59,7 @@ export function LiveEmployeesSurface() {
   const { businesses, business } = useActiveBusiness();
   const employees = useQuery({
     queryKey: ["employees", business?.businessId, search.trim(), pagination.pageIndex, pagination.pageSize],
-    queryFn: () => requestJson<{ employees: Employee[]; pagination: { total: number } }>(`/api/employees?businessId=${encodeURIComponent(business!.businessId)}&limit=${pagination.pageSize}&offset=${pagination.pageIndex * pagination.pageSize}&search=${encodeURIComponent(search.trim())}`),
+    queryFn: () => requestJson<{ employees: Employee[]; services: ServiceOption[]; pagination: { total: number } }>(`/api/employees?businessId=${encodeURIComponent(business!.businessId)}&limit=${pagination.pageSize}&offset=${pagination.pageIndex * pagination.pageSize}&search=${encodeURIComponent(search.trim())}`),
     enabled: Boolean(business),
   });
   const remove = useMutation({
@@ -65,6 +69,7 @@ export function LiveEmployeesSurface() {
   });
 
   const rows = employees.data?.employees ?? [];
+  const services = useMemo(() => employees.data?.services ?? [], [employees.data?.services]);
   const total = employees.data?.pagination.total ?? 0;
   const canMutate = business ? ["business_owner", "business_admin"].includes(business.role) : false;
 
@@ -92,6 +97,15 @@ export function LiveEmployeesSurface() {
       cell: ({ row }) => <span className="ph-no-capture block truncate text-sm text-muted-foreground">{row.original.phone ? formatPhoneNumberDisplay(row.original.phone, locale) : "—"}</span>,
     },
     {
+      id: "services",
+      accessorKey: "serviceIds",
+      header: () => t("table.services"),
+      cell: ({ row }) => {
+        const label = serviceSummary(row.original.serviceIds, services, t("table.allServices"));
+        return <span className="block truncate text-sm text-muted-foreground" title={label}>{label || "—"}</span>;
+      },
+    },
+    {
       id: "added",
       accessorKey: "createdAt",
       header: () => <span className={`relative block text-right ${DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS}`}>{t("table.added")}</span>,
@@ -111,7 +125,7 @@ export function LiveEmployeesSurface() {
         </DropdownMenu></DataTableRowActions>
       ),
     },
-  ], [canMutate, locale, t]);
+  ], [canMutate, locale, services, t]);
 
   const table = useTable({ features: paginationFeatures, columns, data: rows, manualPagination: true, rowCount: total, onPaginationChange: setPagination, state: { pagination } });
 
@@ -124,28 +138,34 @@ export function LiveEmployeesSurface() {
         </div>
         {canMutate ? <div className="flex shrink-0 flex-wrap items-center gap-2"><Button onClick={() => openEditor(null)}><Plus data-icon="inline-start" />{t("add.button")}</Button></div> : null}
       </div>
-      {businesses.isLoading || employees.isLoading ? <TableCardSkeleton columns={4} /> : (
+      {businesses.isLoading || employees.isLoading ? <TableCardSkeleton columns={5} /> : (
         <>
           <TableCard>
             <Table className="min-w-[60rem] w-full table-fixed">
-              <colgroup><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[56%]" /><col className={DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS} /></colgroup>
+              <colgroup><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[36%]" /><col className="w-[20%]" /><col className={DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS} /></colgroup>
               <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead className={header.column.id === "added" || header.column.id === "actions" ? "text-right" : undefined} key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
               <TableBody>
                 {table.getRowModel().rows.map((row) => <TableRow className={canMutate ? "h-12 cursor-pointer transition-colors hover:bg-muted/40" : "h-12 transition-colors hover:bg-muted/40"} key={row.id} onClick={() => { if (canMutate) openEditor(row.original); }}>{row.getAllCells().map((cell) => <TableCell className={cell.column.id === "added" ? "w-0 max-w-0 text-right whitespace-nowrap" : cell.column.id === "actions" ? DATA_TABLE_ROW_ACTIONS_CELL_CLASS : "max-w-0"} key={cell.id} onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
-                {table.getRowModel().rows.length === 0 ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={4}>{search.trim() ? t("table.empty") : t("table.emptyState")}</TableCell></TableRow> : null}
+                {table.getRowModel().rows.length === 0 ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={5}>{search.trim() ? t("table.empty") : t("table.emptyState")}</TableCell></TableRow> : null}
               </TableBody>
             </Table>
           </TableCard>
           <DataTablePagination labels={{ rowsPerPage: t("pagination.rowsPerPage"), pageOf: (page, total) => t("pagination.pageOf", { page, total }), firstPage: t("pagination.firstPage"), previousPage: t("pagination.previousPage"), nextPage: t("pagination.nextPage"), lastPage: t("pagination.lastPage"), goToPage: (page) => t("pagination.goToPage", { page }) }} table={table} />
         </>
       )}
-      {business ? <EmployeeDialog businessId={business.businessId} employee={editingEmployee} onOpenChange={setDialogOpen} open={dialogOpen} /> : null}
+      {business ? <EmployeeDialog businessId={business.businessId} employee={editingEmployee} onOpenChange={setDialogOpen} open={dialogOpen} services={services} /> : null}
       <ConfirmActionDialog confirmVariant="destructive" cancelLabel={t("table.actions.deleteCancel")} confirmLabel={t("table.actions.deleteConfirm")} description={t("table.actions.deleteDescription")} onConfirm={async () => { if (!pendingDelete) return; await remove.mutateAsync(pendingDelete); setPendingDelete(null); toast.success(t("table.actions.deleted")); }} onOpenChange={(open) => { if (!open && !remove.isPending) setPendingDelete(null); }} open={Boolean(pendingDelete)} pending={remove.isPending} title={t("table.actions.deleteTitle")} />
     </div>
   );
 }
 
-function EmployeeDialog({ businessId, employee, open, onOpenChange }: { businessId: string; employee: Employee | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+function serviceSummary(serviceIds: string[], services: ServiceOption[], allLabel: string): string {
+  const chosen = new Set(serviceIds);
+  if (services.length > 1 && services.every((service) => chosen.has(service.id))) return allLabel;
+  return services.filter((service) => chosen.has(service.id)).map((service) => service.name).join(", ");
+}
+
+function EmployeeDialog({ businessId, employee, open, onOpenChange, services }: { businessId: string; employee: Employee | null; open: boolean; onOpenChange: (open: boolean) => void; services: ServiceOption[] }) {
   const { i18n, t } = useTranslation("employees");
   const locale = i18n.resolvedLanguage ?? i18n.language;
   const queryClient = useQueryClient();
@@ -153,6 +173,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange }: { business
   const countries = useMemo(() => getPhoneCountryOptions(locale), [locale]);
   const nameId = useId();
   const phoneId = useId();
+  const servicesId = useId();
   const [name, setName] = useState("");
   const [country, setCountry] = useState<Country>(defaultCountry);
   const [phone, setPhone] = useState("");
@@ -160,16 +181,20 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange }: { business
   const [phoneDraft, setPhoneDraft] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [phoneExists, setPhoneExists] = useState(false);
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
+  const [serviceInvalid, setServiceInvalid] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setName(employee?.name ?? ""); setPhone(employee?.phone ?? ""); setPhoneDraft(employee?.phone ?? ""); setCountry(employee ? (inferPhoneCountry(employee.phone, defaultCountry) ?? defaultCountry) as Country : defaultCountry); setSubmitted(false); setPhoneExists(false);
-  }, [defaultCountry, employee, open]);
+    setName(employee?.name ?? ""); setPhone(employee?.phone ?? ""); setPhoneDraft(employee?.phone ?? ""); setCountry(employee ? (inferPhoneCountry(employee.phone, defaultCountry) ?? defaultCountry) as Country : defaultCountry); setSubmitted(false); setPhoneExists(false); setServiceInvalid(false);
+    // A new employee starts with every service; anyone can be narrowed down from there.
+    setServiceIds(employee ? employee.serviceIds : services.map((service) => service.id));
+  }, [defaultCountry, employee, open, services]);
 
   const save = useMutation({
     mutationFn: () => {
       const query = `businessId=${encodeURIComponent(businessId)}`;
-      const body = JSON.stringify({ name: name.trim(), phone: phone || null });
+      const body = JSON.stringify({ name: name.trim(), phone: phone || null, serviceIds });
       return employee
         ? requestJson(`/api/employees/${encodeURIComponent(employee.id)}?${query}`, { method: "PATCH", body })
         : requestJson(`/api/employees?${query}`, { method: "POST", body });
@@ -180,7 +205,9 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange }: { business
       onOpenChange(false);
     },
     onError: (error) => {
-      if (errorCode(error) === "employee_phone_exists") setPhoneExists(true);
+      const code = errorCode(error);
+      if (code === "employee_phone_exists") setPhoneExists(true);
+      else if (code === "employee_service_invalid") { setServiceInvalid(true); void queryClient.invalidateQueries({ queryKey: ["employees", businessId] }); }
       else toast.error(t(employee ? "edit.failed" : "add.failed"));
     },
   });
@@ -188,12 +215,15 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange }: { business
   const nameMissing = submitted && !name.trim();
   const phoneIncomplete = /\d/.test(phoneDraft) && !phone;
   const phoneError = submitted && phoneIncomplete ? t("add.fields.phone.invalid") : phoneExists ? t("add.fields.phone.exists") : null;
+  const knownServiceIds = serviceIds.filter((id) => services.some((service) => service.id === id));
+  const servicesError = submitted && !knownServiceIds.length && services.length ? t("add.fields.services.required") : serviceInvalid ? t("add.fields.services.invalid") : null;
+  const servicesLabel = serviceSummary(knownServiceIds, services, t("table.allServices"));
   const selected = countries.find((option) => option.code === country) ?? countries[0];
 
   return <Dialog onOpenChange={onOpenChange} open={open}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader><DialogTitle>{t(employee ? "edit.title" : "add.title")}</DialogTitle><DialogDescription>{t(employee ? "edit.description" : "add.description")}</DialogDescription></DialogHeader>
-      <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (!save.isPending && name.trim() && !phoneIncomplete) save.mutate(); }}>
+      <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (!save.isPending && name.trim() && !phoneIncomplete && knownServiceIds.length) save.mutate(); }}>
         <FieldGroup>
           <Field data-invalid={nameMissing || undefined}>
             <FieldLabel htmlFor={nameId}>{t("add.fields.name.label")}</FieldLabel>
@@ -211,8 +241,22 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange }: { business
             </div>
             {phoneError ? <FieldError id={`${phoneId}-error`}>{phoneError}</FieldError> : null}
           </Field>
+          <Field data-invalid={servicesError ? true : undefined}>
+            <FieldContent><FieldLabel htmlFor={servicesId}>{t("add.fields.services.label")}</FieldLabel><FieldDescription>{t(services.length ? "add.fields.services.hint" : "add.fields.services.empty")}</FieldDescription></FieldContent>
+            {services.length ? (
+              <Select multiple onValueChange={(value) => { setServiceIds(value); setServiceInvalid(false); }} value={knownServiceIds}>
+                <SelectTrigger aria-describedby={servicesError ? `${servicesId}-error` : undefined} aria-invalid={servicesError ? true : undefined} className="w-full" id={servicesId}>
+                  <span className="min-w-0 flex-1 truncate text-left">{servicesLabel || t("add.fields.services.placeholder")}</span>
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false} className="max-h-72"><SelectGroup>{services.map((service) => <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>)}</SelectGroup></SelectContent>
+              </Select>
+            ) : (
+              <Button className="w-fit" nativeButton={false} render={<Link href="/agent/services" />} variant="outline">{t("add.fields.services.goToServices")}</Button>
+            )}
+            {servicesError ? <FieldError id={`${servicesId}-error`}>{servicesError}</FieldError> : null}
+          </Field>
         </FieldGroup>
-        <DialogFooter><Button className="w-full" disabled={save.isPending} type="submit">{save.isPending ? t("add.saving") : t(employee ? "edit.save" : "add.save")}</Button></DialogFooter>
+        <DialogFooter><Button className="w-full" disabled={save.isPending || !services.length} type="submit">{save.isPending ? t("add.saving") : t(employee ? "edit.save" : "add.save")}</Button></DialogFooter>
       </form>
     </DialogContent>
   </Dialog>;

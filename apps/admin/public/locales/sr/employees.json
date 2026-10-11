@@ -5,6 +5,8 @@
   "table": {
     "name": "Ime",
     "phone": "Broj telefona",
+    "services": "Usluge",
+    "allServices": "Sve usluge",
     "added": "Dodato",
     "empty": "Nijedan zaposleni ne odgovara pretrazi.",
     "emptyState": "Još nema zaposlenih.",
@@ -23,7 +25,7 @@
   "add": {
     "button": "Dodaj zaposlenog",
     "title": "Dodaj zaposlenog",
-    "description": "Sačuvajte ime i broj telefona zaposlenog.",
+    "description": "Sačuvajte ime, broj telefona i usluge zaposlenog.",
     "fields": {
       "name": {
         "label": "Ime",
@@ -36,6 +38,15 @@
         "hint": "Opciono. Pozivaoci koji traže ovog zaposlenog prebacuju se na ovaj broj; bez njega dobijaju broj za prebacivanje poziva firme.",
         "invalid": "Unesite ispravan broj telefona.",
         "exists": "Zaposleni sa ovim brojem telefona već postoji."
+      },
+      "services": {
+        "label": "Usluge",
+        "hint": "Klijenti mogu da zakažu kod ovog zaposlenog samo ove usluge.",
+        "placeholder": "Izaberite usluge",
+        "required": "Izaberite bar jednu uslugu.",
+        "invalid": "Usluga koju ste izabrali je obrisana. Proverite listu i pokušajte ponovo.",
+        "empty": "Prvo dodajte uslugu, pa izaberite koje usluge ovaj zaposleni radi.",
+        "goToServices": "Idi na Usluge"
       }
     },
     "save": "Sačuvaj",
@@ -45,7 +56,7 @@
   },
   "edit": {
     "title": "Izmeni zaposlenog",
-    "description": "Ažurirajte ime i broj telefona ovog zaposlenog.",
+    "description": "Ažurirajte ime, broj telefona i usluge ovog zaposlenog.",
     "save": "Sačuvaj izmene",
     "updated": "Zaposleni je ažuriran.",
     "failed": "Ažuriranje zaposlenog nije uspelo."

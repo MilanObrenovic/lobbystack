@@ -219,6 +219,13 @@ describe("employees", () => {
     expect(buildLiveInstructions(demoSnapshot, callStart)).not.toContain("who works here");
   });
 
+  it("lists the services each employee does, so the agent doesn't offer one for another service", () => {
+    const withServices = { ...withEmployees, employees: [{ name: "Ana Petrović", services: ["Colour", "Haircut"] }, { name: "Marko Jovanović", services: ["Haircut"] }] };
+    const roster = "Employees: Ana Petrović (Colour, Haircut), Marko Jovanović (Haircut). Each employee only does the services in brackets after their name, so don't offer one for any other service.";
+    expect(buildAgentInstructions(withServices, "web_chat")).toContain(roster);
+    expect(buildLiveInstructions(withServices, callStart)).toContain(roster);
+  });
+
   it("leaves employee guidance out when the business has none, books nothing, or runs a demo", () => {
     expect(buildAgentInstructions(demoSnapshot, "web_chat")).not.toContain("specific employee");
     expect(buildAgentInstructions({ ...withEmployees, bookingMode: "off" }, "web_chat")).not.toContain("specific employee");

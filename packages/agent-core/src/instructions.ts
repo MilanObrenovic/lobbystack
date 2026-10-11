@@ -11,7 +11,7 @@ function businessFacts(snapshot: BusinessContextSnapshot): string[] {
     `Business: ${snapshot.displayName}.`,
     businessSummary(snapshot) ? `Summary: ${businessSummary(snapshot)}` : "",
     `Services: ${snapshot.services.map((service) => `${service.name} (${service.durationMinutes} min)`).join(", ") || "none configured"}.`,
-    snapshot.employees?.length ? `Employees: ${employeeNames(snapshot)}. Answer questions about who works here from this list; don't search for it.` : "",
+    snapshot.employees?.length ? `Employees: ${employeeRoster(snapshot)}. Answer questions about who works here from this list; don't search for it.` : "",
     `Booking policy: ${snapshot.bookingPolicy}`,
     `Transfer rule: ${snapshot.transferPolicy.mode}${snapshot.transferPolicy.transferNumber ? "" : " (no transfer number set, so transfers are unavailable)"}.`,
     rules.length ? `Customer rules, in priority order:\n${rules.map((rule, index) => `${index + 1}. ${rule.title}: ${rule.content}`).join("\n")}` : "",
@@ -21,6 +21,14 @@ function businessFacts(snapshot: BusinessContextSnapshot): string[] {
 
 function employeeNames(snapshot: BusinessContextSnapshot): string {
   return (snapshot.employees ?? []).map((employee) => employee.name).join(", ");
+}
+
+// Names with the services each employee does, for snapshots that have them.
+function employeeRoster(snapshot: BusinessContextSnapshot): string {
+  const employees = snapshot.employees ?? [];
+  if (!employees.some((employee) => employee.services?.length)) return employeeNames(snapshot);
+  const roster = employees.map((employee) => employee.services?.length ? `${employee.name} (${employee.services.join(", ")})` : employee.name).join(", ");
+  return `${roster}. Each employee only does the services in brackets after their name, so don't offer one for any other service`;
 }
 
 // Employees are reached through the business's transfer rules, so they need its transfer number too.
@@ -180,7 +188,7 @@ function liveBusinessFacts(snapshot: BusinessContextSnapshot, now: DateTime): st
     services.length ? `${servicesHeading}\n${describeServices(services, LIVE_SERVICES_MAX_CHARS)}` : "",
     snapshot.employees?.length
       ? [
-        `Employees: ${employeeNames(snapshot)}. Answer questions about who works here from this list yourself, without delegating.`,
+        `Employees: ${employeeRoster(snapshot)}. Answer questions about who works here from this list yourself, without delegating.`,
         normalizeBookingMode(snapshot.bookingMode) !== "off" ? "When a caller wants an appointment, ask whether they'd like a specific employee before you delegate, unless they already said, and pass their answer along. With no preference, whoever is available first gets the appointment." : "",
       ].filter(Boolean).join(" ")
       : "",

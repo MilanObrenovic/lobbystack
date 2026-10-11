@@ -5,6 +5,8 @@
   "table": {
     "name": "Name",
     "phone": "Phone Number",
+    "services": "Services",
+    "allServices": "All services",
     "added": "Added",
     "empty": "No employees match the current search.",
     "emptyState": "No employees yet.",
@@ -23,7 +25,7 @@
   "add": {
     "button": "Add Employee",
     "title": "Add employee",
-    "description": "Save an employee's name and phone number.",
+    "description": "Save an employee's name, phone number and services.",
     "fields": {
       "name": {
         "label": "Name",
@@ -36,6 +38,15 @@
         "hint": "Optional. Callers who ask for this employee are transferred here; without it, they reach the business's transfer number.",
         "invalid": "Enter a valid phone number.",
         "exists": "An employee with this phone number already exists."
+      },
+      "services": {
+        "label": "Services",
+        "hint": "Callers can only book this employee for these services.",
+        "placeholder": "Choose services",
+        "required": "Choose at least one service.",
+        "invalid": "A service you chose was deleted. Check the list and try again.",
+        "empty": "Add a service first, then choose which ones this employee does.",
+        "goToServices": "Go to Services"
       }
     },
     "save": "Save",
@@ -45,7 +56,7 @@
   },
   "edit": {
     "title": "Edit employee",
-    "description": "Update this employee's name and phone number.",
+    "description": "Update this employee's name, phone number and services.",
     "save": "Save changes",
     "updated": "Employee updated.",
     "failed": "Couldn't update the employee."

@@ -5,3 +5,8 @@ export function optionalEmployeePhone(value: unknown): string | null | undefined
   if (value === undefined || value === null || (typeof value === "string" && !value.trim())) return null;
   return typeof value === "string" ? normalizePhoneNumber(value) : undefined;
 }
+
+/** The service IDs from a request body, or null unless it's a non-empty list of strings. */
+export function employeeServiceIds(value: unknown): string[] | null {
+  return Array.isArray(value) && value.length > 0 && value.length <= 500 && value.every((id) => typeof id === "string") ? value as string[] : null;
+}

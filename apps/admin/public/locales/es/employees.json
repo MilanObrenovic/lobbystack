@@ -5,6 +5,8 @@
   "table": {
     "name": "Nombre",
     "phone": "Número de teléfono",
+    "services": "Servicios",
+    "allServices": "Todos los servicios",
     "added": "Añadido",
     "empty": "Ningún empleado coincide con la búsqueda.",
     "emptyState": "Todavía no hay empleados.",
@@ -23,7 +25,7 @@
   "add": {
     "button": "Añadir empleado",
     "title": "Añadir empleado",
-    "description": "Guarda el nombre y el número de teléfono de un empleado.",
+    "description": "Guarda el nombre, el número de teléfono y los servicios de un empleado.",
     "fields": {
       "name": {
         "label": "Nombre",
@@ -36,6 +38,15 @@
         "hint": "Opcional. Quien pida hablar con este empleado se transfiere aquí; si no hay número, se transfiere al número de transferencia del negocio.",
         "invalid": "Introduce un número de teléfono válido.",
         "exists": "Ya existe un empleado con este número de teléfono."
+      },
+      "services": {
+        "label": "Servicios",
+        "hint": "Los clientes solo pueden reservar a este empleado para estos servicios.",
+        "placeholder": "Elegir servicios",
+        "required": "Elige al menos un servicio.",
+        "invalid": "Se eliminó un servicio que elegiste. Revisa la lista e inténtalo de nuevo.",
+        "empty": "Primero añade un servicio y luego elige los que hace este empleado.",
+        "goToServices": "Ir a Servicios"
       }
     },
     "save": "Guardar",
@@ -45,7 +56,7 @@
   },
   "edit": {
     "title": "Editar empleado",
-    "description": "Actualiza el nombre y el número de teléfono de este empleado.",
+    "description": "Actualiza el nombre, el número de teléfono y los servicios de este empleado.",
     "save": "Guardar cambios",
     "updated": "Empleado actualizado.",
     "failed": "No se pudo actualizar el empleado."

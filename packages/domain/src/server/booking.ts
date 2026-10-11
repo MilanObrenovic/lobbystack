@@ -50,6 +50,7 @@ type AvailabilityReference = {
   startsAt: Date;
   endsAt: Date;
   activeStaffIds: string[];
+  employeeStaffIds: Set<string>;
   assignedStaffIds: Set<string>;
   connections: Array<typeof calendarConnections.$inferSelect>;
   hours: Array<typeof businessHours.$inferSelect>;
@@ -67,7 +68,7 @@ async function loadAvailabilityReference(tx: DatabaseTransaction, input: { busin
   const startsAt = new Date(input.startsAt);
   if (!Number.isFinite(startsAt.getTime()) || !Number.isSafeInteger(service.durationMinutes) || service.durationMinutes <= 0) throw new Error("A valid appointment time and duration are required.");
   const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
-  const activeStaff = await tx.select({ id: staff.id }).from(staff).where(and(eq(staff.businessId, input.businessId), eq(staff.active, true))).orderBy(asc(staff.id));
+  const activeStaff = await tx.select({ id: staff.id, isEmployee: staff.isEmployee }).from(staff).where(and(eq(staff.businessId, input.businessId), eq(staff.active, true))).orderBy(asc(staff.id));
   const activeStaffIds = activeStaff.map((row) => row.id);
   const assignments = await tx.select({ staffId: staffServiceAssignments.staffId }).from(staffServiceAssignments).where(and(eq(staffServiceAssignments.businessId, input.businessId), eq(staffServiceAssignments.serviceId, input.serviceId)));
   const connections = activeStaffIds.length
@@ -84,6 +85,7 @@ async function loadAvailabilityReference(tx: DatabaseTransaction, input: { busin
     startsAt,
     endsAt,
     activeStaffIds,
+    employeeStaffIds: new Set(activeStaff.filter((row) => row.isEmployee).map((row) => row.id)),
     assignedStaffIds: new Set(assignments.map((row) => row.staffId)),
     connections,
     hours,
@@ -91,10 +93,15 @@ async function loadAvailabilityReference(tx: DatabaseTransaction, input: { busin
   };
 }
 
-// Unassigned services retain the existing all-active-staff default. Explicit
-// assignments constrain eligibility instead of being silently ignored.
+// Unassigned services retain the existing all-active-staff default, except for
+// employees, who only do the services they are assigned. Explicit assignments
+// constrain eligibility instead of being silently ignored.
+function doesService(reference: AvailabilityReference, staffId: string): boolean {
+  return reference.assignedStaffIds.size ? reference.assignedStaffIds.has(staffId) : !reference.employeeStaffIds.has(staffId);
+}
+
 function eligibleStaffIds(reference: AvailabilityReference, requestedStaffIds?: string[]): string[] {
-  return reference.activeStaffIds.filter((id) => (!requestedStaffIds || requestedStaffIds.includes(id)) && (!reference.assignedStaffIds.size || reference.assignedStaffIds.has(id)));
+  return reference.activeStaffIds.filter((id) => (!requestedStaffIds || requestedStaffIds.includes(id)) && doesService(reference, id));
 }
 
 function isCalendarFresh(reference: AvailabilityReference, staffId: string, now: number): boolean {
@@ -202,7 +209,7 @@ export async function bookAppointment(
       await lockStaff(tx, candidateId);
       const reference = await loadAvailabilityReference(tx, { businessId: input.businessId, serviceId: input.serviceId, startsAt: input.startsAt });
       if (!reference.activeStaffIds.includes(candidateId)) continue;
-      if (reference.assignedStaffIds.size && !reference.assignedStaffIds.has(candidateId)) continue;
+      if (!doesService(reference, candidateId)) continue;
       if (!isCalendarFresh(reference, candidateId, Date.now())) continue;
       const slots = await staffAvailabilityInTransaction(tx, reference, { staffIds: [candidateId] });
       if (slots.length) {
