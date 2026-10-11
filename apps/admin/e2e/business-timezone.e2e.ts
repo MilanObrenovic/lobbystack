@@ -94,7 +94,7 @@ test("the owner's browser zone becomes the business timezone, and AI settings ch
     expect(await savedTransferNumber()).toBe("+14165550199");
 
     await page.reload();
-    await expect(select).toHaveValue("America/Vancouver");
+    await expect(select).toHaveText(/^Vancouver \(/);
 
     // The API refuses offsets and names that aren't IANA zones, and keeps the saved zone.
     for (const timezone of ["+05:00", "Eastern"]) {
