@@ -4,7 +4,7 @@
   },
   "table": {
     "name": "Name",
-    "phone": "Phone number",
+    "phone": "Phone Number",
     "added": "Added",
     "empty": "No employees match the current search.",
     "emptyState": "No employees yet.",
@@ -21,7 +21,7 @@
     }
   },
   "add": {
-    "button": "Add employee",
+    "button": "Add Employee",
     "title": "Add employee",
     "description": "Save an employee's name and phone number.",
     "fields": {
