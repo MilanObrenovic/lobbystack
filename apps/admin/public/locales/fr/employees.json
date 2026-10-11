@@ -45,6 +45,7 @@
         "placeholder": "Choisir des services",
         "search": "Rechercher des services...",
         "selectAll": "Tout sélectionner",
+        "unselectAll": "Tout désélectionner",
         "noMatches": "Aucun service ne correspond.",
         "required": "Choisissez au moins un service.",
         "invalid": "Un service choisi a été supprimé. Vérifiez la liste et réessayez.",

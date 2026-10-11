@@ -188,7 +188,7 @@ function ServicesPicker({ id, invalid, label, onChange, services, value }: { id:
       </div>
       {visible.length ? <div className="flex max-h-64 flex-col overflow-y-auto p-1">
         <label className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 font-medium hover:bg-muted/60">
-          <Checkbox checked={allVisibleChosen} onCheckedChange={toggleVisible} />{t("add.fields.services.selectAll")}
+          <Checkbox checked={allVisibleChosen} onCheckedChange={toggleVisible} />{t(allVisibleChosen ? "add.fields.services.unselectAll" : "add.fields.services.selectAll")}
         </label>
         <div className="mx-3 my-1 border-t" />
         {visible.map((service) => <label className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 hover:bg-muted/60" key={service.id}>

@@ -45,6 +45,7 @@
         "placeholder": "Izaberite usluge",
         "search": "Pretraži usluge...",
         "selectAll": "Izaberi sve",
+        "unselectAll": "Poništi izbor",
         "noMatches": "Nijedna usluga ne odgovara pretrazi.",
         "required": "Izaberite bar jednu uslugu.",
         "invalid": "Usluga koju ste izabrali je obrisana. Proverite listu i pokušajte ponovo.",
