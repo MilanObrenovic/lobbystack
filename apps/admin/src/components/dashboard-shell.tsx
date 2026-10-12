@@ -49,6 +49,7 @@ import { useOpenUpgradePlanDialog } from "./upgrade-plan-dialog-context";
 
 type DashboardShellProps = {
   children: React.ReactNode;
+  sidebarOpen?: boolean;
   user: {
     email: string;
     name: string;
@@ -67,7 +68,7 @@ function getSidebarDefaultOpen(): boolean {
   return value?.split("=")[1] !== "false";
 }
 
-export function DashboardShell({ children, user }: DashboardShellProps) {
+export function DashboardShell({ children, sidebarOpen, user }: DashboardShellProps) {
   const { t } = useTranslation("common");
   const pathname = usePathname();
   const contentScrollRef = useRef<HTMLElement>(null);
@@ -86,7 +87,8 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
       <BillingBanner />
       <SidebarProvider
         className="relative min-h-0 flex-1 overflow-hidden"
-        defaultOpen={getSidebarDefaultOpen()}
+        // The server reads the same cookie, so both renders agree on the sidebar state.
+        defaultOpen={sidebarOpen ?? getSidebarDefaultOpen()}
         style={{ "--sidebar-width": "16rem" } as React.CSSProperties}
       >
         <ReplacementSidebar user={user} />
