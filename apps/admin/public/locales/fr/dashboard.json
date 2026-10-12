@@ -27,7 +27,7 @@
     "analytics": {
       "chart": {
         "title": "Vue d'ensemble de l'activite",
-        "description": "Appels et messages de la semaine dans votre espace reception."
+        "description": "Appels et messages dans votre espace reception."
       },
       "cards": {
         "calls": "Nombre d'appels",

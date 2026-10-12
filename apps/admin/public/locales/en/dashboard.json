@@ -27,7 +27,7 @@
     "analytics": {
       "chart": {
         "title": "Engagement Overview",
-        "description": "Weekly calls and messages across your receptionist workspace."
+        "description": "Calls and messages across your receptionist workspace."
       },
       "cards": {
         "calls": "Number of calls",

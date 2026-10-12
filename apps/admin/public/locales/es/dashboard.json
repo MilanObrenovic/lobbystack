@@ -27,7 +27,7 @@
     "analytics": {
       "chart": {
         "title": "Resumen de actividad",
-        "description": "Llamadas y mensajes semanales en su espacio de trabajo de recepción."
+        "description": "Llamadas y mensajes en su espacio de trabajo de recepción."
       },
       "cards": {
         "calls": "Número de llamadas",

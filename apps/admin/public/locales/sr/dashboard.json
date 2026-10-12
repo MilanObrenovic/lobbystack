@@ -27,7 +27,7 @@
     "analytics": {
       "chart": {
         "title": "Pregled angažovanja",
-        "description": "Nedeljni pozivi i poruke u Vašem radnom prostoru."
+        "description": "Pozivi i poruke u Vašem radnom prostoru."
       },
       "cards": {
         "calls": "Broj poziva",
