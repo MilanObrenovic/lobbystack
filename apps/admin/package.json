@@ -38,6 +38,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.3",
+    "framer-motion": "^12.43.0",
     "i18next": "^26.4.2",
     "input-otp": "^1.5.0",
     "ioredis": "^6.0.0",
