@@ -355,6 +355,7 @@
     "retry": "Réessayer",
     "moveUp": "Monter",
     "moveDown": "Descendre",
+    "dragToReorder": "Faites glisser pour réorganiser",
     "activateEntry": "Activer l'entrée",
     "deactivateEntry": "Désactiver l'entrée",
     "upload": "Téléverser",

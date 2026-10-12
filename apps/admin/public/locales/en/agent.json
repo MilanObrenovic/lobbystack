@@ -355,6 +355,7 @@
     "retry": "Retry",
     "moveUp": "Move up",
     "moveDown": "Move down",
+    "dragToReorder": "Drag to reorder",
     "activateEntry": "Activate entry",
     "deactivateEntry": "Deactivate entry",
     "upload": "Upload",
