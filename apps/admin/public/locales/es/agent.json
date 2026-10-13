@@ -385,6 +385,7 @@
     "closesAt": "Hora de cierre del {{day}}",
     "addWindow": "Agregar horario",
     "removeWindow": "Quitar este horario",
+    "picker": { "hours": "Horas", "minutes": "Minutos", "period": "a. m. o p. m.", "hoursTitle": "HH", "minutesTitle": "MM" },
     "save": "Guardar horario",
     "invalid": "Revise el {{day}}: cada hora de cierre debe ir después de su apertura, sin superponerse.",
     "noHoursAlert": {

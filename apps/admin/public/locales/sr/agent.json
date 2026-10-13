@@ -385,6 +385,7 @@
     "closesAt": "Vreme zatvaranja: {{day}}",
     "addWindow": "Dodaj vreme",
     "removeWindow": "Ukloni ovo vreme",
+    "picker": { "hours": "Sati", "minutes": "Minuti", "period": "Pre ili posle podne", "hoursTitle": "HH", "minutesTitle": "MM" },
     "save": "Sačuvaj radno vreme",
     "invalid": "Proverite dan {{day}}: svako zatvaranje mora biti posle otvaranja, bez preklapanja.",
     "noHoursAlert": {

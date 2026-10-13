@@ -11,11 +11,12 @@ import type { BookingMode, HoursWindow } from "@lobbystack/shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Item, ItemActions, ItemContent, ItemDescription } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Surface } from "@/components/ui/surface";
 import { Switch } from "@/components/ui/switch";
+import { TimePicker } from "@/components/ui/time-picker";
+import { useTimeFormatPreference } from "@/components/appearance-provider";
 import { useTelemetry } from "@/components/product-analytics";
 import { intlLocale } from "@/lib/locale";
 import { requestJson } from "@/lib/request-json";
@@ -112,6 +113,9 @@ export function BookingWithoutHoursAlert({ className }: { className?: string }) 
 
 export function BusinessHoursSection({ businessId, canManage }: { businessId: string; canManage: boolean }) {
   const { i18n, t } = useTranslation("agent");
+  const hourCycle = useTimeFormatPreference() ?? "24h";
+  const pickerLabels = { hours: t("hours.picker.hours"), minutes: t("hours.picker.minutes"), period: t("hours.picker.period") };
+  const pickerTitles = { hours: t("hours.picker.hoursTitle"), minutes: t("hours.picker.minutesTitle") };
   const telemetry = useTelemetry();
   const queryClient = useQueryClient();
   const query = useBusinessHours(businessId);
@@ -204,9 +208,9 @@ export function BusinessHoursSection({ businessId, canManage }: { businessId: st
                       <div className="flex flex-col gap-2">
                         {windows.map((window, index) => (
                           <div className="flex items-center gap-2" key={index}>
-                            <Input aria-label={t("hours.opensAt", { day })} className="w-28 min-w-0 shrink" disabled={disabled} onChange={(event) => update(dayOfWeek, windows.map((item, position) => (position === index ? { ...item, open: event.target.value } : item)))} type="time" value={window.open} />
+                            <TimePicker aria-label={t("hours.opensAt", { day })} className="w-32 min-w-0 shrink" columnLabels={pickerLabels} columnTitles={pickerTitles} disabled={disabled} hourCycle={hourCycle} locale={intlLocale(i18n.language)} onChange={(open) => update(dayOfWeek, windows.map((item, position) => (position === index ? { ...item, open } : item)))} value={window.open} />
                             <span aria-hidden="true" className="text-muted-foreground">–</span>
-                            <Input aria-label={t("hours.closesAt", { day })} className="w-28 min-w-0 shrink" disabled={disabled} onChange={(event) => update(dayOfWeek, windows.map((item, position) => (position === index ? { ...item, close: event.target.value } : item)))} type="time" value={window.close} />
+                            <TimePicker aria-label={t("hours.closesAt", { day })} className="w-32 min-w-0 shrink" columnLabels={pickerLabels} columnTitles={pickerTitles} disabled={disabled} hourCycle={hourCycle} locale={intlLocale(i18n.language)} onChange={(close) => update(dayOfWeek, windows.map((item, position) => (position === index ? { ...item, close } : item)))} value={window.close} />
                             {windows.length > 1 ? <Button aria-label={t("hours.removeWindow")} disabled={disabled} onClick={() => update(dayOfWeek, windows.filter((_, position) => position !== index))} size="icon-sm" type="button" variant="ghost"><X /></Button> : null}
                           </div>
                         ))}

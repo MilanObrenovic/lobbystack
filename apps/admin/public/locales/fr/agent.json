@@ -385,6 +385,7 @@
     "closesAt": "Heure de fermeture du {{day}}",
     "addWindow": "Ajouter des heures",
     "removeWindow": "Retirer ces heures",
+    "picker": { "hours": "Heures", "minutes": "Minutes", "period": "AM ou PM", "hoursTitle": "HH", "minutesTitle": "MM" },
     "save": "Enregistrer les heures",
     "invalid": "Vérifiez le {{day}} : chaque fermeture doit suivre son ouverture, sans chevauchement.",
     "noHoursAlert": {

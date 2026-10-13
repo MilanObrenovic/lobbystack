@@ -385,6 +385,7 @@
     "closesAt": "{{day}} closing time",
     "addWindow": "Add hours",
     "removeWindow": "Remove these hours",
+    "picker": { "hours": "Hours", "minutes": "Minutes", "period": "AM or PM", "hoursTitle": "HH", "minutesTitle": "MM" },
     "save": "Save hours",
     "invalid": "Check {{day}}: each closing time must come after its opening time, with no overlaps.",
     "noHoursAlert": {
