@@ -22,11 +22,13 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Surface } from "@/components/ui/surface";
 import { Switch } from "@/components/ui/switch";
 import { useTelemetry } from "@/components/product-analytics";
 import { BookingWithoutHoursAlert, BusinessHoursSection, needsHoursForBooking, useBusinessHours } from "@/components/business-hours-section";
 import { availableTimeZones, groupTimeZones, isTimeZoneRegion, type TimeZoneOption } from "@/lib/time-zones";
+import { cn } from "@/lib/utils";
 
 type AgentBasicSettingsPageProps = {
   businessId: string;
@@ -34,6 +36,11 @@ type AgentBasicSettingsPageProps = {
 };
 
 type TimeZoneItemGroup = { value: string; label: string; items: TimeZoneOption[] };
+
+// Always rendered and only faded in, so a save never shifts the row.
+function SavingSpinner({ label, saving }: { label: string; saving: boolean }) {
+  return <Spinner aria-hidden={!saving} aria-label={label} className={cn("text-muted-foreground transition-opacity", saving ? "opacity-100" : "opacity-0")} />;
+}
 
 const RUNTIME_LOCALE_OPTIONS = [
   { value: "en", labelKey: "common:language.english" },
@@ -125,7 +132,6 @@ export function AgentBasicSettingsPage({
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [defaultLocale, setDefaultLocale] = useState<RuntimeLocale>("en");
   const [timezone, setTimezone] = useState("");
-  const [timezoneStatus, setTimezoneStatus] = useState<string | null>(null);
   const [isTimezoneSaving, setIsTimezoneSaving] = useState(false);
   const [transferNumber, setTransferNumber] = useState("");
   const [transferNumberInputValue, setTransferNumberInputValue] = useState("");
@@ -133,18 +139,13 @@ export function AgentBasicSettingsPage({
   const [allowAppointmentReschedule, setAllowAppointmentReschedule] = useState(true);
   const [requireAppointmentChangeOtp, setRequireAppointmentChangeOtp] = useState(false);
   const [bookingMode, setBookingMode] = useState<BookingMode>("instant");
-  const [bookingModeStatus, setBookingModeStatus] = useState<string | null>(null);
   const [isBookingModeSaving, setIsBookingModeSaving] = useState(false);
-  const [greetingStatus, setGreetingStatus] = useState<string | null>(null);
-  const [localeStatus, setLocaleStatus] = useState<string | null>(null);
   const [transferStatus, setTransferStatus] = useState<string | null>(null);
-  const [appointmentChangeStatus, setAppointmentChangeStatus] = useState<string | null>(null);
   const [isGreetingSaving, setIsGreetingSaving] = useState(false);
   const [isGreetingOpen, setIsGreetingOpen] = useState(false);
   const [isLocaleSaving, setIsLocaleSaving] = useState(false);
   const [isTransferSaving, setIsTransferSaving] = useState(false);
   const [isAppointmentChangeSaving, setIsAppointmentChangeSaving] = useState(false);
-  const [transferStatusTone, setTransferStatusTone] = useState<"success" | "error">("success");
   useEffect(() => {
     setTimezone(configuration?.business?.timezone ?? "");
     const profile = configuration?.profile;
@@ -166,29 +167,11 @@ export function AgentBasicSettingsPage({
     );
   }, [configuration]);
 
-  const savedText = t("agent:actions.saved");
   useEffect(() => {
-    const clear = [
-      [greetingStatus, () => setGreetingStatus(null)],
-      [localeStatus, () => setLocaleStatus(null)],
-      [transferStatus, () => { setTransferStatus(null); setTransferStatusTone("success"); }],
-      [appointmentChangeStatus, () => setAppointmentChangeStatus(null)],
-      [timezoneStatus, () => setTimezoneStatus(null)],
-      [bookingModeStatus, () => setBookingModeStatus(null)],
-      // "Regenerating" stays until the new summary arrives.
-      [summaryStatus === savedText ? summaryStatus : null, () => setSummaryStatus(null)],
-    ] as const;
-    const timeouts = clear.filter(([status]) => status).map(([, reset]) => window.setTimeout(reset, 3000));
-
-    return () => {
-      for (const timeoutId of timeouts) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [appointmentChangeStatus, bookingModeStatus, greetingStatus, localeStatus, savedText, summaryStatus, timezoneStatus, transferStatus]);
-
-  // Green for a save that went through; other statuses keep the muted hint color.
-  const statusClassName = (status: string | null) => status === savedText ? "text-emerald-600 dark:text-emerald-400" : undefined;
+    if (!transferStatus) return;
+    const timeoutId = window.setTimeout(() => setTransferStatus(null), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [transferStatus]);
 
   async function saveGreeting(): Promise<void> {
     if (!canManageTenant || !persistedProfile) {
@@ -196,12 +179,11 @@ export function AgentBasicSettingsPage({
     }
 
     setIsGreetingSaving(true);
-    setGreetingStatus(null);
     try {
       // Only the greeting: the dialog hides the other fields, so their drafts stay unsaved.
       await saveProfile({ businessId, greeting });
       telemetry.track("web.agent.settings_saved", { businessId, setting: "greeting" });
-      setGreetingStatus(t("agent:actions.saved"));
+      toast.success(t("agent:actions.saved"));
       setIsGreetingOpen(false);
     } catch {
       toast.error(t("agent:actions.saveFailed"));
@@ -219,7 +201,8 @@ export function AgentBasicSettingsPage({
     try {
       await saveProfile(regenerate ? { businessId, regenerateSummary: true } : { businessId, summary: summary.trim() });
       telemetry.track("web.agent.settings_saved", { businessId, setting: regenerate ? "summary_regenerated" : "summary" });
-      setSummaryStatus(regenerate ? t("agent:fields.summary.regenerating") : t("agent:actions.saved"));
+      setSummaryStatus(regenerate ? t("agent:fields.summary.regenerating") : null);
+      if (!regenerate) toast.success(t("agent:actions.saved"));
       setIsSummaryOpen(false);
     } catch {
       toast.error(t("agent:actions.saveFailed"));
@@ -239,7 +222,6 @@ export function AgentBasicSettingsPage({
     });
     if (!transferNumberResolution.ok) {
       setTransferStatus(t(transferNumberResolution.errorKey));
-      setTransferStatusTone("error");
       return;
     }
 
@@ -248,8 +230,7 @@ export function AgentBasicSettingsPage({
     try {
       await saveProfile({ businessId, transferNumber: transferNumberResolution.value });
       telemetry.track("web.agent.settings_saved", { businessId, setting: "transfer_number" });
-      setTransferStatus(t("agent:actions.saved"));
-      setTransferStatusTone("success");
+      toast.success(t("agent:actions.saved"));
     } catch {
       toast.error(t("agent:actions.saveFailed"));
     } finally {
@@ -271,7 +252,6 @@ export function AgentBasicSettingsPage({
     }
 
     setIsAppointmentChangeSaving(true);
-    setAppointmentChangeStatus(null);
     try {
       await saveProfile({
         businessId,
@@ -282,7 +262,7 @@ export function AgentBasicSettingsPage({
         }),
       });
       telemetry.track("web.agent.settings_saved", { businessId, setting: "appointment_change_policy" });
-      setAppointmentChangeStatus(t("agent:actions.saved"));
+      toast.success(t("agent:actions.saved"));
     } catch {
       toast.error(t("agent:actions.saveFailed"));
     } finally {
@@ -295,12 +275,11 @@ export function AgentBasicSettingsPage({
     const previous = timezone;
     setTimezone(nextTimezone);
     setIsTimezoneSaving(true);
-    setTimezoneStatus(null);
     try {
       // A refetch resets every unsaved draft on this page, so the saved settings only go stale.
       await saveProfile({ businessId, timezone: nextTimezone }, "none");
       telemetry.track("web.agent.settings_saved", { businessId, setting: "timezone" });
-      setTimezoneStatus(t("agent:actions.saved"));
+      toast.success(t("agent:actions.saved"));
     } catch {
       setTimezone(previous);
       toast.error(t("agent:actions.saveFailed"));
@@ -312,11 +291,10 @@ export function AgentBasicSettingsPage({
   async function saveBookingMode(nextMode: BookingMode): Promise<void> {
     if (!canManageTenant || !persistedProfile) return;
     setIsBookingModeSaving(true);
-    setBookingModeStatus(null);
     try {
       await saveProfile({ businessId, bookingMode: nextMode });
       telemetry.track("web.agent.settings_saved", { businessId, setting: "booking_mode" });
-      setBookingModeStatus(t("agent:actions.saved"));
+      toast.success(t("agent:actions.saved"));
     } catch {
       toast.error(t("agent:actions.saveFailed"));
     } finally {
@@ -339,7 +317,6 @@ export function AgentBasicSettingsPage({
               <ItemContent>
                 <ItemTitle>{t("agent:fields.greeting.label")}</ItemTitle>
                 <ItemDescription>{t("agent:fields.greeting.hint")}</ItemDescription>
-                {greetingStatus ? <ItemDescription className={statusClassName(greetingStatus)}>{greetingStatus}</ItemDescription> : null}
               </ItemContent>
               <ItemActions className="w-full justify-end self-center sm:w-auto">
                 <Button
@@ -347,7 +324,6 @@ export function AgentBasicSettingsPage({
                   disabled={isLoadingConfiguration || !persistedProfile || !canManageTenant}
                   onClick={() => {
                     setGreeting(persistedProfile?.greeting ?? "");
-                    setGreetingStatus(null);
                     setIsGreetingOpen(true);
                   }}
                   size="sm"
@@ -386,7 +362,7 @@ export function AgentBasicSettingsPage({
               <ItemContent>
                 <ItemTitle>{t("agent:fields.summary.label")}</ItemTitle>
                 <ItemDescription>{t("agent:fields.summary.hint")}</ItemDescription>
-                {summaryStatus ? <ItemDescription className={statusClassName(summaryStatus)}>{summaryStatus}</ItemDescription> : null}
+                {summaryStatus ? <ItemDescription>{summaryStatus}</ItemDescription> : null}
               </ItemContent>
               <ItemActions className="w-full justify-end self-center sm:w-auto">
                 <Button
@@ -441,14 +417,9 @@ export function AgentBasicSettingsPage({
               <ItemContent>
                 <ItemTitle>{t("agent:fields.defaultLocale.label")}</ItemTitle>
                 <ItemDescription>{t("agent:fields.defaultLocale.hint")}</ItemDescription>
-                {isLocaleSaving ? (
-                  <ItemDescription>{t("agent:actions.saving")}</ItemDescription>
-                ) : null}
-                {!isLocaleSaving && localeStatus ? (
-                  <ItemDescription className={statusClassName(localeStatus)}>{localeStatus}</ItemDescription>
-                ) : null}
               </ItemContent>
               <ItemActions className="w-full sm:w-auto">
+                <SavingSpinner label={t("agent:actions.saving")} saving={isLocaleSaving} />
                 {isLoadingConfiguration ? (
                   <Skeleton className="h-10 w-full rounded-md sm:w-36" />
                 ) : (
@@ -458,7 +429,6 @@ export function AgentBasicSettingsPage({
                     onValueChange={(value) => {
                       const nextLocale = ((value as RuntimeLocale | null) || "en");
                       setDefaultLocale(nextLocale);
-                      setLocaleStatus(null);
                       void (async () => {
                         if (!canManageTenant || !persistedProfile) {
                           return;
@@ -468,10 +438,10 @@ export function AgentBasicSettingsPage({
                         try {
                           await saveProfile({ businessId, defaultLocale: nextLocale });
                           telemetry.track("web.agent.settings_saved", { businessId, setting: "default_locale" });
-                          setLocaleStatus(t("agent:actions.saved"));
+                          toast.success(t("agent:actions.saved"));
                         } catch {
-      toast.error(t("agent:actions.saveFailed"));
-    } finally {
+                          toast.error(t("agent:actions.saveFailed"));
+                        } finally {
                           setIsLocaleSaving(false);
                         }
                       })();
@@ -496,10 +466,9 @@ export function AgentBasicSettingsPage({
               <ItemContent>
                 <ItemTitle>{t("agent:fields.timezone.label")}</ItemTitle>
                 <ItemDescription>{t("agent:fields.timezone.hint")}</ItemDescription>
-                {isTimezoneSaving ? <ItemDescription>{t("agent:actions.saving")}</ItemDescription> : null}
-                {!isTimezoneSaving && timezoneStatus ? <ItemDescription className={statusClassName(timezoneStatus)}>{timezoneStatus}</ItemDescription> : null}
               </ItemContent>
               <ItemActions className="w-full min-w-0 sm:w-auto">
+                <SavingSpinner label={t("agent:actions.saving")} saving={isTimezoneSaving} />
                 {isLoadingConfiguration ? (
                   <Skeleton className="h-10 w-full rounded-md sm:w-56" />
                 ) : (
@@ -553,24 +522,16 @@ export function AgentBasicSettingsPage({
                       onChange={(nextValue) => {
                         setTransferNumber(nextValue ?? "");
                         setTransferStatus(null);
-                        setTransferStatusTone("success");
                       }}
                       onRawValueChange={(nextRawValue) => {
                         setTransferNumberInputValue(nextRawValue);
                         setTransferStatus(null);
-                        setTransferStatusTone("success");
                       }}
                       {...(transferNumber ? { value: transferNumber } : {})}
                     />
                   )}
                 </div>
-                {transferStatus ? (
-                  <ItemDescription
-                    className={transferStatusTone === "error" ? "text-destructive" : statusClassName(transferStatus)}
-                  >
-                    {transferStatus}
-                  </ItemDescription>
-                ) : null}
+                {transferStatus ? <ItemDescription className="text-destructive">{transferStatus}</ItemDescription> : null}
               </ItemContent>
               <ItemActions className="w-full justify-end self-center sm:w-auto">
                 <Button
@@ -604,10 +565,9 @@ export function AgentBasicSettingsPage({
               <ItemContent>
                 <ItemTitle>{t("agent:booking.mode.label")}</ItemTitle>
                 <ItemDescription>{t(`agent:booking.mode.descriptions.${bookingMode}`)}</ItemDescription>
-                {isBookingModeSaving ? <ItemDescription>{t("agent:actions.saving")}</ItemDescription> : null}
-                {!isBookingModeSaving && bookingModeStatus ? <ItemDescription className={statusClassName(bookingModeStatus)}>{bookingModeStatus}</ItemDescription> : null}
               </ItemContent>
               <ItemActions className="w-full sm:w-auto">
+                <SavingSpinner label={t("agent:actions.saving")} saving={isBookingModeSaving} />
                 {isLoadingConfiguration ? (
                   <Skeleton className="h-10 w-full rounded-md sm:w-48" />
                 ) : (
@@ -664,7 +624,6 @@ export function AgentBasicSettingsPage({
                     disabled={isAppointmentChangeSaving || !persistedProfile || !canManageTenant}
                     onCheckedChange={(checked) => {
                       setAllowAppointmentCancel(checked);
-                      setAppointmentChangeStatus(null);
                       void saveAppointmentChangePolicy({ allowCancel: checked });
                     }}
                   />
@@ -692,7 +651,6 @@ export function AgentBasicSettingsPage({
                     disabled={isAppointmentChangeSaving || !persistedProfile || !canManageTenant}
                     onCheckedChange={(checked) => {
                       setAllowAppointmentReschedule(checked);
-                      setAppointmentChangeStatus(null);
                       void saveAppointmentChangePolicy({ allowReschedule: checked });
                     }}
                   />
@@ -709,9 +667,6 @@ export function AgentBasicSettingsPage({
                 <ItemDescription>
                   {t("agent:appointmentChanges.requireOtp.hint")}
                 </ItemDescription>
-                {appointmentChangeStatus ? (
-                  <ItemDescription className={statusClassName(appointmentChangeStatus)}>{appointmentChangeStatus}</ItemDescription>
-                ) : null}
               </ItemContent>
               <ItemActions>
                 {isLoadingConfiguration ? (
@@ -723,7 +678,6 @@ export function AgentBasicSettingsPage({
                     disabled={isAppointmentChangeSaving || !persistedProfile || !canManageTenant}
                     onCheckedChange={(checked) => {
                       setRequireAppointmentChangeOtp(checked);
-                      setAppointmentChangeStatus(null);
                       void saveAppointmentChangePolicy({ requireOtp: checked });
                     }}
                   />

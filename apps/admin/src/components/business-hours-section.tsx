@@ -121,7 +121,6 @@ export function BusinessHoursSection({ businessId, canManage }: { businessId: st
   const query = useBusinessHours(businessId);
   const state = query.data;
   const [days, setDays] = useState<Window[][]>(() => toDays([]));
-  const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Collapsed to a one-line summary unless a link points here, such as the no-hours warning.
@@ -143,7 +142,6 @@ export function BusinessHoursSection({ businessId, canManage }: { businessId: st
 
   function update(dayOfWeek: number, windows: Window[]) {
     setDays((current) => current.map((day, index) => (index === dayOfWeek ? windows : day)));
-    setStatus(null);
     setError(null);
   }
 
@@ -154,12 +152,11 @@ export function BusinessHoursSection({ businessId, canManage }: { businessId: st
       return;
     }
     setSaving(true);
-    setStatus(null);
     try {
       const saved = await requestJson<BusinessHoursState>(`/api/hours?businessId=${encodeURIComponent(businessId)}`, { method: "PUT", body: JSON.stringify({ hours: result.hours }) });
       queryClient.setQueryData(businessHoursQueryKey(businessId), saved);
       telemetry.track("web.agent.settings_saved", { businessId, setting: "hours" });
-      setStatus(t("actions.saved"));
+      toast.success(t("actions.saved"));
       setEditing(false);
     } catch {
       toast.error(t("actions.saveFailed"));
@@ -188,8 +185,7 @@ export function BusinessHoursSection({ businessId, canManage }: { businessId: st
             {loading ? <Skeleton className="h-5 w-64 rounded-md" /> : <ItemDescription data-testid="hours-summary">{summarizeHours(savedDays, shortDayNames) || t("hours.notSet")}</ItemDescription>}
           </ItemContent>
           <ItemActions>
-            {status ? <span className="text-sm text-muted-foreground">{status}</span> : null}
-            <Button disabled={!canManage || loading} onClick={() => { setEditing(true); setStatus(null); }} size="sm" type="button" variant="outline">{t("hours.edit")}</Button>
+            <Button disabled={!canManage || loading} onClick={() => setEditing(true)} size="sm" type="button" variant="outline">{t("hours.edit")}</Button>
           </ItemActions>
         </Item>
       </Surface>

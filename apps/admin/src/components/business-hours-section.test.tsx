@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 
 import { BusinessHoursSection, HOURS_EDITOR_HREF, windowsForSave } from "./business-hours-section";
 import { AgentBasicSettingsPage } from "./live-agent-basic-settings-surface";
@@ -68,6 +69,7 @@ describe("opening hours editor", () => {
     expect(body.hours).toEqual([...weekdays, { dayOfWeek: 6, openMinutes: 540, closeMinutes: 1020 }]);
     await waitFor(() => expect(screen.queryByText("hours.generated")).toBeNull());
     expect(screen.getByTestId("hours-summary").textContent).toBe("Mon–Fri 09:00–20:00, Sat 09:00–17:00");
+    expect(toast.success).toHaveBeenCalledWith("actions.saved");
     telemetryRef.current!.expectEvent("web.agent.settings_saved", { businessId: "business", setting: "hours" });
   });
 
