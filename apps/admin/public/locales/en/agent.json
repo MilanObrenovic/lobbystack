@@ -73,7 +73,7 @@
         },
         "websiteUrl": {
           "label": "Website URL",
-          "placeholder": "https://example.com",
+          "placeholder": "example.com",
           "hint": "Use the public home page or section you want to import."
         },
         "title": {
@@ -342,7 +342,7 @@
     "saving": "Saving…",
     "saved": "Changes saved.",
     "deleted": "Deleted",
-    "importCancelled": "Import cancelled",
+    "importCancelled": "Import cancelled.",
     "moreOptions": "More options",
     "delete": "Delete",
     "confirmDelete": "Confirm?",

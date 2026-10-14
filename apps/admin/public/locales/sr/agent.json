@@ -73,7 +73,7 @@
         },
         "websiteUrl": {
           "label": "URL sajta",
-          "placeholder": "https://example.com",
+          "placeholder": "example.com",
           "hint": "Unesite javnu početnu stranicu ili odeljak koji želite da uvezete."
         },
         "title": {
@@ -342,7 +342,7 @@
     "saving": "Čuvanje…",
     "saved": "Izmene su sačuvane.",
     "deleted": "Obrisano",
-    "importCancelled": "Uvoz je otkazan",
+    "importCancelled": "Uvoz je otkazan.",
     "moreOptions": "Još opcija",
     "delete": "Obriši",
     "confirmDelete": "Potvrđujete?",

@@ -73,7 +73,7 @@
         },
         "websiteUrl": {
           "label": "URL du site web",
-          "placeholder": "https://example.com",
+          "placeholder": "example.com",
           "hint": "Utilisez la page d'accueil publique ou la section que vous voulez importer."
         },
         "title": {
@@ -342,7 +342,7 @@
     "saving": "Enregistrement…",
     "saved": "Modifications enregistrées.",
     "deleted": "Supprimé",
-    "importCancelled": "Import annulé",
+    "importCancelled": "Import annulé.",
     "moreOptions": "Plus d options",
     "delete": "Supprimer",
     "confirmDelete": "Confirmer ?",

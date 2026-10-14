@@ -15,7 +15,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import {
   Dialog,
   DialogContent,
@@ -57,7 +57,8 @@ export function ImportWebsiteKnowledgeSheet({
     setErrorMessage(null);
 
     try {
-      await save(trimmedWebsiteUrl);
+      // The field shows "https://" as a prefix, so a bare domain gets it here.
+      await save(/^[a-z][a-z\d+.-]*:\/\//iu.test(trimmedWebsiteUrl) ? trimmedWebsiteUrl : `https://${trimmedWebsiteUrl}`);
       toast.success(t("sections.knowledge.websiteImport.success"));
       onOpenChange(false);
       resetState();
@@ -100,21 +101,28 @@ export function ImportWebsiteKnowledgeSheet({
                   {t("sections.knowledge.fields.websiteUrl.hint")}
                 </FieldDescription>
               </FieldContent>
-              <Input
-                aria-describedby={errorMessage ? "knowledge-website-url-error" : undefined}
-                aria-invalid={errorMessage ? true : undefined}
-                autoComplete="url"
-                id="knowledge-website-url"
-                onChange={(event) => {
-                  setWebsiteUrl(event.target.value);
-                  if (errorMessage) {
-                    setErrorMessage(null);
-                  }
-                }}
-                placeholder={t("sections.knowledge.fields.websiteUrl.placeholder")}
-                type="url"
-                value={websiteUrl}
-              />
+              <InputGroup>
+                <InputGroupInput
+                  aria-describedby={errorMessage ? "knowledge-website-url-error" : undefined}
+                  aria-invalid={errorMessage ? true : undefined}
+                  autoComplete="url"
+                  id="knowledge-website-url"
+                  inputMode="url"
+                  onChange={(event) => {
+                    // A pasted full address drops its "https://", which the prefix already shows.
+                    setWebsiteUrl(event.target.value.replace(/^https:\/\//iu, ""));
+                    if (errorMessage) {
+                      setErrorMessage(null);
+                    }
+                  }}
+                  placeholder={t("sections.knowledge.fields.websiteUrl.placeholder")}
+                  type="text"
+                  value={websiteUrl}
+                />
+                <InputGroupAddon>
+                  <InputGroupText>https://</InputGroupText>
+                </InputGroupAddon>
+              </InputGroup>
               {errorMessage ? <FieldError id="knowledge-website-url-error">{errorMessage}</FieldError> : null}
             </Field>
           </FieldGroup>
