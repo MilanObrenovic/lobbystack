@@ -6,7 +6,7 @@ const homeSectionsCopy = {
   en: {
     extension: {
       heading: "Turn missed calls into booked work",
-      body: "LobbyStack captures what callers need, books appointments when they are ready, and routes urgent calls with context.",
+      body: "LobbyStack captures what callers need, books appointments when they are ready, and transfers urgent calls to your team.",
     },
     extensionCards: [
       {
@@ -23,11 +23,11 @@ const homeSectionsCopy = {
       {
         title: "Send the right calls to your team",
         description:
-          "LobbyStack can answer routine calls, take a message, or route urgent conversations to your team with the caller's details and reason attached.",
+          "LobbyStack can answer routine calls, take a message with the caller's details and reason, or transfer urgent calls to your team.",
         cta: "Set routing rules",
         href: "#control",
         image: "/illustrations/call-routing-team.webp",
-        alt: "Incoming call summary routed to the right team member with customer context",
+        alt: "An incoming call next to three team members",
         imageAspectClass: "aspect-[9/4]",
         imageScaleClass: "h-full w-full object-cover object-[50%_44%]",
       },
@@ -69,9 +69,9 @@ const homeSectionsCopy = {
         {
           title: "Human handoff when a call needs it",
           description:
-            "Route urgent or unusual calls to a human with the caller's reason, contact details, and conversation context attached.",
+            "Transfer urgent or unusual calls to the number you set. The caller's reason and contact details stay in the call's transcript.",
           image: "/illustrations/human-handoff.webp",
-          alt: "Urgent caller message transferred to a team member with reason and context attached",
+          alt: "An urgent caller message, followed by a call transferred to a team member",
           imageContainerClass: "bg-[#F4F4F2] aspect-[4/3]",
           imageClassName: "h-full w-full object-cover object-center",
           imageWidth: 2048,
@@ -163,14 +163,14 @@ const homeSectionsCopy = {
     openSource: {
       heading: "Proudly open-source, self-hosted",
       body: "Run LobbyStack on your own servers and keep call recordings and customer data in your own infrastructure.",
-      cta: "View on GitHub",
+      cta: "View on GitLab",
       selfHostedCta: "Self-Hosting Overview",
     },
   },
   fr: {
     extension: {
       heading: "Transformez les appels manqués en rendez‑vous",
-      body: "LobbyStack comprend le besoin de l'appelant, réserve quand la personne est prête et transfère les urgences avec le bon contexte.",
+      body: "LobbyStack comprend le besoin de l'appelant, réserve quand la personne est prête et transfère les urgences à votre équipe.",
     },
     extensionCards: [
       {
@@ -185,13 +185,13 @@ const homeSectionsCopy = {
         imageScaleClass: "h-[155%] w-[155%]",
       },
       {
-        title: "Envoyez les bons appels à la bonne personne",
+        title: "Envoyez les bons appels à votre équipe",
         description:
-          "LobbyStack traite les appels courants, prend un message ou transfère les conversations urgentes avec les détails et le motif de l’appel.",
+          "LobbyStack traite les appels courants, prend un message avec les coordonnées et le motif de l’appel, ou transfère les appels urgents à votre équipe.",
         cta: "Définir les règles",
         href: "#control",
         image: "/illustrations/call-routing-team.webp",
-        alt: "Résumé d’appel entrant routé vers la bonne personne avec le contexte client",
+        alt: "Un appel entrant à côté de trois membres de l’équipe",
         imageAspectClass: "aspect-[9/4]",
         imageScaleClass: "h-full w-full object-cover object-[50%_44%]",
       },
@@ -234,9 +234,9 @@ const homeSectionsCopy = {
         {
           title: "Transfert humain quand l’appel l’exige",
           description:
-            "Transférez les appels urgents ou inhabituels vers une personne avec le motif, les coordonnées et le contexte de la conversation.",
+            "Transférez les appels urgents ou inhabituels vers le numéro que vous choisissez. Le motif et les coordonnées de l’appelant restent dans la transcription de l’appel.",
           image: "/illustrations/human-handoff.webp",
-          alt: "Message urgent d’un appelant transféré à un membre de l’équipe avec le motif et le contexte",
+          alt: "Message urgent d’un appelant, puis appel transféré à un membre de l’équipe",
           imageContainerClass: "bg-[#F4F4F2] aspect-[4/3]",
           imageClassName: "h-full w-full object-cover object-center",
           imageWidth: 2048,
@@ -329,14 +329,14 @@ const homeSectionsCopy = {
     openSource: {
       heading: "Open source, prêt pour l'auto-hébergement",
       body: "Hébergez LobbyStack sur vos propres serveurs et gardez les enregistrements d’appels et les données client dans votre infrastructure.",
-      cta: "Voir sur GitHub",
+      cta: "Voir sur GitLab",
       selfHostedCta: "Aperçu de l'auto-hébergement",
     },
   },
   es: {
     extension: {
       heading: "Convierta las llamadas perdidas en citas",
-      body: "LobbyStack recoge lo que necesita quien llama, reserva citas cuando la persona está lista y dirige las llamadas urgentes con contexto.",
+      body: "LobbyStack recoge lo que necesita quien llama, reserva citas cuando la persona está lista y transfiere las llamadas urgentes a su equipo.",
     },
     extensionCards: [
       {
@@ -353,11 +353,11 @@ const homeSectionsCopy = {
       {
         title: "Envíe las llamadas adecuadas a su equipo",
         description:
-          "LobbyStack puede atender llamadas rutinarias, tomar un mensaje o dirigir las conversaciones urgentes a su equipo con los datos de quien llama y el motivo de la llamada.",
+          "LobbyStack puede atender llamadas rutinarias, tomar un mensaje con los datos de quien llama y el motivo, o transferir las llamadas urgentes a su equipo.",
         cta: "Definir reglas",
         href: "#control",
         image: "/illustrations/call-routing-team.webp",
-        alt: "Resumen de una llamada entrante dirigido al miembro del equipo adecuado con el contexto del cliente",
+        alt: "Una llamada entrante junto a tres miembros del equipo",
         imageAspectClass: "aspect-[9/4]",
         imageScaleClass: "h-full w-full object-cover object-[50%_44%]",
       },
@@ -400,9 +400,9 @@ const homeSectionsCopy = {
         {
           title: "Paso a una persona cuando la llamada lo requiere",
           description:
-            "Transfiera las llamadas urgentes o inusuales a una persona con el motivo, los datos de contacto y el contexto de la conversación.",
+            "Transfiera las llamadas urgentes o inusuales al número que usted elija. El motivo y los datos de contacto de quien llama quedan en la transcripción de la llamada.",
           image: "/illustrations/human-handoff.webp",
-          alt: "Mensaje urgente de una persona que llama transferido a un miembro del equipo con el motivo y el contexto",
+          alt: "Mensaje urgente de una persona que llama y llamada transferida a un miembro del equipo",
           imageContainerClass: "bg-[#F4F4F2] aspect-[4/3]",
           imageClassName: "h-full w-full object-cover object-center",
           imageWidth: 2048,
@@ -494,14 +494,14 @@ const homeSectionsCopy = {
     openSource: {
       heading: "Orgullosamente de código abierto y autoalojado",
       body: "Ejecute LobbyStack en sus propios servidores y guarde las grabaciones de llamadas y los datos de sus clientes en su propia infraestructura.",
-      cta: "Ver en GitHub",
+      cta: "Ver en GitLab",
       selfHostedCta: "Sobre el autoalojamiento",
     },
   },
   sr: {
     extension: {
       heading: "Pretvorite propuštene pozive u zakazane termine",
-      body: "LobbyStack beleži šta pozivaocima treba, zakazuje termine kada su spremni i preusmerava hitne pozive uz kontekst.",
+      body: "LobbyStack beleži šta pozivaocima treba, zakazuje termine kada su spremni i hitne pozive preusmerava Vašem timu.",
     },
     extensionCards: [
       {
@@ -518,11 +518,11 @@ const homeSectionsCopy = {
       {
         title: "Pošaljite prave pozive svom timu",
         description:
-          "LobbyStack može da odgovori na rutinske pozive, primi poruku ili preusmeri hitne razgovore Vašem timu, uz podatke pozivaoca i razlog poziva.",
+          "LobbyStack može da odgovori na rutinske pozive, primi poruku sa podacima pozivaoca i razlogom poziva ili preusmeri hitne pozive Vašem timu.",
         cta: "Podesite pravila",
         href: "#control",
         image: "/illustrations/call-routing-team.webp",
-        alt: "Rezime dolaznog poziva preusmeren pravom članu tima, uz kontekst o klijentu",
+        alt: "Dolazni poziv pored tri člana tima",
         imageAspectClass: "aspect-[9/4]",
         imageScaleClass: "h-full w-full object-cover object-[50%_44%]",
       },
@@ -563,9 +563,9 @@ const homeSectionsCopy = {
         {
           title: "Prebacivanje na čoveka kada je potrebno",
           description:
-            "Preusmerite hitne ili neobične pozive na čoveka, uz razlog poziva, kontakt podatke pozivaoca i kontekst razgovora.",
+            "Preusmerite hitne ili neobične pozive na broj koji izaberete. Razlog poziva i kontakt podaci pozivaoca ostaju u transkriptu poziva.",
           image: "/illustrations/human-handoff.webp",
-          alt: "Hitna poruka pozivaoca preusmerena članu tima, uz razlog i kontekst",
+          alt: "Hitna poruka pozivaoca, a zatim poziv preusmeren članu tima",
           imageContainerClass: "bg-[#F4F4F2] aspect-[4/3]",
           imageClassName: "h-full w-full object-cover object-center",
           imageWidth: 2048,
@@ -657,7 +657,7 @@ const homeSectionsCopy = {
     openSource: {
       heading: "Otvoreni kod, samostalno hostovanje",
       body: "Pokrenite LobbyStack na sopstvenim serverima i čuvajte snimke poziva i podatke klijenata u svojoj infrastrukturi.",
-      cta: "Pogledajte na GitHubu",
+      cta: "Pogledajte na GitLabu",
       selfHostedCta: "O samostalnom hostovanju",
     },
   },
@@ -990,12 +990,12 @@ function OpenSourceSection({ locale = "en" }: LocalizedProps) {
 
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:flex-wrap">
           <a
-            href="https://github.com/lobbystack/lobbystack"
+            href="https://gitlab.com/lobbystack-group/lobbystack"
             target="_blank"
             rel="noopener noreferrer"
             data-ph-capture-attribute-section="open_source"
             data-ph-capture-attribute-action="view_github"
-            data-ph-capture-attribute-destination="https://github.com/lobbystack/lobbystack"
+            data-ph-capture-attribute-destination="https://gitlab.com/lobbystack-group/lobbystack"
             className="inline-flex h-11 items-center justify-center gap-3 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
           >
             {sectionCopy.cta}

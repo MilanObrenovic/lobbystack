@@ -95,10 +95,19 @@ export const SCHEMA_MIGRATIONS = [
   "0089_billing_transaction_refunded_amount.sql",
   "0090_scheduler_activity_listing.sql",
   "0091_calls_open_live_started_index.sql",
-  "0092_staff_employees.sql",
-  "0093_employee_services.sql",
-  "0094_employee_vacation.sql",
-  "0095_summary_regenerate_status.sql",
+  "0092_invitation_resolver_any_status.sql",
+  "0093_clear_unused_password_hashes.sql",
+  "0094_drop_business_memberships_business_index.sql",
+  "0095_transcripts_business_expiry_index.sql",
+  "0096_phone_numbers_e164_unreclaimed_unique.sql",
+  "0097_backfill_business_listings.sql",
+  "0098_drop_email_provider_resolver.sql",
+  "0099_clear_expired_call_summaries.sql",
+  "0100_knowledge_chunks_reembed_pending_index.sql",
+  "0101_staff_employees.sql",
+  "0102_employee_services.sql",
+  "0103_employee_vacation.sql",
+  "0104_summary_regenerate_status.sql",
 ] as const;
 
 const CONCURRENT_INDEX_DIRECTIVE = /^-- lobbystack:concurrent-index ([a-z][a-z0-9_]*)$/m;

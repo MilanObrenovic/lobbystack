@@ -8,7 +8,7 @@ import type { DomainContext } from "./context";
 import { recordAffiliateCommissionInTransaction } from "./affiliates";
 import { recordProductEventInTransaction } from "./productEvents";
 import { requireBusinessAdmin } from "../authz";
-import { correctUsageInTransaction, enqueueUsageSyncInTransaction, getUsageStatusInTransaction, loadBillingContext, reserveUsageInTransaction } from "./usage";
+import { correctUsageInTransaction, enqueueUsageSyncInTransaction, getUsageStatusInTransaction, getVoiceSecondsLeftInTransaction, loadBillingContext, reserveUsageInTransaction } from "./usage";
 
 export type BillingCheckoutTarget = "starter" | "pro";
 export type BillingInterval = "monthly" | "annual";
@@ -29,26 +29,13 @@ async function loadWebVoiceBillingAllowance(
   tx: DatabaseTransaction,
   input: { businessId: string; maxDurationMs?: number },
 ): Promise<WebVoiceBillingAllowance> {
-  const status = await getUsageStatusInTransaction(tx, { businessId: input.businessId });
-  const requested = normalizeWebCallMaxDurationMs(input.maxDurationMs);
-  const entitlement = billingPlanCatalog[status.plan];
-  const includedRemaining = status.voiceSecondsIncluded === null
-    ? Number.POSITIVE_INFINITY
-    : Math.max(0, status.voiceSecondsIncluded - status.voiceSecondsUsed);
-  const overageRemaining = !entitlement.overagesBillable || status.overageSpendingCapCents === null
-    ? entitlement.overagesBillable ? Number.POSITIVE_INFINITY : 0
-    : (() => {
-      const ratePerSecond = (entitlement.voiceOverageRatePerMinuteCents ?? 0) / 60;
-      return ratePerSecond > 0
-        ? Math.floor((Math.max(0, status.overageSpendingCapCents - status.overageSpendCents) + 1e-9) / ratePerSecond)
-        : 0;
-    })();
-  const remaining = Math.min(requested / 1_000, includedRemaining + overageRemaining) * 1_000;
+  const { plan, seconds } = await getVoiceSecondsLeftInTransaction(tx, { businessId: input.businessId });
+  const maxDurationMs = Math.floor(Math.min(normalizeWebCallMaxDurationMs(input.maxDurationMs), seconds * 1_000));
   return {
-    allowed: !status.voiceBlocked && remaining >= 1,
-    errorCode: status.voiceBlocked || remaining < 1 ? billingErrorCodes.voiceLimitReached : null,
-    maxDurationMs: Math.min(requested, Math.floor(remaining)),
-    plan: status.plan,
+    allowed: maxDurationMs >= 1,
+    errorCode: maxDurationMs >= 1 ? null : billingErrorCodes.voiceLimitReached,
+    maxDurationMs,
+    plan,
   };
 }
 
@@ -190,18 +177,28 @@ export async function loadBillingCheckoutRequest(
   });
 }
 
+const billingCheckoutLeaseMs = 10 * 60_000;
+
 export async function claimBillingCheckoutRequest(
   context: DomainContext,
   input: { businessId: string; requestId: string },
 ): Promise<boolean> {
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
-    const staleBefore = new Date(Date.now() - 10 * 60_000);
+    const staleBefore = new Date(Date.now() - billingCheckoutLeaseMs);
     const rows = await tx.update(billingCheckoutRequests).set({ status: "processing", updatedAt: new Date(), error: null }).where(and(
       eq(billingCheckoutRequests.id, input.requestId),
       eq(billingCheckoutRequests.businessId, input.businessId),
       or(eq(billingCheckoutRequests.status, "pending"), eq(billingCheckoutRequests.status, "error"), and(eq(billingCheckoutRequests.status, "processing"), lt(billingCheckoutRequests.updatedAt, staleBefore))),
     )).returning({ id: billingCheckoutRequests.id });
     return rows.length > 0;
+  });
+}
+
+/** When another run holds this checkout request, the time its lease ends and it may be claimed again. */
+export async function billingCheckoutLeaseEndsAt(context: DomainContext, input: { businessId: string; requestId: string }): Promise<Date | null> {
+  return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    const row = (await tx.select({ updatedAt: billingCheckoutRequests.updatedAt }).from(billingCheckoutRequests).where(and(eq(billingCheckoutRequests.id, input.requestId), eq(billingCheckoutRequests.businessId, input.businessId), eq(billingCheckoutRequests.status, "processing"))).limit(1))[0];
+    return row ? new Date(row.updatedAt.getTime() + billingCheckoutLeaseMs) : null;
   });
 }
 
