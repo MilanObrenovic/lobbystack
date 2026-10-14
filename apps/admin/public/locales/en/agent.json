@@ -20,6 +20,7 @@
         "text": "Text"
       },
       "editKnowledge": "Edit Knowledge",
+      "deleteWebsite": { "action": "Delete all pages", "title": "Delete all pages from this website?", "description": "This will permanently remove every page imported from {{host}}.", "deleted": "All pages from {{host}} deleted." },
       "toast": { "added": "Knowledge added.", "updated": "Knowledge updated.", "uploaded": "Document uploaded. It will be ready shortly.", "deleted": "Knowledge deleted.", "enabled": "Knowledge enabled.", "disabled": "Knowledge disabled." },
       "uploadDocument": "Upload Document",
       "websiteImport": {

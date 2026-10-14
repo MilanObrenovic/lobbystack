@@ -20,6 +20,7 @@
         "text": "Tekst"
       },
       "editKnowledge": "Izmeni znanje",
+      "deleteWebsite": { "action": "Obriši sve", "title": "Obrisati sve stranice sa ovog sajta?", "description": "Ovo će trajno ukloniti sve stranice uvezene sa {{host}}.", "deleted": "Sve stranice sa {{host}} su obrisane." },
       "toast": { "added": "Znanje je dodato.", "updated": "Znanje je ažurirano.", "uploaded": "Dokument je otpremljen. Uskoro će biti spreman.", "deleted": "Znanje je obrisano.", "enabled": "Znanje je uključeno.", "disabled": "Znanje je isključeno." },
       "uploadDocument": "Otpremi dokument",
       "websiteImport": {

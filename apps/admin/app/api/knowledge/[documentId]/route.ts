@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { cancelKnowledgeDocument, deleteKnowledgeDocument, expandWebsiteCrawl, getKnowledgeDocumentContent, retryKnowledgeDocument, setKnowledgeDocumentActive } from "@lobbystack/domain";
+import { cancelKnowledgeDocument, deleteKnowledgeDocument, deleteWebsiteKnowledge, expandWebsiteCrawl, getKnowledgeDocumentContent, retryKnowledgeDocument, setKnowledgeDocumentActive } from "@lobbystack/domain";
 import { asApiResponse, jsonError, readJson, requireOperatorBusiness } from "@/lib/api-helpers";
 import { createDomainContext } from "@/lib/domain-context";
 
@@ -34,6 +34,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ d
   try {
     const { session, businessId } = await requireOperatorBusiness(request);
     const { documentId } = await params;
+    if (new URL(request.url).searchParams.get("scope") === "website") {
+      const deleted = await deleteWebsiteKnowledge(createDomainContext(), { userId: session.user.id, businessId, documentId });
+      return NextResponse.json({ ok: true, deleted });
+    }
     await deleteKnowledgeDocument(createDomainContext(), { userId: session.user.id, businessId, documentId });
     return NextResponse.json({ ok: true });
   } catch (error) { return asApiResponse(error); }

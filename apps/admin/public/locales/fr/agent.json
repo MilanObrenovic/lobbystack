@@ -20,6 +20,7 @@
         "text": "Texte"
       },
       "editKnowledge": "Modifier les connaissances",
+      "deleteWebsite": { "action": "Tout supprimer", "title": "Supprimer toutes les pages de ce site ?", "description": "Toutes les pages importées depuis {{host}} seront définitivement supprimées.", "deleted": "Toutes les pages de {{host}} ont été supprimées." },
       "toast": { "added": "Connaissance ajoutée.", "updated": "Connaissance mise à jour.", "uploaded": "Document importé. Il sera bientôt prêt.", "deleted": "Connaissance supprimée.", "enabled": "Connaissance activée.", "disabled": "Connaissance désactivée." },
       "uploadDocument": "Téléverser un document",
       "websiteImport": {

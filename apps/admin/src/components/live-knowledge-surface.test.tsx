@@ -93,6 +93,21 @@ describe("original knowledge row interactions", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "actions.delete" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/knowledge/document?businessId=business", expect.objectContaining({ method: "DELETE" })));
   });
+  it("deletes every page from a website after confirming that website", async () => {
+    const fetchMock = setup({ sourceType: "website" });
+    await userEvent.click(screen.getByRole("button", { name: "actions.moreOptions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "sections.knowledge.deleteWebsite.action" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("sections.knowledge.deleteWebsite.title")).toBeTruthy();
+    await userEvent.click(within(dialog).getByRole("button", { name: "actions.delete" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/knowledge/document?businessId=business&scope=website", expect.objectContaining({ method: "DELETE" })));
+  });
+  it("offers deleting a whole website only on website pages", async () => {
+    setup({ sourceType: "upload" });
+    await userEvent.click(screen.getByRole("button", { name: "actions.moreOptions" }));
+    await screen.findByRole("menuitem", { name: "actions.delete" });
+    expect(screen.queryByRole("menuitem", { name: "sections.knowledge.deleteWebsite.action" })).toBeNull();
+  });
   it("opens snippet rows with stored values and updates that snippet", async () => {
     const fetchMock = setup({ snippet: true }); await userEvent.click(screen.getByText("Clinic hours", { exact: true }));
     const dialog = await screen.findByRole("dialog");
