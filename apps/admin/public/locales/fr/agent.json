@@ -20,6 +20,7 @@
         "text": "Texte"
       },
       "editKnowledge": "Modifier les connaissances",
+      "toast": { "added": "Connaissance ajoutée.", "updated": "Connaissance mise à jour.", "uploaded": "Document importé. Il sera bientôt prêt.", "deleted": "Connaissance supprimée.", "enabled": "Connaissance activée.", "disabled": "Connaissance désactivée." },
       "uploadDocument": "Téléverser un document",
       "websiteImport": {
         "badge": "Site web",

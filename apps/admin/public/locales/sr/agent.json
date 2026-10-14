@@ -20,6 +20,7 @@
         "text": "Tekst"
       },
       "editKnowledge": "Izmeni znanje",
+      "toast": { "added": "Znanje je dodato.", "updated": "Znanje je ažurirano.", "uploaded": "Dokument je otpremljen. Uskoro će biti spreman.", "deleted": "Znanje je obrisano.", "enabled": "Znanje je uključeno.", "disabled": "Znanje je isključeno." },
       "uploadDocument": "Otpremi dokument",
       "websiteImport": {
         "badge": "Sajt",

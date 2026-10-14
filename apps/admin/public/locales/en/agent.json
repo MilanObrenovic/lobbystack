@@ -20,6 +20,7 @@
         "text": "Text"
       },
       "editKnowledge": "Edit Knowledge",
+      "toast": { "added": "Knowledge added.", "updated": "Knowledge updated.", "uploaded": "Document uploaded. It will be ready shortly.", "deleted": "Knowledge deleted.", "enabled": "Knowledge enabled.", "disabled": "Knowledge disabled." },
       "uploadDocument": "Upload Document",
       "websiteImport": {
         "badge": "Website",
