@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/input-group"
 import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
 
+import { Spinner } from "@/components/ui/spinner"
 const Combobox = ComboboxPrimitive.Root
 
 function ComboboxValue({ ...props }: ComboboxPrimitive.Value.Props) {
@@ -21,17 +22,22 @@ function ComboboxValue({ ...props }: ComboboxPrimitive.Value.Props) {
 
 function ComboboxTrigger({
   className,
+  loading = false,
   children,
   ...props
-}: ComboboxPrimitive.Trigger.Props) {
+}: ComboboxPrimitive.Trigger.Props & {
+  /** Swaps the chevron for a spinner; pair it with `disabled` on the Combobox while a change saves. */
+  loading?: boolean
+}) {
   return (
     <ComboboxPrimitive.Trigger
+      aria-busy={loading || undefined}
       data-slot="combobox-trigger"
-      className={cn("[&_svg:not([class*='size-'])]:size-4", className)}
+      className={cn("aria-busy:disabled:cursor-progress aria-busy:disabled:opacity-100 [&_svg:not([class*='size-'])]:size-4", className)}
       {...props}
     >
       {children}
-      <ChevronDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+      {loading ? <Spinner aria-hidden className="size-4 text-muted-foreground" /> : <ChevronDownIcon className="pointer-events-none size-4 text-muted-foreground" />}
     </ComboboxPrimitive.Trigger>
   )
 }

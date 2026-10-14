@@ -22,13 +22,11 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { Surface } from "@/components/ui/surface";
 import { Switch } from "@/components/ui/switch";
 import { useTelemetry } from "@/components/product-analytics";
 import { BookingWithoutHoursAlert, BusinessHoursSection, needsHoursForBooking, useBusinessHours } from "@/components/business-hours-section";
 import { availableTimeZones, groupTimeZones, isTimeZoneRegion, type TimeZoneOption } from "@/lib/time-zones";
-import { cn } from "@/lib/utils";
 
 type AgentBasicSettingsPageProps = {
   businessId: string;
@@ -36,11 +34,6 @@ type AgentBasicSettingsPageProps = {
 };
 
 type TimeZoneItemGroup = { value: string; label: string; items: TimeZoneOption[] };
-
-// Always rendered and only faded in, so a save never shifts the row.
-function SavingSpinner({ label, saving }: { label: string; saving: boolean }) {
-  return <Spinner aria-hidden={!saving} aria-label={label} className={cn("text-muted-foreground transition-opacity", saving ? "opacity-100" : "opacity-0")} />;
-}
 
 const RUNTIME_LOCALE_OPTIONS = [
   { value: "en", labelKey: "common:language.english" },
@@ -419,12 +412,11 @@ export function AgentBasicSettingsPage({
                 <ItemDescription>{t("agent:fields.defaultLocale.hint")}</ItemDescription>
               </ItemContent>
               <ItemActions className="w-full sm:w-auto">
-                <SavingSpinner label={t("agent:actions.saving")} saving={isLocaleSaving} />
                 {isLoadingConfiguration ? (
                   <Skeleton className="h-10 w-full rounded-md sm:w-36" />
                 ) : (
                   <Select
-                    disabled={!canManageTenant}
+                    disabled={!canManageTenant || isLocaleSaving}
                     items={RUNTIME_LOCALE_OPTIONS.map(({ value, labelKey }) => ({ value, label: t(labelKey) }))}
                     onValueChange={(value) => {
                       const nextLocale = ((value as RuntimeLocale | null) || "en");
@@ -448,7 +440,7 @@ export function AgentBasicSettingsPage({
                     }}
                     value={defaultLocale}
                   >
-                    <SelectTrigger aria-label={t("agent:fields.defaultLocale.label")} className="w-full sm:w-36" id="agent-default-language"><SelectValue /></SelectTrigger>
+                    <SelectTrigger aria-label={t("agent:fields.defaultLocale.label")} className="w-full sm:w-36" id="agent-default-language" loading={isLocaleSaving}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
                         {RUNTIME_LOCALE_OPTIONS.map(({ value, labelKey }) => <SelectItem key={value} value={value}>{t(labelKey)}</SelectItem>)}
@@ -468,7 +460,6 @@ export function AgentBasicSettingsPage({
                 <ItemDescription>{t("agent:fields.timezone.hint")}</ItemDescription>
               </ItemContent>
               <ItemActions className="w-full min-w-0 sm:w-auto">
-                <SavingSpinner label={t("agent:actions.saving")} saving={isTimezoneSaving} />
                 {isLoadingConfiguration ? (
                   <Skeleton className="h-10 w-full rounded-md sm:w-56" />
                 ) : (
@@ -480,7 +471,7 @@ export function AgentBasicSettingsPage({
                     onValueChange={(zone: TimeZoneOption | null) => { if (zone && zone.id !== timezone) void saveTimezone(zone.id); }}
                     value={timeZoneGroups.flatMap((group) => group.zones).find((zone) => zone.id === timezone) ?? null}
                   >
-                    <ComboboxTrigger aria-label={t("agent:fields.timezone.label")} className={COMBOBOX_TRIGGER_CLASS} id="agent-timezone">
+                    <ComboboxTrigger aria-label={t("agent:fields.timezone.label")} className={COMBOBOX_TRIGGER_CLASS} id="agent-timezone" loading={isTimezoneSaving}>
                       <span className="min-w-0 flex-1 truncate text-left"><ComboboxValue /></span>
                     </ComboboxTrigger>
                     <ComboboxContent className="min-w-(--anchor-width)">
@@ -567,7 +558,6 @@ export function AgentBasicSettingsPage({
                 <ItemDescription>{t(`agent:booking.mode.descriptions.${bookingMode}`)}</ItemDescription>
               </ItemContent>
               <ItemActions className="w-full sm:w-auto">
-                <SavingSpinner label={t("agent:actions.saving")} saving={isBookingModeSaving} />
                 {isLoadingConfiguration ? (
                   <Skeleton className="h-10 w-full rounded-md sm:w-48" />
                 ) : (
@@ -581,7 +571,7 @@ export function AgentBasicSettingsPage({
                     }}
                     value={bookingMode}
                   >
-                    <SelectTrigger aria-label={t("agent:booking.mode.label")} className="w-full sm:w-48" id="agent-booking-mode"><SelectValue /></SelectTrigger>
+                    <SelectTrigger aria-label={t("agent:booking.mode.label")} className="w-full sm:w-48" id="agent-booking-mode" loading={isBookingModeSaving}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
                         <SelectItem value="instant">{t("agent:booking.mode.options.instant")}</SelectItem>
