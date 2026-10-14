@@ -83,13 +83,19 @@ export function LiveServicesSurface() {
   });
   const services = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const rows = catalog.data?.services ?? [];
+    const collator = new Intl.Collator(i18n.resolvedLanguage ?? i18n.language, { numeric: true, sensitivity: "base" });
+    const rows = [...(catalog.data?.services ?? [])].sort((left, right) => collator.compare(left.name, right.name));
     return query ? rows.filter((service) => `${service.name} ${service.description ?? ""} ${service.durationMinutes}`.toLowerCase().includes(query)) : rows;
-  }, [catalog.data, search]);
-  const table = useTable({ features: paginationFeatures, data: services, columns: [], onPaginationChange: setPagination, state: { pagination } });
+  }, [catalog.data, search, i18n.language, i18n.resolvedLanguage]);
+  // Refetches after a duplicate or edit change `data`; stay on the page instead of jumping to the first.
+  const table = useTable({ features: paginationFeatures, data: services, columns: [], autoResetPageIndex: false, onPaginationChange: setPagination, state: { pagination } });
   const pageRows = table.getRowModel().rows.map((row) => row.original);
 
   useEffect(() => { setPagination((current) => ({ ...current, pageIndex: 0 })); }, [search]);
+  useEffect(() => {
+    const lastPage = Math.max(0, Math.ceil(services.length / pagination.pageSize) - 1);
+    if (pagination.pageIndex > lastPage) setPagination((current) => ({ ...current, pageIndex: lastPage }));
+  }, [services.length, pagination.pageIndex, pagination.pageSize]);
 
   if (businesses.isLoading) return <TableCardSkeleton columns={5} />;
   if (businesses.isError || catalog.isError) return <p className="text-sm text-destructive">{t("sections.services.unavailable")}</p>;
