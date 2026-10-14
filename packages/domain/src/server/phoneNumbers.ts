@@ -18,12 +18,48 @@ type Offer = { v: 1; purpose: NumberClaimPurpose; businessId: string; userId: st
 function encode(value: unknown): string { return Buffer.from(JSON.stringify(value)).toString("base64url"); }
 function sign(encoded: string, secret: string): string { return createHmac("sha256", secret).update(encoded).digest("base64url"); }
 function issueOffer(payload: Offer, secret: string): string { const encoded = encode(payload); return `${encoded}.${sign(encoded, secret)}`; }
+function numberClaimError(status: number, code: string, message: string): Error & { status: number; code: string } {
+  return Object.assign(new Error(message), { status, code });
+}
 function verifyOffer(token: string, secret: string): Offer {
-  const [encoded, signature, extra] = token.split("."); if (!encoded || !signature || extra) throw new Error("Invalid number claim token.");
-  const expected = Buffer.from(sign(encoded, secret)); const actual = Buffer.from(signature); if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) throw new Error("Invalid number claim token.");
+  const invalid = () => numberClaimError(400, "number_offer_invalid", "Invalid number claim token.");
+  const [encoded, signature, extra] = token.split("."); if (!encoded || !signature || extra) throw invalid();
+  const expected = Buffer.from(sign(encoded, secret)); const actual = Buffer.from(signature); if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) throw invalid();
   const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as Offer;
-  if (payload.v !== 1 || !["onboarding", "replacement"].includes(payload.purpose) || payload.exp < Date.now() || !/^\+[1-9]\d{7,14}$/.test(payload.e164) || !payload.capabilities.sms || !payload.capabilities.voice) throw new Error("Number claim token has expired or is invalid.");
+  if (payload.v !== 1 || !["onboarding", "replacement"].includes(payload.purpose) || !/^\+[1-9]\d{7,14}$/.test(payload.e164) || !payload.capabilities.sms || !payload.capabilities.voice) throw invalid();
+  if (payload.exp < Date.now()) throw numberClaimError(409, "number_offer_expired", "This number offer expired. Search again and pick a number.");
   return payload;
+}
+
+// The reasons app.reserve_onboarding_number_claim and
+// app.reserve_replacement_number_claim raise for an expected refusal.
+const claimRefusals: Record<string, [status: number, message: string]> = {
+  number_claim_in_progress: [409, "We're still setting up a number for this workspace. Wait for it to finish."],
+  invalid_onboarding_stage: [409, "Business number selection is not available at this onboarding stage."],
+  business_number_exists: [409, "This workspace already has a phone number."],
+  dedicated_number_requires_paid_plan: [409, "A paid plan is required for a dedicated business number."],
+  replacement_already_used: [409, "This workspace has already used its number replacement."],
+  replacement_already_reserved: [409, "We're still setting up your replacement number. Wait for it to finish."],
+  active_number_required: [409, "An active phone number is required before choosing a replacement."],
+  replacement_number_must_differ: [409, "Pick a number other than your current one."],
+  number_claim_rate_limited: [429, "You've tried to claim too many numbers this hour. Try again later."],
+  daily_claim_quota_reached: [429, "You've reached today's limit for new numbers. Try again tomorrow."],
+  monthly_claim_quota_reached: [429, "You've reached the 30-day limit for new numbers. Try again later."],
+};
+
+function refused(reason: string): Error {
+  const [status, text] = claimRefusals[reason]!;
+  return numberClaimError(status, reason, text);
+}
+
+// Drizzle wraps the PostgreSQL error, and its message lists the query
+// parameters. Return only the raised reason.
+function claimRefusal(error: unknown): Error | undefined {
+  for (let current: unknown = error, depth = 0; current && typeof current === "object" && depth < 4; current = (current as { cause?: unknown }).cause, depth += 1) {
+    const message = (current as { message?: unknown }).message;
+    if (typeof message === "string" && Object.hasOwn(claimRefusals, message)) return refused(message);
+  }
+  return undefined;
 }
 
 export async function searchBusinessNumberInventory(context: DomainContext, input: { userId: string; businessId: string; purpose?: NumberClaimPurpose; selection?: Partial<NumberSelection>; limit?: number; claimTokenSecret: string }, provider: NumberInventoryProvider) {
@@ -32,44 +68,30 @@ export async function searchBusinessNumberInventory(context: DomainContext, inpu
     await requireBusinessAdmin(tx, input);
     const business = (await tx.select({ stage: businesses.onboardingStage, timezone: businesses.timezone, deploymentMode: businesses.deploymentMode, replacementUsedAt: businesses.phoneNumberReplacementUsedAt }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1))[0];
     const billing = (await tx.select({ plan: billingAccounts.plan, state: billingAccounts.subscriptionState }).from(billingAccounts).where(eq(billingAccounts.businessId, input.businessId)).limit(1))[0];
-    if (!business) throw new Error("Workspace not found.");
+    if (!business) throw numberClaimError(404, "not_found", "Workspace not found.");
     const onboardingStage = normalizeOnboardingStage(business.stage);
-    if (purpose === "onboarding" && !["plan", "phone_number", "attribution", "complete"].includes(onboardingStage)) throw new Error("Business number selection is not available at this onboarding stage.");
+    if (purpose === "onboarding" && !["plan", "phone_number", "attribution", "complete"].includes(onboardingStage)) throw refused("invalid_onboarding_stage");
     if (purpose === "replacement") {
-      if (business.replacementUsedAt) throw new Error("This workspace has already used its number replacement.");
+      if (business.replacementUsedAt) throw refused("replacement_already_used");
       const active = await tx.select({ id: phoneNumbers.id }).from(phoneNumbers).where(and(eq(phoneNumbers.businessId, input.businessId), eq(phoneNumbers.status, "active"), isNull(phoneNumbers.reclaimScheduledAt))).limit(1);
-      if (!active.length) throw new Error("An active phone number is required before choosing a replacement.");
+      if (!active.length) throw refused("active_number_required");
     }
-    if (business.deploymentMode === "cloud" && (!billing || !isPaidSubscription(billing.plan, billing.state))) throw new Error("A paid plan is required for a dedicated business number.");
+    if (business.deploymentMode === "cloud" && (!billing || !isPaidSubscription(billing.plan, billing.state))) throw refused("dedicated_number_requires_paid_plan");
     const requestedCountry = input.selection?.countryCode?.trim().toUpperCase();
-    if (requestedCountry && !["US", "CA", "GB", "AU"].includes(requestedCountry)) throw new Error("Unsupported country.");
+    if (requestedCountry && !["US", "CA", "GB", "AU"].includes(requestedCountry)) throw numberClaimError(400, "unsupported_country", "Unsupported country.");
     return resolveBusinessNumberMarket({ selection: input.selection, timezone: business.timezone });
   });
   const countryCode = market.countryCode;
-  if (!["US", "CA", "GB", "AU"].includes(countryCode)) throw new Error("Unsupported country.");
+  if (!["US", "CA", "GB", "AU"].includes(countryCode)) throw numberClaimError(400, "unsupported_country", "Unsupported country.");
   const selection: NumberSelection = { countryCode, kind: input.selection?.kind ?? "local", ...(input.selection?.areaCode ? { areaCode: input.selection.areaCode.replace(/\D/g, "") } : {}), ...(input.selection?.city ? { city: input.selection.city.trim() } : {}), ...(input.selection?.regionCode ? { regionCode: input.selection.regionCode.trim() } : {}), ...(input.selection?.postalCode ? { postalCode: input.selection.postalCode.trim() } : {}) };
   const limit = Math.max(1, Math.min(20, Math.trunc(input.limit ?? 10)));
-  const collected: Array<Awaited<ReturnType<NumberInventoryProvider["listAvailablePhoneNumbers"]>>[number] & { selection: NumberSelection }> = [];
-  async function collect(search: NumberSelection) {
-    const numbers = await provider.listAvailablePhoneNumbers({ ...search, limit });
-    collected.push(...numbers.filter(number => number.capabilities.sms && number.capabilities.voice).map(number => ({ ...number, selection: search })));
-  }
-  await collect(selection);
-  const seen = new Set<string>();
-  const numbers = collected.filter(number => {
-    if (seen.has(number.phoneE164)) return false;
-    seen.add(number.phoneE164); return true;
-  }).slice(0, limit).map(({ selection: selected, ...number }) => ({ ...number, claimToken: issueOffer({ v: 1, purpose, businessId: input.businessId, userId: input.userId, e164: number.phoneE164, countryCode: number.countryCode, kind: selected.kind, capabilities: { sms: true, voice: true }, selection: selected, exp: Date.now() + 5 * 60_000 }, input.claimTokenSecret) }));
+  const numbers = (await provider.listAvailablePhoneNumbers({ ...selection, limit })).filter(number => number.capabilities.sms && number.capabilities.voice).slice(0, limit).map(number => ({ ...number, claimToken: issueOffer({ v: 1, purpose, businessId: input.businessId, userId: input.userId, e164: number.phoneE164, countryCode: number.countryCode, kind: selection.kind, capabilities: { sms: true, voice: true }, selection, exp: Date.now() + 5 * 60_000 }, input.claimTokenSecret) }));
   return { market, numbers };
-}
-
-export async function searchAvailableBusinessNumbers(...args: Parameters<typeof searchBusinessNumberInventory>) {
-  return (await searchBusinessNumberInventory(...args)).numbers;
 }
 
 export async function reserveOnboardingNumberClaim(context: DomainContext, input: { userId: string; businessId: string; claimToken: string; claimTokenSecret: string; idempotencyKey: string }): Promise<string> {
   const offer = verifyOffer(input.claimToken, input.claimTokenSecret);
-  if (offer.purpose !== "onboarding" || offer.businessId !== input.businessId || offer.userId !== input.userId) throw new Error("Number claim token does not belong to this onboarding flow.");
+  if (offer.purpose !== "onboarding" || offer.businessId !== input.businessId || offer.userId !== input.userId) throw numberClaimError(400, "number_offer_invalid", "Number claim token does not belong to this onboarding flow.");
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
     const tokenHash = createHash("sha256").update(input.claimToken).digest("hex");
@@ -77,12 +99,12 @@ export async function reserveOnboardingNumberClaim(context: DomainContext, input
     const claimId = String((result.rows[0] as { id?: unknown } | undefined)?.id ?? ""); if (!claimId) throw new Error("Number claim could not be reserved.");
     await enqueueOutbox(tx, { topic: "phoneNumber.provision", businessId: input.businessId, aggregateType: "number_claim", aggregateId: claimId, dedupeKey: `phone-claim:${claimId}:provision`, payload: { claimId } });
     return claimId;
-  });
+  }).catch((error: unknown) => { throw claimRefusal(error) ?? error; });
 }
 
 export async function reserveReplacementNumberClaim(context: DomainContext, input: { userId: string; businessId: string; claimToken: string; claimTokenSecret: string; idempotencyKey: string }): Promise<string> {
   const offer = verifyOffer(input.claimToken, input.claimTokenSecret);
-  if (offer.purpose !== "replacement" || offer.businessId !== input.businessId || offer.userId !== input.userId) throw new Error("Number claim token does not belong to this replacement flow.");
+  if (offer.purpose !== "replacement" || offer.businessId !== input.businessId || offer.userId !== input.userId) throw numberClaimError(400, "number_offer_invalid", "Number claim token does not belong to this replacement flow.");
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
     const tokenHash = createHash("sha256").update(input.claimToken).digest("hex");
@@ -91,7 +113,7 @@ export async function reserveReplacementNumberClaim(context: DomainContext, inpu
     if (!claimId) throw new Error("Number replacement could not be reserved.");
     await enqueueOutbox(tx, { topic: "phoneNumber.provision", businessId: input.businessId, aggregateType: "number_claim", aggregateId: claimId, dedupeKey: `phone-claim:${claimId}:provision`, payload: { claimId } });
     return claimId;
-  });
+  }).catch((error: unknown) => { throw claimRefusal(error) ?? error; });
 }
 
 export async function getOnboardingNumberClaim(context: DomainContext, input: { userId: string; businessId: string; claimId: string }) {
@@ -140,5 +162,5 @@ export async function failNumberProvisioning(context: DomainContext, input: { bu
 }
 
 export async function skipOnboardingNumber(context: DomainContext, input: { userId: string; businessId: string }): Promise<void> {
-  await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => { await requireBusinessAdmin(tx, input); const changed = await tx.update(businesses).set({ onboardingStage: "attribution", updatedAt: new Date() }).where(and(eq(businesses.id, input.businessId), or(eq(businesses.onboardingStage, "plan"), eq(businesses.onboardingStage, "phone_number")))).returning({ id: businesses.id }); if (!changed.length) { const [business] = await tx.select({ stage: businesses.onboardingStage }).from(businesses).where(eq(businesses.id, input.businessId)); if (!["attribution", "complete"].includes(business?.stage ?? "")) throw new Error("Number selection cannot be skipped at this onboarding stage."); } });
+  await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => { await requireBusinessAdmin(tx, input); const changed = await tx.update(businesses).set({ onboardingStage: "attribution", updatedAt: new Date() }).where(and(eq(businesses.id, input.businessId), or(eq(businesses.onboardingStage, "plan"), eq(businesses.onboardingStage, "phone_number")))).returning({ id: businesses.id }); if (!changed.length) { const [business] = await tx.select({ stage: businesses.onboardingStage }).from(businesses).where(eq(businesses.id, input.businessId)); if (!["attribution", "complete"].includes(business?.stage ?? "")) throw numberClaimError(409, "invalid_onboarding_stage", "Number selection cannot be skipped at this onboarding stage."); } });
 }

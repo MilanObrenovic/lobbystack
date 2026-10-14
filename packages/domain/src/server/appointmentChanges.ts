@@ -42,10 +42,12 @@ export async function createAppointmentChangeVerification(
     // The caller's number and the appointment's time or service identify the
     // appointment. The name doesn't: speech recognition spells the same name
     // differently from call to call, so it can't block a change.
+    const now = new Date();
     const candidates = await tx.select({ id: appointments.id, contactId: appointments.contactId, startsAt: appointments.startsAt, timezone: appointments.timezone, serviceName: services.name, serviceSlug: services.slug, localizedNames: services.localizedNames, smsConsentStatus: contacts.smsConsentStatus, operatorBlockedAt: contacts.operatorBlockedAt }).from(appointments)
       .innerJoin(contacts, and(eq(contacts.id, appointments.contactId), eq(contacts.businessId, input.businessId)))
       .innerJoin(services, and(eq(services.id, appointments.serviceId), eq(services.businessId, input.businessId)))
-      .where(and(input.appointmentId ? eq(appointments.id, input.appointmentId) : undefined, eq(appointments.businessId, input.businessId), eq(contacts.phone, input.callerPhone), eq(appointments.status, "confirmed")));
+      // A past appointment can't be cancelled or moved, and would make a repeat customer's service ambiguous.
+      .where(and(input.appointmentId ? eq(appointments.id, input.appointmentId) : undefined, eq(appointments.businessId, input.businessId), eq(contacts.phone, input.callerPhone), eq(appointments.status, "confirmed"), gt(appointments.startsAt, now)));
     const matches = candidates.filter((row) => {
       const service = { name: row.serviceName, slug: row.serviceSlug, localizedNames: row.localizedNames };
       return (!input.appointmentStartsAt?.trim() || appointmentTimesMatch({ startsAt: row.startsAt.toISOString(), timezone: row.timezone }, input.appointmentStartsAt))
@@ -53,7 +55,6 @@ export async function createAppointmentChangeVerification(
     });
     if (matches.length !== 1) return null;
     const appointment = matches[0]!;
-    const now = new Date();
     await tx.update(appointmentChangeVerifications).set({ status: "superseded", updatedAt: now }).where(and(eq(appointmentChangeVerifications.businessId, input.businessId), eq(appointmentChangeVerifications.appointmentId, appointment.id), eq(appointmentChangeVerifications.callerPhone, input.callerPhone), inArray(appointmentChangeVerifications.status, ["pending", "facts_verified", "otp_verified", "otp_pending", "otp_queued", "otp_sent"])));
     const expiresAt = new Date(now.getTime() + OTP_TTL_MS);
     const status = policy.verificationMode === "otp_required" ? "otp_pending" : "facts_verified";
@@ -116,6 +117,14 @@ export async function loadAppointmentChangeOtpTarget(
     const row = (await tx.select({ id: appointmentChangeVerifications.id, expiresAt: appointmentChangeVerifications.expiresAt, status: appointmentChangeVerifications.status }).from(appointmentChangeVerifications).where(and(eq(appointmentChangeVerifications.id, input.verificationId), eq(appointmentChangeVerifications.businessId, input.businessId), eq(appointmentChangeVerifications.callerPhone, input.to), eq(appointmentChangeVerifications.status, "otp_sending"))).limit(1))[0];
     if (!row || row.expiresAt <= new Date()) return null;
     return { to: input.to, from: input.from, code: input.code };
+  });
+}
+
+/** When another run holds this code's send, the time its lease ends and it may be claimed again. */
+export async function appointmentChangeOtpLeaseEndsAt(context: DomainContext, input: { businessId: string; verificationId: string }): Promise<Date | null> {
+  return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    const row = (await tx.select({ updatedAt: appointmentChangeVerifications.updatedAt }).from(appointmentChangeVerifications).where(and(eq(appointmentChangeVerifications.id, input.verificationId), eq(appointmentChangeVerifications.businessId, input.businessId), eq(appointmentChangeVerifications.status, "otp_sending"))).limit(1))[0];
+    return row ? new Date(row.updatedAt.getTime() + OTP_SEND_LEASE_MS) : null;
   });
 }
 

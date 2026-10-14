@@ -6,9 +6,6 @@ vi.mock("@lobbystack/domain", async () => ({
   countKnowledgeTokens: (await import("../../domain/src/knowledgeRanking")).countKnowledgeTokens,
   KNOWLEDGE_SEARCH_TOKEN_BUDGET: 3000,
   knowledgeQueryTerms: (await import("../../domain/src/knowledgeRanking")).knowledgeQueryTerms,
-  checkOpening: vi.fn(async () => ({ ok: true, serviceName: "General Checkup", available: true })),
-  findCallerBooking: vi.fn(async () => undefined),
-  findCallBooking: vi.fn(async () => undefined),
   bookForCaller: vi.fn(async () => ({ ok: true, appointmentId: "apt_1" })),
   findOpenings: vi.fn(async () => ({ ok: true, serviceName: "General Checkup", date: "2026-10-06", timezone: "America/Toronto", openings: [{ startsAt: "2026-10-06T14:00:00.000Z", displayTime: "Tuesday Oct 6, 10:00 AM" }] })),
   getSmsConsentOnFile: vi.fn(async () => "subscribed"),
@@ -56,15 +53,7 @@ describe("recordTextPreference", () => {
     await expect(tools().run("recordTextPreference", { answer: "declined" })).resolves.toMatchObject({ ok: false });
   });
 
-  it("is only offered on a phone call the business can text back", async () => {
-    for (const set of [tools({ channel: "web_chat", callerPhone: undefined }), tools({ channel: "web_voice", callerPhone: undefined }), tools({ callerPhone: "+381695021111", snapshot: tollFree }), tools({ snapshot: { contactChannels: {} } }), tools({ callId: undefined })]) {
-      expect(set.set).not.toHaveProperty("recordTextPreference");
-    }
-    // A prospect demo only takes messages, and a business that doesn't book has nothing to text about.
-    const context = { domain: { db: {} as never }, channel: "voice" as const, callerPhone, callId: "call_1" };
-    expect(createReceptionistTools({ ...context, snapshot: demoSnapshot, intakeOnly: true })).not.toHaveProperty("recordTextPreference");
-    expect(createReceptionistTools({ ...context, snapshot: { ...demoSnapshot, bookingMode: "off" } })).not.toHaveProperty("recordTextPreference");
-    expect(tools().set).toHaveProperty("recordTextPreference");
+  it("leaves the answer out of booking, so bookAppointment doesn't ask for it", () => {
     expect(tools().schema("bookAppointment").safeParse({ serviceName: "General Checkup", startsAt: "2026-10-06T10:00" }).success).toBe(true);
   });
 

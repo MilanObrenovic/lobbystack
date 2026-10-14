@@ -4,7 +4,7 @@ import { enqueueOutbox, withBusinessTransaction, type DatabaseTransaction } from
 import { agentRules, businesses, businessHours, closures, phoneNumbers, receptionistProfiles, services, staff, staffServiceAssignments } from "@lobbystack/db";
 
 import { requireBusinessAdmin, requireBusinessMembership } from "../authz";
-import { normalizeHoursWindows } from "../hours";
+import { normalizeClosures, normalizeHoursWindows, sameHoursWindows } from "../hours";
 import { writeBusinessHoursInTransaction } from "./businessHours";
 import type { DomainContext } from "./context";
 
@@ -33,10 +33,26 @@ export async function listCatalog(
   });
 }
 
+/**
+ * The rules a service's fields follow, on create and on update: a name and a
+ * slug of up to 160 characters, a whole number of minutes up to a day, and a
+ * description of up to 2,000 characters. Fields left out aren't checked.
+ */
+function assertServiceFields(input: { name?: string | undefined; slug?: string | undefined; durationMinutes?: number | undefined; description?: string | null | undefined; active?: boolean | undefined }): void {
+  const invalid = (field: string) => Object.assign(new Error(`${field} is invalid.`), { status: 400 });
+  const text = (value: unknown, maxLength: number) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= maxLength;
+  if (input.name !== undefined && !text(input.name, 160)) throw invalid("name");
+  if (input.slug !== undefined && !text(input.slug, 160)) throw invalid("slug");
+  if (input.durationMinutes !== undefined && !(Number.isInteger(input.durationMinutes) && input.durationMinutes >= 1 && input.durationMinutes <= 1_440)) throw invalid("durationMinutes");
+  if (input.description != null && !text(input.description, 2_000)) throw invalid("description");
+  if (input.active !== undefined && typeof input.active !== "boolean") throw invalid("active");
+}
+
 export async function createService(
   context: DomainContext,
   input: { userId: string; businessId: string; name: string; slug: string; durationMinutes: number; description?: string; active?: boolean },
 ): Promise<string> {
+  assertServiceFields(input);
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
     const [service] = await tx.insert(services).values({
@@ -44,7 +60,7 @@ export async function createService(
       name: input.name.trim(),
       slug: input.slug.trim().toLowerCase(),
       durationMinutes: input.durationMinutes,
-      description: input.description,
+      description: input.description?.trim(),
       active: input.active ?? true,
     }).returning({ id: services.id });
     if (!service) {
@@ -66,13 +82,14 @@ export async function updateService(
   context: DomainContext,
   input: { userId: string; businessId: string; serviceId: string; name?: string; slug?: string; durationMinutes?: number; description?: string | null; active?: boolean },
 ): Promise<void> {
+  assertServiceFields(input);
   await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
     const [service] = await tx.update(services).set({
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.slug !== undefined ? { slug: input.slug.trim().toLowerCase() } : {}),
       durationMinutes: input.durationMinutes,
-      description: input.description,
+      description: typeof input.description === "string" ? input.description.trim() : input.description,
       active: input.active,
       updatedAt: new Date(),
     }).where(and(eq(services.id, input.serviceId), eq(services.businessId, input.businessId), isNull(services.deletedAt))).returning({ id: services.id });
@@ -134,16 +151,39 @@ export async function unassignStaffFromService(
 /**
  * Replaces the weekly hours a person set, in the dashboard or the API: the
  * listed windows, other days closed. A day can have several windows. Marks
- * the hours as the operator's, so AI never replaces them, and refreshes the
- * receptionist snapshot. Callers authorize first.
+ * the hours as the operator's, so AI never replaces them, unless only the
+ * closures changed. Refreshes the receptionist snapshot. Given closures
+ * replace every closure, including ones that already ended; without them,
+ * closures stay as they are. Callers authorize first.
  */
 export async function replaceBusinessHoursInTransaction(
   tx: DatabaseTransaction,
-  input: { businessId: string; hours: Array<{ dayOfWeek: number; openMinutes: number; closeMinutes: number }> },
+  input: {
+    businessId: string;
+    hours: Array<{ dayOfWeek: number; openMinutes: number; closeMinutes: number }>;
+    /** Local times in the business's timezone, such as 2026-12-25T00:00. */
+    closures?: Array<{ startsAt: string; endsAt: string; reason?: string | undefined }> | undefined;
+  },
 ): Promise<void> {
   const hours = normalizeHoursWindows(input.hours);
-  // Updating the business row first locks it, so this write and the worker's
-  // generated hours (which lock the same row) can't interleave.
-  await tx.update(businesses).set({ hoursSource: "operator", updatedAt: new Date() }).where(eq(businesses.id, input.businessId));
+  let closureRows: ReturnType<typeof normalizeClosures> | undefined;
+  let sameHours = false;
+  // Lock the business row before reading anything, so this write and the
+  // worker's generated hours (which lock the same row) can't interleave.
+  if (input.closures) {
+    const [business] = await tx.select({ timezone: businesses.timezone }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1).for("update");
+    if (!business) throw Object.assign(new Error("Business not found."), { status: 404 });
+    closureRows = normalizeClosures(input.closures, business.timezone, new Date());
+    const current = await tx.select({ dayOfWeek: businessHours.dayOfWeek, openMinutes: businessHours.openMinutes, closeMinutes: businessHours.closeMinutes }).from(businessHours)
+      .where(eq(businessHours.businessId, input.businessId)).orderBy(asc(businessHours.dayOfWeek), asc(businessHours.openMinutes));
+    sameHours = sameHoursWindows(hours, current);
+  }
+  // Saving only closures leaves the hours to whoever set them, so AI can still fill an empty week.
+  await tx.update(businesses).set({ ...(sameHours ? {} : { hoursSource: "operator" as const }), updatedAt: new Date() }).where(eq(businesses.id, input.businessId));
+  if (closureRows) {
+    await tx.delete(closures).where(eq(closures.businessId, input.businessId));
+    if (closureRows.length) await tx.insert(closures).values(closureRows.map((closure) => ({ businessId: input.businessId, ...closure })));
+  }
+  // Its snapshot refresh picks up the closures too.
   await writeBusinessHoursInTransaction(tx, { businessId: input.businessId, hours, reason: "hours_updated" });
 }
