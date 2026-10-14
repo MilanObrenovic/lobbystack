@@ -50,7 +50,7 @@ const RUNTIME_LOCALE_OPTIONS = [
 ] as const satisfies ReadonlyArray<{ value: RuntimeLocale; labelKey: string }>;
 
 // Matches SelectTrigger, so the searchable timezone picker looks like the selects beside it.
-const COMBOBOX_TRIGGER_CLASS = "flex h-9 w-full min-w-0 items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-input/50 sm:w-56";
+const COMBOBOX_TRIGGER_CLASS = "flex h-9 w-full min-w-0 items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 enabled:hover:bg-input/50 sm:w-56";
 
 export function resolveTransferNumberForSave({
   rawInputValue,

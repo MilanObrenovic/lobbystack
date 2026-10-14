@@ -191,7 +191,7 @@ export function UploadKnowledgeDocumentSheet({
               </FieldContent>
               <Input
                 accept={ACCEPTED_FILE_TYPES}
-                className="sr-only"
+                className="peer sr-only"
                 id="knowledge-document-file"
                 onChange={(event) => {
                   handleSelectedFile(event.target.files?.[0] ?? null);
@@ -200,10 +200,10 @@ export function UploadKnowledgeDocumentSheet({
                 type="file"
               />
               <label
-                className={`flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-6 py-8 text-center transition-colors ${
+                className={`flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border bg-input/30 px-6 py-8 text-center transition-colors outline-none peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 ${
                   isDraggingFile
-                    ? "border-foreground/30 bg-muted/40"
-                    : "border-border/70 bg-muted/20 hover:bg-muted/30"
+                    ? "border-ring ring-[3px] ring-ring/50"
+                    : "border-input hover:bg-input/50"
                 }`}
                 htmlFor="knowledge-document-file"
                 onDragEnter={(event) => {

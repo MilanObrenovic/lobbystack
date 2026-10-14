@@ -55,7 +55,7 @@ type Employee = {
 
 type ServiceOption = { id: string; name: string };
 
-const PICKER_TRIGGER_CLASS = "flex h-9 w-full items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-invalid:border-destructive data-invalid:ring-[3px] data-invalid:ring-destructive/20 dark:hover:bg-input/50";
+const PICKER_TRIGGER_CLASS = "flex h-9 w-full items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-invalid:border-destructive data-invalid:ring-[3px] data-invalid:ring-destructive/20 enabled:hover:bg-input/50";
 const DAY_PICKER_LOCALES = { en: enUS, fr, es, sr: srLatn } as const;
 
 // Vacation days are calendar dates, YYYY-MM-DD, read and written in local time so they don't shift a day.
