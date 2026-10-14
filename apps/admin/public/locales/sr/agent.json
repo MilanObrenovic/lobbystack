@@ -89,9 +89,9 @@
           "required": "Unesite informaciju koju recepcioner treba da koristi."
         },
         "tags": {
-          "label": "Oznake (opciono)",
+          "label": "Oznake",
           "placeholder": "Radno vreme, lokacija",
-          "hint": "Ključne reči odvojene zarezima koje pomažu da se ovo znanje razvrsta."
+          "hint": "Opciono. Ključne reči odvojene zarezima koje pomažu da se ovo znanje razvrsta."
         }
       }
     },
@@ -156,9 +156,9 @@
           "hint": "Tokom poziva se nude samo usluge koje se mogu zakazati."
         },
         "tags": {
-          "label": "Oznake (opciono)",
+          "label": "Oznake",
           "placeholder": "Konsultacije, novi klijenti",
-          "hint": "Ključne reči odvojene zarezima koje pomažu da se ove usluge razvrstaju."
+          "hint": "Opciono. Ključne reči odvojene zarezima koje pomažu da se ove usluge razvrstaju."
         }
       },
       "deleteTitle": "Obrisati uslugu?",
@@ -217,9 +217,9 @@
           "required": "Opišite šta recepcioner treba da uradi."
         },
         "tags": {
-          "label": "Oznake (opciono)",
+          "label": "Oznake",
           "placeholder": "Preusmeravanja, eskalacija",
-          "hint": "Ključne reči odvojene zarezima koje pomažu da se ova pravila razvrstaju."
+          "hint": "Opciono. Ključne reči odvojene zarezima koje pomažu da se ova pravila razvrstaju."
         }
       }
     }

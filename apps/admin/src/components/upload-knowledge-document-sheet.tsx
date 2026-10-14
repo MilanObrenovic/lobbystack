@@ -180,7 +180,7 @@ export function UploadKnowledgeDocumentSheet({
         </DialogHeader>
         <form className="flex flex-col gap-6" onSubmit={(event) => void handleSubmit(event)}>
           <FieldGroup>
-            <Field>
+            <Field data-invalid={errorMessage ? true : undefined}>
               <FieldContent>
                 <FieldLabel htmlFor="knowledge-document-file">
                   {t("sections.knowledge.fields.file.label")}
@@ -191,6 +191,8 @@ export function UploadKnowledgeDocumentSheet({
               </FieldContent>
               <Input
                 accept={ACCEPTED_FILE_TYPES}
+                aria-describedby={errorMessage ? "knowledge-document-file-error" : undefined}
+                aria-invalid={errorMessage ? true : undefined}
                 className="peer sr-only"
                 id="knowledge-document-file"
                 onChange={(event) => {
@@ -203,7 +205,9 @@ export function UploadKnowledgeDocumentSheet({
                 className={`flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border bg-input/30 px-6 py-8 text-center transition-colors outline-none peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 ${
                   isDraggingFile
                     ? "border-ring ring-[3px] ring-ring/50"
-                    : "border-input hover:bg-input/50"
+                    : errorMessage
+                      ? "border-destructive ring-[3px] ring-destructive/20 dark:border-destructive/50 dark:ring-destructive/40"
+                      : "border-input hover:bg-input/50 peer-hover:bg-input/50"
                 }`}
                 htmlFor="knowledge-document-file"
                 onDragEnter={(event) => {
@@ -236,6 +240,7 @@ export function UploadKnowledgeDocumentSheet({
                   ) : null}
                 </div>
               </label>
+              {errorMessage ? <FieldError id="knowledge-document-file-error">{errorMessage}</FieldError> : null}
             </Field>
 
             <Field>
@@ -272,8 +277,6 @@ export function UploadKnowledgeDocumentSheet({
               />
             </Field>
           </FieldGroup>
-
-          {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
 
           <DialogFooter>
             <Button className="w-full" disabled={isUploading} type="submit">

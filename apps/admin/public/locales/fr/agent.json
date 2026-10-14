@@ -89,9 +89,9 @@
           "required": "Saisissez l'information que le réceptionniste doit utiliser."
         },
         "tags": {
-          "label": "Mots-clés (optionnel)",
+          "label": "Mots-clés",
           "placeholder": "Horaires, adresse",
-          "hint": "Mots-clés séparés par des virgules pour catégoriser cette information."
+          "hint": "Facultatif. Mots-clés séparés par des virgules pour catégoriser cette information."
         }
       }
     },
@@ -156,9 +156,9 @@
           "hint": "Seuls les services réservables sont proposés pendant les appels."
         },
         "tags": {
-          "label": "Mots-clés (optionnel)",
+          "label": "Mots-clés",
           "placeholder": "Consultation, nouveaux clients",
-          "hint": "Mots-clés séparés par des virgules pour catégoriser ces services."
+          "hint": "Facultatif. Mots-clés séparés par des virgules pour catégoriser ces services."
         }
       },
       "deleteTitle": "Supprimer le service ?",
@@ -217,9 +217,9 @@
           "required": "Décrivez ce que le réceptionniste doit faire."
         },
         "tags": {
-          "label": "Mots-clés (optionnel)",
+          "label": "Mots-clés",
           "placeholder": "Transferts, escalade",
-          "hint": "Mots-clés séparés par des virgules pour catégoriser ces règles."
+          "hint": "Facultatif. Mots-clés séparés par des virgules pour catégoriser ces règles."
         }
       }
     }

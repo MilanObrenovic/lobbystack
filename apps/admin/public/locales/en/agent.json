@@ -89,9 +89,9 @@
           "required": "Enter the information the receptionist should use."
         },
         "tags": {
-          "label": "Tags (optional)",
+          "label": "Tags",
           "placeholder": "Hours, location",
-          "hint": "Comma-separated keywords to help categorize this knowledge."
+          "hint": "Optional. Comma-separated keywords to help categorize this knowledge."
         }
       }
     },
@@ -156,9 +156,9 @@
           "hint": "Only bookable services are offered during calls."
         },
         "tags": {
-          "label": "Tags (optional)",
+          "label": "Tags",
           "placeholder": "Consultation, new clients",
-          "hint": "Comma-separated keywords to help categorize these services."
+          "hint": "Optional. Comma-separated keywords to help categorize these services."
         }
       },
       "deleteTitle": "Delete service?",
@@ -217,9 +217,9 @@
           "required": "Describe what the receptionist should do."
         },
         "tags": {
-          "label": "Tags (optional)",
+          "label": "Tags",
           "placeholder": "Transfers, escalation",
-          "hint": "Comma-separated keywords to help categorize these rules."
+          "hint": "Optional. Comma-separated keywords to help categorize these rules."
         }
       }
     }

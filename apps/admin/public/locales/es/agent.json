@@ -89,9 +89,9 @@
           "required": "Escriba la información que debe usar la recepcionista."
         },
         "tags": {
-          "label": "Etiquetas (opcional)",
+          "label": "Etiquetas",
           "placeholder": "Horario, ubicación",
-          "hint": "Palabras clave separadas por comas para clasificar este conocimiento."
+          "hint": "Opcional. Palabras clave separadas por comas para clasificar este conocimiento."
         }
       }
     },
@@ -156,9 +156,9 @@
           "hint": "Durante las llamadas solo se ofrecen los servicios reservables."
         },
         "tags": {
-          "label": "Etiquetas (opcional)",
+          "label": "Etiquetas",
           "placeholder": "Consulta, clientes nuevos",
-          "hint": "Palabras clave separadas por comas para clasificar estos servicios."
+          "hint": "Opcional. Palabras clave separadas por comas para clasificar estos servicios."
         }
       },
       "deleteTitle": "¿Eliminar el servicio?",
@@ -217,9 +217,9 @@
           "required": "Describa lo que debe hacer la recepcionista."
         },
         "tags": {
-          "label": "Etiquetas (opcional)",
+          "label": "Etiquetas",
           "placeholder": "Transferencias, escalado",
-          "hint": "Palabras clave separadas por comas para clasificar estas reglas."
+          "hint": "Opcional. Palabras clave separadas por comas para clasificar estas reglas."
         }
       }
     }
