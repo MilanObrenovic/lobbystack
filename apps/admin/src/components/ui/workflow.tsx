@@ -1,6 +1,6 @@
 "use client";
 
-import type { Transition, Variants } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { motion, useAnimation } from "framer-motion";
 import type { HTMLAttributes } from "react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
@@ -16,23 +16,17 @@ interface WorkflowIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;
 }
 
-const TRANSITION: Transition = {
-  duration: 0.3,
-  opacity: { delay: 0.15 },
-};
-
+// The two boxes pull apart along the connector and settle back, without hiding any part of the icon.
 const VARIANTS: Variants = {
   normal: {
-    pathLength: 1,
-    opacity: 1,
+    x: 0,
+    y: 0,
+    transition: { type: "spring", stiffness: 200, damping: 13 },
   },
-  animate: (custom: number) => ({
-    pathLength: [0, 1],
-    opacity: [0, 1],
-    transition: {
-      ...TRANSITION,
-      delay: 0.1 * custom,
-    },
+  animate: (direction: number) => ({
+    x: [0, -2 * direction, 0],
+    y: [0, -2 * direction, 0],
+    transition: { duration: 0.5, ease: "easeInOut" },
   }),
 };
 
@@ -92,7 +86,7 @@ const WorkflowIcon = forwardRef<WorkflowIconHandle, WorkflowIconProps>(
         >
           <motion.rect
             animate={controls}
-            custom={0}
+            custom={1}
             height="8"
             rx="2"
             variants={VARIANTS}
@@ -100,15 +94,10 @@ const WorkflowIcon = forwardRef<WorkflowIconHandle, WorkflowIconProps>(
             x="3"
             y="3"
           />
-          <motion.path
-            animate={controls}
-            custom={3}
-            d="M7 11v4a2 2 0 0 0 2 2h4"
-            variants={VARIANTS}
-          />
+          <path d="M7 11v4a2 2 0 0 0 2 2h4" />
           <motion.rect
             animate={controls}
-            custom={0}
+            custom={-1}
             height="8"
             rx="2"
             variants={VARIANTS}

@@ -11,6 +11,7 @@ import { BlocksIcon } from "@/components/ui/blocks";
 import { ChartColumnIncreasingIcon } from "@/components/ui/chart-column-increasing";
 import { ClipboardCheckIcon } from "@/components/ui/clipboard-check";
 import { HomeIcon } from "@/components/ui/home";
+import { HandHelpingIcon } from "@/components/ui/hand-helping";
 import { IdCardIcon } from "@/components/ui/id-card";
 import { MessageSquareMoreIcon } from "@/components/ui/message-square-more";
 import { PhoneAnimatedIcon } from "@/components/ui/phone-animated";
@@ -130,7 +131,7 @@ function ReplacementSidebar({ user }: Pick<DashboardShellProps, "user">) {
   const receptionist: NavigationItem[] = [
     { label: t("agent:sections.basicSettings.title"), href: "/agent", icon: ClipboardCheckIcon },
     { label: t("agent:sections.knowledge.title"), href: "/agent/knowledge", icon: BookTextIcon },
-    { label: t("agent:sections.services.title"), href: "/agent/services", icon: BlocksIcon },
+    { label: t("agent:sections.services.title"), href: "/agent/services", icon: HandHelpingIcon },
     { label: t("agent:sections.employees.title"), href: "/agent/employees", icon: IdCardIcon },
     { label: t("agent:sections.rules.title"), href: "/agent/rules", icon: WorkflowIcon },
   ];
