@@ -82,7 +82,7 @@ describe("transferCall to an employee", () => {
   it("follows the business's transfer rules, even for an employee with a number", async () => {
     vi.mocked(resolveEmployee).mockResolvedValue({ ok: true, staffId: "staff-ana", name: "Ana Petrović", phone: "+381641234567", services: [], vacation: null });
     for (const transferPolicy of [{ mode: "on_request" as const }, { mode: "never" as const, transferNumber: "+14165550199" }]) {
-      await expect(transferTo({ transferPolicy })(ask("Ana"), { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: false });
+      expect(createReceptionistTools({ domain: { db: {} as never }, channel: "voice", callControl, snapshot: { ...demoSnapshot, transferPolicy } }).transferCall).toBeUndefined();
     }
     await expect(transferTo()({ callerRequested: false, urgent: false, employeeName: "Ana" }, { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: false });
     expect(callControl.transfer).not.toHaveBeenCalled();
