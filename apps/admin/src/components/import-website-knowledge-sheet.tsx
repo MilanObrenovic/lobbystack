@@ -91,7 +91,7 @@ export function ImportWebsiteKnowledgeSheet({
         </DialogHeader>
         <form className="flex flex-col gap-6" onSubmit={(event) => void handleSubmit(event)}>
           <FieldGroup>
-            <Field>
+            <Field data-invalid={errorMessage ? true : undefined}>
               <FieldContent>
                 <FieldLabel htmlFor="knowledge-website-url">
                   {t("sections.knowledge.fields.websiteUrl.label")}
@@ -101,6 +101,8 @@ export function ImportWebsiteKnowledgeSheet({
                 </FieldDescription>
               </FieldContent>
               <Input
+                aria-describedby={errorMessage ? "knowledge-website-url-error" : undefined}
+                aria-invalid={errorMessage ? true : undefined}
                 autoComplete="url"
                 id="knowledge-website-url"
                 onChange={(event) => {
@@ -113,10 +115,9 @@ export function ImportWebsiteKnowledgeSheet({
                 type="url"
                 value={websiteUrl}
               />
+              {errorMessage ? <FieldError id="knowledge-website-url-error">{errorMessage}</FieldError> : null}
             </Field>
           </FieldGroup>
-
-          {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
 
           <DialogFooter>
             <Button className="w-full" disabled={isSubmitting} type="submit">
