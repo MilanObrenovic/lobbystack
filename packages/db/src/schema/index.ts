@@ -346,6 +346,8 @@ export const receptionistProfiles = pgTable(
     summarySource: varchar("summary_source", { length: 16 }).$type<"placeholder" | "generated" | "operator">().default("placeholder").notNull(),
     summaryFingerprint: varchar("summary_fingerprint", { length: 64 }),
     summaryGeneratedAt: timestamp("summary_generated_at", { withTimezone: true }),
+    // The outcome of the last "Rewrite with AI"; null when none was asked for.
+    summaryRegenerateStatus: varchar("summary_regenerate_status", { length: 16 }).$type<"pending" | "completed" | "empty" | "failed">(),
     bookingPolicy: text("booking_policy").notNull(),
     voiceInstructions: text("voice_instructions"),
     smsInstructions: text("sms_instructions"),

@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { updateBusinessInTransaction } from "@lobbystack/domain";
-import { businesses, enqueueOutbox, receptionistProfiles } from "@lobbystack/db";
+import { businesses, enqueueOutbox, knowledgeDocuments, knowledgeSnippets, receptionistProfiles } from "@lobbystack/db";
 import { defaultAppointmentChangePolicy, runtimeLocales, type AppointmentChangePolicy, type BookingMode, type RuntimeLocale } from "@lobbystack/shared";
 import { asApiResponse, jsonError, readJson, withOperatorTransaction } from "@/lib/api-helpers";
 
@@ -66,11 +66,14 @@ function readProfilePatch(body: Record<string, unknown>): ProfilePatch {
 export async function GET(request: Request) {
   try {
     return NextResponse.json(await withOperatorTransaction(request, async ({ businessId, tx }) => {
-      const [business, profile] = await Promise.all([
+      const [business, profile, snippet, document] = await Promise.all([
         tx.select({ id: businesses.id, name: businesses.name, timezone: businesses.timezone, defaultLocale: businesses.defaultLocale }).from(businesses).where(eq(businesses.id, businessId)).limit(1),
         tx.select().from(receptionistProfiles).where(eq(receptionistProfiles.businessId, businessId)).limit(1),
+        tx.select({ id: knowledgeSnippets.id }).from(knowledgeSnippets).where(and(eq(knowledgeSnippets.businessId, businessId), eq(knowledgeSnippets.active, true))).limit(1),
+        tx.select({ id: knowledgeDocuments.id }).from(knowledgeDocuments).where(and(eq(knowledgeDocuments.businessId, businessId), eq(knowledgeDocuments.active, true), eq(knowledgeDocuments.status, "indexed"))).limit(1),
       ]);
-      return { business: business[0] ?? null, profile: profile[0] ?? null };
+      // The same sources the summary rewrite reads; without any, "Rewrite with AI" has nothing to go on.
+      return { business: business[0] ?? null, profile: profile[0] ?? null, hasKnowledgeSources: snippet.length > 0 || document.length > 0 };
     }));
   } catch (error) {
     return asApiResponse(error);
@@ -122,7 +125,7 @@ export async function PATCH(request: Request) {
         ...(patch.bookingMode !== undefined ? { bookingMode: patch.bookingMode } : {}),
       }).onConflictDoUpdate({
         target: receptionistProfiles.businessId,
-        set: { ...patch, ...(patch.summary !== undefined ? { summarySource: "operator" as const } : {}), ...(regenerateSummary ? { summarySource: "generated" as const } : {}), updatedAt: new Date() },
+        set: { ...patch, ...(patch.summary !== undefined ? { summarySource: "operator" as const, summaryRegenerateStatus: null } : {}), ...(regenerateSummary ? { summarySource: "generated" as const, summaryRegenerateStatus: "pending" as const } : {}), updatedAt: new Date() },
       }).returning();
 
       if (!profile) throw jsonError("Receptionist profile could not be saved.", 500);

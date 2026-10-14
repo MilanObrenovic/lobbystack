@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Sparkles } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActiveBusiness } from "@/hooks/use-active-business";
 import { requestJson } from "@/lib/request-json";
@@ -27,6 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTelemetry } from "@/components/product-analytics";
 import { BookingWithoutHoursAlert, BusinessHoursSection, needsHoursForBooking, useBusinessHours } from "@/components/business-hours-section";
 import { availableTimeZones, groupTimeZones, isTimeZoneRegion, type TimeZoneOption } from "@/lib/time-zones";
+import { cn } from "@/lib/utils";
 
 type AgentBasicSettingsPageProps = {
   businessId: string;
@@ -34,6 +37,12 @@ type AgentBasicSettingsPageProps = {
 };
 
 type TimeZoneItemGroup = { value: string; label: string; items: TimeZoneOption[] };
+
+type AgentSettings = {
+  business: { defaultLocale: RuntimeLocale; timezone: string } | null;
+  profile: { greeting: string; summary: string; summarySource: "placeholder" | "generated" | "operator"; summaryRegenerateStatus?: "pending" | "completed" | "empty" | "failed" | null; transferNumber: string | null; transferMode: string; appointmentChangePolicy: AppointmentChangePolicy | null; bookingMode: BookingMode } | null;
+  hasKnowledgeSources?: boolean;
+};
 
 const RUNTIME_LOCALE_OPTIONS = [
   { value: "en", labelKey: "common:language.english" },
@@ -96,7 +105,7 @@ export function AgentBasicSettingsPage({
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["agent-settings", businessId],
-    queryFn: () => requestJson<{ business: { defaultLocale: RuntimeLocale; timezone: string } | null; profile: { greeting: string; summary: string; summarySource: "placeholder" | "generated" | "operator"; transferNumber: string | null; transferMode: string; appointmentChangePolicy: AppointmentChangePolicy | null; bookingMode: BookingMode } | null }>(`/api/agent?businessId=${encodeURIComponent(businessId)}`),
+    queryFn: () => requestJson<AgentSettings>(`/api/agent?businessId=${encodeURIComponent(businessId)}`),
     enabled: Boolean(businessId),
   });
   const configuration = query.data;
@@ -107,6 +116,7 @@ export function AgentBasicSettingsPage({
     await queryClient.invalidateQueries({ queryKey: ["agent-settings", businessId], refetchType });
   }
   const persistedProfile = configuration?.profile;
+  const canRewriteSummary = configuration?.hasKnowledgeSources !== false;
   // The sign-up placeholder isn't a summary, so it shows as empty.
   const savedSummary = persistedProfile && persistedProfile.summarySource !== "placeholder" ? persistedProfile.summary : "";
   const savedTimezone = configuration?.business?.timezone ?? "";
@@ -123,6 +133,56 @@ export function AgentBasicSettingsPage({
   const [summaryStatus, setSummaryStatus] = useState<string | null>(null);
   const [isSummarySaving, setIsSummarySaving] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  // While a requested rewrite runs, a separate query checks on it, so the page's drafts aren't reset every few seconds.
+  const [awaitingRewrite, setAwaitingRewrite] = useState(false);
+  // The rewritten summary as typed out so far in the open dialog; null when nothing is being typed.
+  const [typedSummary, setTypedSummary] = useState<string | null>(null);
+  const [typingTarget, setTypingTarget] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
+  const rewritingInDialog = isSummaryOpen && (awaitingRewrite || typingTarget !== null);
+  const rewriteStatus = persistedProfile?.summaryRegenerateStatus;
+  useEffect(() => {
+    if (rewriteStatus !== "pending") return;
+    setAwaitingRewrite(true);
+    setSummaryStatus(t("agent:fields.summary.regenerating"));
+  }, [rewriteStatus, t]);
+  const rewrite = useQuery({
+    queryKey: ["agent-summary-rewrite", businessId],
+    queryFn: () => requestJson<AgentSettings>(`/api/agent?businessId=${encodeURIComponent(businessId)}`),
+    enabled: awaitingRewrite,
+    refetchInterval: 3000,
+  });
+  useEffect(() => {
+    const latest = rewrite.data;
+    const outcome = latest?.profile?.summaryRegenerateStatus;
+    if (!awaitingRewrite || !latest || outcome === "pending") return;
+    setAwaitingRewrite(false);
+    setSummaryStatus(null);
+    queryClient.removeQueries({ queryKey: ["agent-summary-rewrite", businessId] });
+    queryClient.setQueryData(["agent-settings", businessId], latest);
+    if (outcome === "completed" && isSummaryOpen && !reduceMotion && latest.profile?.summary) {
+      setTypedSummary("");
+      setTypingTarget(latest.profile.summary);
+    } else if (outcome === "completed") toast.success(t("agent:fields.summary.rewriteCompleted"));
+    else if (outcome === "empty") toast.warning(t("agent:fields.summary.rewriteEmpty"));
+    else if (outcome === "failed") toast.error(t("agent:fields.summary.rewriteFailed"));
+  }, [awaitingRewrite, businessId, isSummaryOpen, queryClient, reduceMotion, rewrite.data, t]);
+  useEffect(() => {
+    if (typingTarget === null) return;
+    // About 1.5 seconds whatever the length, at one frame per step.
+    const step = Math.max(1, Math.ceil(typingTarget.length / 90));
+    let length = 0;
+    const intervalId = window.setInterval(() => {
+      length = Math.min(typingTarget.length, length + step);
+      setTypedSummary(typingTarget.slice(0, length));
+      if (length < typingTarget.length) return;
+      window.clearInterval(intervalId);
+      setTypedSummary(null);
+      setTypingTarget(null);
+      toast.success(t("agent:fields.summary.rewriteCompleted"));
+    }, 16);
+    return () => window.clearInterval(intervalId);
+  }, [t, typingTarget]);
   const [defaultLocale, setDefaultLocale] = useState<RuntimeLocale>("en");
   const [timezone, setTimezone] = useState("");
   const [isTimezoneSaving, setIsTimezoneSaving] = useState(false);
@@ -195,8 +255,11 @@ export function AgentBasicSettingsPage({
       await saveProfile(regenerate ? { businessId, regenerateSummary: true } : { businessId, summary: summary.trim() });
       telemetry.track("web.agent.settings_saved", { businessId, setting: regenerate ? "summary_regenerated" : "summary" });
       setSummaryStatus(regenerate ? t("agent:fields.summary.regenerating") : null);
-      if (!regenerate) toast.success(t("agent:actions.saved"));
-      setIsSummaryOpen(false);
+      if (regenerate) setAwaitingRewrite(true);
+      else {
+        toast.success(t("agent:actions.saved"));
+        setIsSummaryOpen(false);
+      }
     } catch {
       toast.error(t("agent:actions.saveFailed"));
     } finally {
@@ -373,28 +436,61 @@ export function AgentBasicSettingsPage({
                   {t("agent:actions.edit")}
                 </Button>
               </ItemActions>
-              <Dialog onOpenChange={(open) => { if (!open && !isSummarySaving) setIsSummaryOpen(false); }} open={isSummaryOpen}>
+              <Dialog onOpenChange={(open) => {
+                if (open || isSummarySaving) return;
+                setIsSummaryOpen(false);
+                // Closing mid-typing skips to the end; the summary is already saved.
+                if (typingTarget !== null) {
+                  setTypedSummary(null);
+                  setTypingTarget(null);
+                  toast.success(t("agent:fields.summary.rewriteCompleted"));
+                }
+              }} open={isSummaryOpen}>
                 <DialogContent className="flex flex-col gap-4 sm:max-w-lg">
                   <DialogHeader><DialogTitle>{t("agent:fields.summary.label")}</DialogTitle></DialogHeader>
-                  <Textarea
-                    autoFocus
-                    disabled={!canManageTenant || isSummarySaving}
-                    id="agent-summary"
-                    maxLength={2000}
-                    onChange={(event) => setSummary(event.target.value)}
-                    placeholder={t("agent:fields.summary.placeholder")}
-                    rows={6}
-                    value={summary}
-                  />
+                  <div className="relative overflow-hidden rounded-xl">
+                    <Textarea
+                      aria-busy={rewritingInDialog || undefined}
+                      autoFocus
+                      // The old text recedes while AI reads; the new text types in at full contrast.
+                      className={cn("transition-opacity duration-300", isSummaryOpen && awaitingRewrite && "opacity-70")}
+                      disabled={!canManageTenant || isSummarySaving}
+                      id="agent-summary"
+                      maxLength={2000}
+                      onChange={(event) => setSummary(event.target.value)}
+                      placeholder={t("agent:fields.summary.placeholder")}
+                      readOnly={rewritingInDialog}
+                      rows={6}
+                      value={typedSummary ?? summary}
+                    />
+                    {isSummaryOpen && awaitingRewrite && !reduceMotion ? (
+                      // A soft band sweeps down the text while AI reads the knowledge.
+                      <motion.div
+                        animate={{ top: ["-4rem", "100%"] }}
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-x-0 h-16 bg-linear-to-b from-transparent via-primary/15 to-transparent"
+                        transition={{ duration: 1.6, ease: "linear", repeat: Infinity }}
+                      />
+                    ) : null}
+                  </div>
+                  {rewritingInDialog ? (
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                      <Sparkles aria-hidden="true" className="size-4 animate-pulse" />
+                      {t("agent:fields.summary.regenerating")}
+                    </p>
+                  ) : null}
                   <DialogFooter className="sm:justify-between">
                     {persistedProfile?.summarySource === "operator" ? (
-                      <Button disabled={isSummarySaving || !canManageTenant} onClick={() => void saveSummary(true)} type="button" variant="ghost">
-                        {t("agent:fields.summary.regenerate")}
-                      </Button>
+                      <div className="flex flex-col gap-1">
+                        <Button disabled={isSummarySaving || !canManageTenant || !canRewriteSummary || awaitingRewrite} onClick={() => void saveSummary(true)} type="button" variant="ghost">
+                          {t("agent:fields.summary.regenerate")}
+                        </Button>
+                        {!canRewriteSummary ? <p className="text-xs text-muted-foreground">{t("agent:fields.summary.rewriteNeedsKnowledge")}</p> : null}
+                      </div>
                     ) : <span className="hidden sm:block" />}
                     <div className="flex flex-col-reverse gap-2 sm:flex-row">
                       <Button disabled={isSummarySaving} onClick={() => setIsSummaryOpen(false)} type="button" variant="outline">{t("agent:actions.cancel")}</Button>
-                      <Button disabled={isSummarySaving || !canManageTenant || !summary.trim()} onClick={() => void saveSummary(false)} type="button">
+                      <Button disabled={isSummarySaving || rewritingInDialog || !canManageTenant || !summary.trim()} onClick={() => void saveSummary(false)} type="button">
                         {isSummarySaving ? t("agent:actions.saving") : t("agent:actions.save")}
                       </Button>
                     </div>

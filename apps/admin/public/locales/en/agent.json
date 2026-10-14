@@ -256,7 +256,11 @@
       "hint": "What your receptionist tells callers about the business.",
       "placeholder": "For example: Maple Family Clinic is a family practice in Toronto offering checkups, vaccinations and physiotherapy.",
       "regenerate": "Rewrite with AI",
-      "regenerating": "AI is rewriting it from your knowledge. Check back in a minute."
+      "regenerating": "AI is rewriting it from your knowledge. This takes a moment.",
+      "rewriteCompleted": "Business summary rewritten.",
+      "rewriteEmpty": "Your knowledge doesn't say what the business does yet, so the summary wasn't changed.",
+      "rewriteFailed": "We couldn't rewrite the summary. Please try again.",
+      "rewriteNeedsKnowledge": "Add knowledge first, so AI has something to write from."
     },
     "bookingPolicy": {
       "label": "Booking policy",

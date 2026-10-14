@@ -256,7 +256,11 @@
       "hint": "Ce que votre réceptionniste dit aux appelants au sujet de l'entreprise.",
       "placeholder": "Par exemple : La Clinique familiale Maple est une clinique de Toronto qui offre des examens, des vaccins et de la physiothérapie.",
       "regenerate": "Réécrire avec l'IA",
-      "regenerating": "L'IA le réécrit à partir de vos connaissances. Revenez dans une minute."
+      "regenerating": "L'IA le réécrit à partir de vos connaissances. Cela prend un instant.",
+      "rewriteCompleted": "Résumé de l'entreprise réécrit.",
+      "rewriteEmpty": "Vos connaissances ne disent pas encore ce que fait l'entreprise, le résumé n'a donc pas changé.",
+      "rewriteFailed": "Nous n'avons pas pu réécrire le résumé. Veuillez réessayer.",
+      "rewriteNeedsKnowledge": "Ajoutez d'abord des connaissances, pour que l'IA ait de quoi écrire."
     },
     "bookingPolicy": {
       "label": "Politique de réservation",

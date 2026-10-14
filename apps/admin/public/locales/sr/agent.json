@@ -256,7 +256,11 @@
       "hint": "Šta Vaš recepcioner govori pozivaocima o firmi.",
       "placeholder": "Na primer: Porodična klinika Maple u Torontu nudi preglede, vakcinacije i fizioterapiju.",
       "regenerate": "Napiši ponovo pomoću AI",
-      "regenerating": "AI ga ponovo piše na osnovu Vašeg znanja. Proverite ponovo za minut."
+      "regenerating": "AI ga ponovo piše na osnovu Vašeg znanja. To traje trenutak.",
+      "rewriteCompleted": "Opis poslovanja je ponovo napisan.",
+      "rewriteEmpty": "Vaše znanje još ne govori čime se poslovanje bavi, pa opis nije promenjen.",
+      "rewriteFailed": "Nismo uspeli da ponovo napišemo opis. Pokušajte ponovo.",
+      "rewriteNeedsKnowledge": "Prvo dodajte znanje, da bi AI imao na osnovu čega da piše."
     },
     "bookingPolicy": {
       "label": "Pravila zakazivanja",
