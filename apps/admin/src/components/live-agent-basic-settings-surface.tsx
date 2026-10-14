@@ -391,8 +391,8 @@ export function AgentBasicSettingsPage({
                       <Button disabled={isSummarySaving || !canManageTenant} onClick={() => void saveSummary(true)} type="button" variant="ghost">
                         {t("agent:fields.summary.regenerate")}
                       </Button>
-                    ) : <span />}
-                    <div className="flex gap-2">
+                    ) : <span className="hidden sm:block" />}
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row">
                       <Button disabled={isSummarySaving} onClick={() => setIsSummaryOpen(false)} type="button" variant="outline">{t("agent:actions.cancel")}</Button>
                       <Button disabled={isSummarySaving || !canManageTenant || !summary.trim()} onClick={() => void saveSummary(false)} type="button">
                         {isSummarySaving ? t("agent:actions.saving") : t("agent:actions.save")}
