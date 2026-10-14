@@ -18,6 +18,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -128,7 +129,8 @@ export function ImportWebsiteKnowledgeSheet({
           </FieldGroup>
 
           <DialogFooter>
-            <Button className="w-full" disabled={isSubmitting} type="submit">
+            <DialogClose render={<Button disabled={isSubmitting} type="button" variant="outline" />}>{t("actions.cancel")}</DialogClose>
+            <Button disabled={isSubmitting} type="submit">
               {isSubmitting ? (
                 <>
                   <LoaderCircle className="size-4 animate-spin" />

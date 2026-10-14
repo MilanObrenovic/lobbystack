@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -279,8 +280,9 @@ export function UploadKnowledgeDocumentSheet({
           </FieldGroup>
 
           <DialogFooter>
-            <Button className="w-full" disabled={isUploading} type="submit">
-              {isUploading ? t("actions.saving") : t("actions.save")}
+            <DialogClose render={<Button disabled={isUploading} type="button" variant="outline" />}>{t("actions.cancel")}</DialogClose>
+            <Button disabled={isUploading} type="submit">
+              {isUploading ? t("actions.uploading") : t("actions.upload")}
             </Button>
           </DialogFooter>
         </form>

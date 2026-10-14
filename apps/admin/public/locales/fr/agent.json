@@ -27,8 +27,8 @@
         "badge": "Site web",
         "title": "Importer un site web",
         "description": "Explorez les pages publiques de votre site web pour que votre réceptionniste puisse les utiliser comme connaissances.",
-        "submit": "Importer le site web",
-        "submitting": "Import du site web…",
+        "submit": "Importer",
+        "submitting": "Importation…",
         "success": "L'import du site web a démarré. Les pages apparaîtront ici au fur et à mesure du traitement.",
         "submitFailed": "Nous n'avons pas pu démarrer l'import du site web. Réessayez.",
         "previewPending": "Nous explorons ce site web. Les pages importées apparaîtront ici automatiquement.",
@@ -337,6 +337,7 @@
     }
   },
   "actions": {
+    "add": "Ajouter",
     "save": "Enregistrer",
     "saveChanges": "Enregistrer les modifications",
     "saving": "Enregistrement…",

@@ -27,8 +27,8 @@
         "badge": "Sajt",
         "title": "Uvezi sajt",
         "description": "Učitajte javne stranice Vašeg sajta kako bi ih recepcioner koristio kao znanje.",
-        "submit": "Uvezi sajt",
-        "submitting": "Uvoz sajta…",
+        "submit": "Uvezi",
+        "submitting": "Uvoz…",
         "success": "Uvoz sajta je pokrenut. Stranice će se pojavljivati ovde kako se budu obrađivale.",
         "submitFailed": "Nismo mogli da pokrenemo uvoz sajta. Pokušajte ponovo.",
         "previewPending": "Čitamo ovaj sajt. Uvezene stranice će se automatski pojaviti ovde.",
@@ -337,6 +337,7 @@
     }
   },
   "actions": {
+    "add": "Dodaj",
     "save": "Sačuvaj",
     "saveChanges": "Sačuvaj izmene",
     "saving": "Čuvanje…",

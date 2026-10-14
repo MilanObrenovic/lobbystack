@@ -27,8 +27,8 @@
         "badge": "Sitio web",
         "title": "Importar sitio web",
         "description": "Rastree las páginas públicas de su sitio web para que su recepcionista pueda usarlas como conocimiento.",
-        "submit": "Importar sitio web",
-        "submitting": "Importando sitio web…",
+        "submit": "Importar",
+        "submitting": "Importando…",
         "success": "La importación del sitio web ha comenzado. Las páginas aparecerán aquí a medida que terminen de procesarse.",
         "submitFailed": "No pudimos iniciar la importación del sitio web. Inténtelo de nuevo.",
         "previewPending": "Estamos rastreando este sitio web. Las páginas importadas aparecerán aquí automáticamente.",
@@ -337,6 +337,7 @@
     }
   },
   "actions": {
+    "add": "Añadir",
     "save": "Guardar",
     "saveChanges": "Guardar cambios",
     "saving": "Guardando…",
