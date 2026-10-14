@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { toast } from "sonner";
 
 import { BusinessHoursSection, closuresForSave, HOURS_EDITOR_HREF, windowsForSave } from "./business-hours-section";
 import { AgentBasicSettingsPage } from "./live-agent-basic-settings-surface";
