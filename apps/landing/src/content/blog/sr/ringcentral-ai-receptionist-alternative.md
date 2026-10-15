@@ -82,8 +82,8 @@ Oba proizvoda, stanje od 9. oktobra 2026. godine:
 | Uključeni minuti | 100 | 150 na paketu Starter, 500 na paketu Pro ($100) |
 | Prekoračenje | $0.50 po minutu | $0.20 po minutu na paketu Starter, $0.18 na paketu Pro |
 | Kako se broje minuti | Svaki poziv se zaokružuje naviše na sledećih 30 sekundi | Po sekundi; pozivi kraći od 10 sekundi i spam pozivi koje recepcioner prekine se ne računaju |
-| Besplatna opcija | Probni period od 14 dana | Besplatan paket sa 30 minuta razgovora u pregledaču mesečno, bez kartice i broja telefona, bez isteka |
-| Broj telefona | Nov broj uključen, ili prenosite svoj | Jedan broj na paketima Starter i Pro, u SAD, Kanadi, Velikoj Britaniji ili Australiji |
+| Besplatna opcija | Probni period od 14 dana | Besplatan paket sa 30 minuta razgovora mesečno, bez kartice, broj iz SAD ili Kanade besplatno 14 dana |
+| Broj telefona | Nov broj uključen, ili prenosite svoj | Jedan broj na paketima Starter i Pro, u SAD, Kanadi, Velikoj Britaniji, Australiji ili na Novom Zelandu |
 | Radi sa postojećim brojem | Da, preko prosleđivanja ili SIP-a | Da, preko prosleđivanja kod operatera |
 | Jezici pozivalaca | Engleski, španski, francuski, italijanski, nemački i portugalski, prema njegovim čestim pitanjima, a još jezika stiže "uskoro"; menja jezik tokom poziva | Počinje na engleskom ili francuskom, zatim odgovara na jeziku pozivaoca: 70+ jezika na OpenAI GPT-Live |
 | Kalendari | Google i Outlook | Google Calendar |
@@ -134,7 +134,7 @@ U Kanadi RingCentral prodaje AIR kao samostalni paket ili kao dodatak. U Velikoj
 
 Cene su u kanadskim dolarima (C$), britanskim funtama (£) i australijskim dolarima (A$), sa RingCentral regionalnih stranica sa cenama.
 
-LobbyStack naplaćuje sve pakete u američkim dolarima: $30 mesečno za Starter i $100 za Pro. Nudi lokalne brojeve, kao i besplatne brojeve za pozivaoce gde postoje, u SAD, Kanadi, Velikoj Britaniji i Australiji. Na usluzi LobbyStack Cloud potvrde i podsetnici za termine idu samo na američke i kanadske brojeve, a SMS obaveštenja za Vaš tim traže američki ili kanadski mobilni broj. Firma iz Velike Britanije ili Australije i dalje dobija odgovorene pozive i zakazane termine, ali pozivaoci sa britanskim ili australijskim mobilnim brojevima neće dobiti SMS potvrde ni podsetnike.
+LobbyStack naplaćuje sve pakete u američkim dolarima: $30 mesečno za Starter i $100 za Pro. Nudi lokalne brojeve, kao i besplatne brojeve za pozivaoce gde postoje, u SAD, Kanadi, Velikoj Britaniji, Australiji i na Novom Zelandu. Na usluzi LobbyStack Cloud potvrde i podsetnici za termine idu samo na američke i kanadske brojeve, a SMS obaveštenja za Vaš tim traže američki ili kanadski mobilni broj. Firma iz Velike Britanije ili Australije i dalje dobija odgovorene pozive i zakazane termine, ali pozivaoci sa britanskim ili australijskim mobilnim brojevima neće dobiti SMS potvrde ni podsetnike.
 
 ## Kako se AIR poredi sa AI recepcionerima drugih telefonskih sistema?
 
@@ -149,7 +149,7 @@ Za širu tabelu sa dobavljačima kojima je AI glavni proizvod, pogledajte [kolik
 
 ### Da li se AI recepcioneri isplate?
 
-To zavisi od toga koliko poziva propuštate i koliko Vam vredi jedan zakazan posao. [Procenite koliko Vas koštaju propušteni pozivi](/sr/missed-call-revenue-calculator/) i proverite [kada se AI recepcioner isplati](/sr/blog/ai-receptionist-savings/). Ako želite da ga testirate na svojim pitanjima, besplatni LobbyStack paket Vam daje 30 minuta razgovora u pregledaču mesečno, a RingCentral nudi probni period za AIR od 14 dana.
+To zavisi od toga koliko poziva propuštate i koliko Vam vredi jedan zakazan posao. [Procenite koliko Vas koštaju propušteni pozivi](/sr/missed-call-revenue-calculator/) i proverite [kada se AI recepcioner isplati](/sr/blog/ai-receptionist-savings/). Ako želite da ga testirate na svojim pitanjima, besplatni LobbyStack paket Vam daje 30 minuta razgovora mesečno i broj iz SAD ili Kanade na 14 dana, a RingCentral nudi probni period za AIR od 14 dana.
 
 ## Šta da pitate RingCentral pre kupovine
 
@@ -176,7 +176,7 @@ Zatim obavite ista tri test poziva na AIR i na LobbyStack: pozivalac van radnog 
 
 LobbyStack Vam odgovara ako želite nižu cenu po minutu i besplatan test pre kupovine:
 
-- Besplatni paket daje 30 minuta razgovora u pregledaču mesečno, bez kartice i broja telefona, i ne ističe.
+- Besplatni paket daje 30 minuta razgovora mesečno i broj iz SAD ili Kanade besplatno 14 dana, bez kartice.
 - Starter košta $30 za 150 minuta, zatim $0.20 po minutu, obračunato po sekundi. Pozivi kraći od 10 sekundi i pozivi koje recepcioner prekine kao spam ne ulaze u potrošnju.
 - Svaki poziv počinje na podrazumevanom jeziku firme, engleskom ili francuskom. Recepcioner zatim odgovara na jeziku pozivaoca: 70+ jezika na OpenAI GPT-Live, uključujući španski i srpski.
 - Zakazuje u Google Calendar i, kada se pozivalac složi, šalje SMS potvrdu i podsetnik 24 sata pre termina na američke i kanadske brojeve.

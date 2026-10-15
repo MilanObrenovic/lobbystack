@@ -17,7 +17,7 @@ Une **permanence téléphonique avocat** répond aux appels du cabinet, recueill
 
 LobbyStack publie ce comparatif et vend un réceptionniste IA. Vous le trouverez dans la section IA, qui détaille aussi ce qu'il ne fait pas pour un cabinet, comme la synchronisation avec Clio ou la vérification des conflits d'intérêts.
 
-**Prix vérifiés les 9 et 10 octobre 2026.** Nous avons relevé chaque prix sur le site du fournisseur, en dollars américains hors taxes. Ces services visent surtout les cabinets américains, et LobbyStack fournit des numéros aux États-Unis, au Canada, au Royaume-Uni et en Australie. En France, demandez des tarifs en euros à un secrétariat téléphonique juridique local, puis comparez-les avec les modes de facturation décrits ici. Ce comparatif ne constitue pas un avis juridique : vérifiez les règles déontologiques de votre barreau.
+**Prix vérifiés les 9 et 10 octobre 2026.** Nous avons relevé chaque prix sur le site du fournisseur, en dollars américains hors taxes. Ces services visent surtout les cabinets américains, et LobbyStack fournit des numéros aux États-Unis, au Canada, au Royaume-Uni, en Australie et en Nouvelle-Zélande. En France, demandez des tarifs en euros à un secrétariat téléphonique juridique local, puis comparez-les avec les modes de facturation décrits ici. Ce comparatif ne constitue pas un avis juridique : vérifiez les règles déontologiques de votre barreau.
 
 ## Que doit gérer une permanence téléphonique pour avocats ?
 
@@ -125,9 +125,9 @@ Upfirst facture à l'appel : 24,95 $ par mois pour 30 appels, 59,95 $ pour 90, 1
 
 Le forfait Starter de LobbyStack coûte 30 $ par mois pour 150 minutes, puis 0,20 $ la minute. Pro coûte 100 $ pour 500 minutes, puis 0,18 $. En facturation annuelle, ils reviennent à 24 $ et 80 $ par mois, et aucun forfait n'a de frais de mise en service. LobbyStack compte l'utilisation à la seconde et ne facture ni le spam ni les appels de moins de 10 secondes.
 
-Il répond à tous les appels, ou seulement aux appels en débordement et hors horaires, sur un numéro aux États-Unis, au Canada, au Royaume-Uni ou en Australie, ou sur votre numéro actuel grâce au renvoi d'appel. Il pose les questions de prise de contact que vous rédigez, prend des messages et réserve les consultations dans Google Calendar. Si l'appelant accepte, il envoie par SMS une confirmation et un rappel 24 heures avant aux numéros américains et canadiens. Il transfère les appels urgents, comme une arrestation ou une audience demain, vers un seul numéro. Chaque appel commence en anglais ou en français, puis le réceptionniste répond dans la langue de l'appelant, parmi plus de 70 langues avec GPT-Live d'OpenAI, dont l'espagnol. Le tableau de bord conserve un résumé, une transcription et un enregistrement de chaque appel, et vous recevez une alerte par e-mail quand il prend un message.
+Il répond à tous les appels, ou seulement aux appels en débordement et hors horaires, sur un numéro aux États-Unis, au Canada, au Royaume-Uni, en Australie ou en Nouvelle-Zélande, ou sur votre numéro actuel grâce au renvoi d'appel. Il pose les questions de prise de contact que vous rédigez, prend des messages et réserve les consultations dans Google Calendar. Si l'appelant accepte, il envoie par SMS une confirmation et un rappel 24 heures avant aux numéros américains et canadiens. Il transfère les appels urgents, comme une arrestation ou une audience demain, vers un seul numéro. Chaque appel commence en anglais ou en français, puis le réceptionniste répond dans la langue de l'appelant, parmi plus de 70 langues avec GPT-Live d'OpenAI, dont l'espagnol. Le tableau de bord conserve un résumé, une transcription et un enregistrement de chaque appel, et vous recevez une alerte par e-mail quand il prend un message.
 
-Ces limites comptent pour un cabinet. LobbyStack n'a pas d'intégration avec Clio, MyCase ou Lawmatics, et il se connecte aux autres outils par des webhooks signés pour 6 événements et une API REST. Il ne vérifie pas les conflits d'intérêts, ne note pas les prospects et ne donne aucun avis juridique. Les transferts sont directs et vont vers un seul numéro, sans présenter l'appelant à l'avocat. Si un transfert échoue, il le dit à l'appelant, propose de prendre un message, et votre équipe peut recevoir une alerte « Transfert d'appel échoué ». Aucun réceptionniste humain ne prend le relais, et l'IA ne répond pas aux SMS. Le forfait Gratuit vous donne 30 minutes vocales dans le navigateur, sans carte ni numéro de téléphone : vous testez le réceptionniste, mais il ne peut pas répondre à la ligne de votre cabinet.
+Ces limites comptent pour un cabinet. LobbyStack n'a pas d'intégration avec Clio, MyCase ou Lawmatics, et il se connecte aux autres outils par des webhooks signés pour 6 événements et une API REST. Il ne vérifie pas les conflits d'intérêts, ne note pas les prospects et ne donne aucun avis juridique. Les transferts sont directs et vont vers un seul numéro, sans présenter l'appelant à l'avocat. Si un transfert échoue, il le dit à l'appelant, propose de prendre un message, et votre équipe peut recevoir une alerte « Transfert d'appel échoué ». Aucun réceptionniste humain ne prend le relais, et l'IA ne répond pas aux SMS. Le forfait Gratuit vous donne 30 minutes vocales et un numéro américain ou canadien gratuit pendant 14 jours, sans carte. Après 14 jours, il faut Starter ou Pro pour répondre à la ligne de votre cabinet.
 
 ## Combien coûte une permanence téléphonique avocat ?
 
@@ -207,7 +207,7 @@ Relevez sur votre facture téléphonique le nombre d'appels du mois dernier et l
 
 ### 2. Passez trois appels tests pendant l'essai
 
-Appelez chaque finaliste comme un nouveau prospect en dommage corporel à 21 h, comme un client existant dont l'audience a lieu demain, et comme un appelant hispanophone. Vérifiez qui a répondu, ce que la prise de contact a noté et si l'appel urgent a joint un avocat. Essais : Veza et PATLive durent 14 jours, Answering Legal offre 400 minutes, Upfirst dure 14 jours sans carte, le forfait IA Gratuit de Smith.ai couvre 25 appels par mois, et LobbyStack Gratuit vous donne 30 minutes vocales dans le navigateur.
+Appelez chaque finaliste comme un nouveau prospect en dommage corporel à 21 h, comme un client existant dont l'audience a lieu demain, et comme un appelant hispanophone. Vérifiez qui a répondu, ce que la prise de contact a noté et si l'appel urgent a joint un avocat. Essais : Veza et PATLive durent 14 jours, Answering Legal offre 400 minutes, Upfirst dure 14 jours sans carte, le forfait IA Gratuit de Smith.ai couvre 25 appels par mois, et LobbyStack Gratuit vous donne 30 minutes vocales et un numéro américain ou canadien gratuit pendant 14 jours.
 
 ### 3. Lisez les conditions de facturation
 
@@ -233,7 +233,7 @@ Il ne devrait pas, et vos instructions doivent le préciser. Faites dire au réc
 
 ### Existe-t-il une permanence téléphonique juridique gratuite ?
 
-Aucun service humain de ce comparatif n'est gratuit, et les essais s'en approchent le plus : Veza et PATLive proposent 14 jours, et Answering Legal offre 400 minutes. Le forfait IA Gratuit de Smith.ai couvre 25 vrais appels par mois. LobbyStack Gratuit vous donne 30 minutes vocales dans le navigateur, sans numéro de téléphone : il permet de tester le réceptionniste, mais pas de répondre à la ligne du cabinet.
+Aucun service humain de ce comparatif n'est gratuit, et les essais s'en approchent le plus : Veza et PATLive proposent 14 jours, et Answering Legal offre 400 minutes. Le forfait IA Gratuit de Smith.ai couvre 25 vrais appels par mois. LobbyStack Gratuit vous donne 30 minutes vocales et un numéro américain ou canadien gratuit pendant 14 jours : si vous y renvoyez la ligne du cabinet, il y répond pendant deux semaines.
 
 ### Peut-on utiliser une permanence téléphonique juridique seulement hors horaires ?
 
@@ -263,4 +263,4 @@ Sources, toutes consultées les 9 ou 10 octobre 2026 :
 - **Une prise de contact saisie dans Clio, MyCase ou Lawmatics :** PATLive, Abby Connect, Smith.ai ou Answering Legal, ou Lexidesk côté IA.
 - **Le débordement et les appels hors horaires, avec des consultations réservées dans Google Calendar, pour 30 $ à 100 $ par mois :** LobbyStack.
 
-Vous voulez entendre LobbyStack prendre l'appel d'un nouveau client avant de payer ? [Créez un compte gratuit](https://app.lobbystack.com/fr/signup) et testez-le avec 30 minutes vocales dans le navigateur, sans carte. Quand vous êtes prêt pour de vrais appels, Starter ajoute un numéro de téléphone pour 30 $ par mois, sans frais de mise en service.
+Vous voulez entendre LobbyStack prendre l'appel d'un nouveau client avant de payer ? [Créez un compte gratuit](https://app.lobbystack.com/fr/signup) et testez-le avec 30 minutes vocales et un numéro gratuit pendant 14 jours, sans carte. Pour garder le numéro, Starter coûte 30 $ par mois, sans frais de mise en service.

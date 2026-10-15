@@ -307,11 +307,11 @@ Sa LobbyStack-om kao primerom (više na stranici [AI odgovaranje na pozive](/sr/
 - **Poruke.** Kada primi poruku, dobijate obaveštenje mejlom, a SMS obaveštenja su opcija. LobbyStack čuva sažetak, transkript i snimak svakog poziva na kontrolnoj tabli.
 - **Neželjeni pozivi.** LobbyStack ne naplaćuje neželjene pozive ni pozive kraće od 10 sekundi.
 - **SMS.** AI ne odgovara na SMS poruke, pa neka osoba vodi računa o svakom broju za poruke koji objavljujete.
-- **Brojevi.** LobbyStack ima brojeve telefona u SAD, Kanadi, Velikoj Britaniji i Australiji, a postojeći poslovni broj možete da prosledite na njega.
+- **Brojevi.** LobbyStack ima brojeve telefona u SAD, Kanadi, Velikoj Britaniji, Australiji i na Novom Zelandu, a postojeći poslovni broj možete da prosledite na njega.
 
 ### Testirajte pravila pre nego što ih čuju klijenti
 
-Pozovite svog recepcionera i odglumite svakog pozivaoca: hitan slučaj, zakazivanje, pitanje o ceni, nezadovoljnog klijenta i pogrešan broj. Paket Free u LobbyStack-u daje Vam 30 minuta razgovora u pregledaču, bez kartice i broja telefona, što je dovoljno da svaki scenario probate više puta. Paket Free ne prima prave pozive, ne preusmerava i ne šalje SMS, pa te funkcije proverite na plaćenom paketu pre nego što se oslonite na njih.
+Pozovite svog recepcionera i odglumite svakog pozivaoca: hitan slučaj, zakazivanje, pitanje o ceni, nezadovoljnog klijenta i pogrešan broj. Paket Free u LobbyStack-u daje Vam 30 minuta razgovora i broj iz SAD ili Kanade besplatno 14 dana, bez kartice, što je dovoljno da svaki scenario probate više puta. Tokom probnog perioda preusmeravanja idu samo na mobilni broj koji ste potvrdili, pa preusmeravanje na svoj tim proverite na plaćenom paketu pre nego što se oslonite na njega.
 
 Ispravite pravilo iza svakog odgovora koji Vam se ne dopada. Zatim [prosledite poslovni broj](/sr/blog/how-to-forward-business-calls/) za sve pozive, samo za propuštene ili za pozive van radnog vremena. Za više primera pravila pogledajte [pravila za pozive običnim jezikom](/sr/blog/ai-receptionist-workflows/).
 
@@ -339,4 +339,4 @@ Prosledite poslovni broj na uslugu odgovaranja na pozive ili AI recepcionera pre
 
 ## Isprobajte svoje skripte na AI recepcioneru
 
-Napišite pravila za jedno veče i testirajte ih iste večeri. Paket Free u LobbyStack-u daje Vam 30 minuta razgovora u pregledaču, bez kartice i broja telefona. Kada pozivi zvuče kako treba, Starter košta $30 mesečno za 150 minuta i poslovni broj (SAD, Kanada, Velika Britanija ili Australija), zatim $0.20 po minutu, bez naknade za aktivaciju. [Počnite besplatno](https://app.lobbystack.com/sr/signup) i isprobajte prvu skriptu u pregledaču.
+Napišite pravila za jedno veče i testirajte ih iste večeri. Paket Free u LobbyStack-u daje Vam 30 minuta razgovora i broj iz SAD ili Kanade besplatno 14 dana, bez kartice. Kada pozivi zvuče kako treba, Starter košta $30 mesečno za 150 minuta i poslovni broj (SAD, Kanada, Velika Britanija, Australija ili Novi Zeland), zatim $0.20 po minutu, bez naknade za aktivaciju. [Počnite besplatno](https://app.lobbystack.com/sr/signup) i isprobajte prvu skriptu u pregledaču.

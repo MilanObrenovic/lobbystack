@@ -125,7 +125,7 @@ In the [Grasshopper admin portal](https://support.grasshopper.com/help/forward-i
 
 Turn on busy and no-answer forwarding to the service's number, and leave all-calls forwarding off. Your phone rings first, and the service gets the calls your team can't take. Add unreachable forwarding if you also want coverage when a mobile is off or out of signal.
 
-1. **Get the service's number.** With LobbyStack, that's your LobbyStack number, available in the US, Canada, the UK and Australia. Pick one in your line's country: AT&T, Verizon, T-Mobile and Spectrum Mobile don't forward to international numbers, and TELUS forwards only within North America.
+1. **Get the service's number.** With LobbyStack, that's your LobbyStack number, available in the US, Canada, the UK, Australia and New Zealand. Pick one in your line's country: AT&T, Verizon, T-Mobile and Spectrum Mobile don't forward to international numbers, and TELUS forwards only within North America.
 2. **Turn on busy and no-answer forwarding.** Use the codes above, or the Busy Line & Missed Calls or Missed calls setting in your portal. Skip `*72` for overflow, because it forwards every call before your phone rings.
 3. **Set the ring time.** T-Mobile lets you pick 5 to 30 seconds and TELUS 10, 20 or 30. Grasshopper defaults to 25 seconds and Ooma Office to 12. Verizon's `*71` forwards after 3 to 6 rings and Bell Business Phone's `*92` after 4. A short delay sends calls your team could have answered; a long one keeps callers waiting.
 4. **Check your voicemail.** AT&T says forwarding replaces voicemail, and Spectrum Mobile says unanswered calls skip it. Rogers says conditional forwarding won't work while voicemail is on, so ask Rogers to turn voicemail off on that line if your codes don't take.
@@ -175,8 +175,8 @@ It depends on the carrier. Verizon says you manage forwarding from the mobile ph
 
 ### Can I forward business calls to an AI receptionist?
 
-Yes. You forward to the AI receptionist's phone number like any other number. Ooma Office needs a shared external line, a Pro Plus feature, to reach an outside number. Google Voice is the exception: Google says forwarding to an automated system is unsupported. With LobbyStack, forward to the number included with Starter or Pro; Free has no telephone number.
+Yes. You forward to the AI receptionist's phone number like any other number. Ooma Office needs a shared external line, a Pro Plus feature, to reach an outside number. Google Voice is the exception: Google says forwarding to an automated system is unsupported. With LobbyStack, forward to your LobbyStack number. Free includes a US or Canadian number for 14 days, and Starter or Pro keeps it.
 
 ## Hear the receptionist before you forward a line
 
-LobbyStack's Free plan gives you 30 browser voice minutes, with no card and no telephone number, so you can test how it handles your calls from the dashboard. If the test calls sound right, Starter costs $30 a month ($24 a month billed annually) for 150 minutes and a business number, with no setup fee, and you can cancel without a fee. Then dial your no-answer code and send it only the calls you miss. [Start free](https://app.lobbystack.com/en/signup) or [compare plans](/pricing/).
+LobbyStack's Free plan gives you 30 voice minutes and a US or Canadian number free for 14 days, with no card. Dial your no-answer code to send it only the calls you miss, and see how it handles them. To keep the number, Starter costs $30 a month ($24 a month billed annually) for 150 minutes, with no setup fee, and you can cancel without a fee. [Start free](https://app.lobbystack.com/en/signup) or [compare plans](/pricing/).

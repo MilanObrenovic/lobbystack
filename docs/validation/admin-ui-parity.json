@@ -51,6 +51,7 @@
         "/onboarding/website",
         "/onboarding/knowledge",
         "/onboarding/greeting",
+        "/onboarding/test-call",
         "/onboarding/verify-phone",
         "/onboarding/verify-phone/code",
         "/onboarding/plan",
@@ -378,6 +379,12 @@
       "comparison": "frozen-main"
     },
     {
+      "path": "/onboarding/test-call",
+      "fixtureState": "onboarding",
+      "state": "default",
+      "comparison": "frozen-main"
+    },
+    {
       "path": "/onboarding/verify-phone",
       "fixtureState": "onboarding",
       "state": "default",
@@ -546,6 +553,12 @@
       "path": "/verify-email",
       "fixtureState": "public",
       "state": "default",
+      "comparison": "port-baseline"
+    },
+    {
+      "path": "/billing/success",
+      "fixtureState": "operator",
+      "state": "payment-received",
       "comparison": "port-baseline"
     },
     {

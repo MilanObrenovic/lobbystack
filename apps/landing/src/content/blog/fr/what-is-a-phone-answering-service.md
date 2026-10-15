@@ -15,7 +15,7 @@ canonicalSlug: "what-is-a-phone-answering-service"
 
 Un **secrétariat téléphonique** répond aux appels de votre entreprise, en son nom, quand vous ne pouvez pas décrocher. Des réceptionnistes humains, une IA ou les deux accueillent l'appelant, répondent à ses questions, prennent des messages, fixent des rendez-vous et vous transfèrent les appels urgents. Vous renvoyez votre numéro vers le service et vous choisissez les appels qu'il reçoit : tous, le débordement ou ceux hors horaires.
 
-*Prix relevés le 9 octobre 2026 sur la page tarifaire de chaque fournisseur, en dollars américains hors taxes. Ce sont des fournisseurs nord-américains : en France, demandez des prix en euros à des secrétariats locaux et servez-vous de ce guide pour comparer les modes de facturation. LobbyStack propose des numéros aux États-Unis, au Canada, au Royaume-Uni et en Australie. LobbyStack a rédigé ce guide et vend un réceptionniste IA : notre forfait apparaît comme un exemple parmi d'autres, signalé comme le nôtre.*
+*Prix relevés le 9 octobre 2026 sur la page tarifaire de chaque fournisseur, en dollars américains hors taxes. Ce sont des fournisseurs nord-américains : en France, demandez des prix en euros à des secrétariats locaux et servez-vous de ce guide pour comparer les modes de facturation. LobbyStack propose des numéros aux États-Unis, au Canada, au Royaume-Uni, en Australie et en Nouvelle-Zélande. LobbyStack a rédigé ce guide et vend un réceptionniste IA : notre forfait apparaît comme un exemple parmi d'autres, signalé comme le nôtre.*
 
 ## Que fait un secrétariat téléphonique ?
 
@@ -137,7 +137,7 @@ Demandez où arrivent les messages et en combien de temps, ce qu'entend l'appela
 
 ### 5. Testez avec vos propres appels
 
-Profitez d'un essai ou d'un forfait gratuit pour passer les appels qui vous inquiètent le plus : une urgence, une prise de rendez-vous et un appelant qui parle une autre langue. [PATLive](https://www.patlive.com/pricing/) et [Upfirst](https://upfirst.ai/pricing) proposent un essai gratuit de 14 jours. Le forfait Free de LobbyStack vous donne 30 minutes vocales dans le navigateur par mois, sans carte ni numéro de téléphone. Pour des noms précis, voyez notre comparatif de la [meilleure permanence téléphonique pour PME](/fr/blog/best-answering-service-for-small-business/).
+Profitez d'un essai ou d'un forfait gratuit pour passer les appels qui vous inquiètent le plus : une urgence, une prise de rendez-vous et un appelant qui parle une autre langue. [PATLive](https://www.patlive.com/pricing/) et [Upfirst](https://upfirst.ai/pricing) proposent un essai gratuit de 14 jours. Le forfait Free de LobbyStack vous donne 30 minutes vocales par mois et un numéro américain ou canadien gratuit pendant 14 jours, sans carte. Pour des noms précis, voyez notre comparatif de la [meilleure permanence téléphonique pour PME](/fr/blog/best-answering-service-for-small-business/).
 
 ## Questions sur le secrétariat téléphonique
 
@@ -147,11 +147,11 @@ Oui. PATLive, Ruby, Smith.ai et d'autres services humains affichaient tous des f
 
 ### Existe-t-il un secrétariat téléphonique gratuit ?
 
-Quelques fournisseurs prennent gratuitement une partie de vrais appels. Le [forfait IA Free de Smith.ai](https://smith.ai/pricing/ai-receptionist) répond à 25 vrais appels par mois, puis facture 3 $ l'appel. Le forfait Free de LobbyStack vous donne 30 minutes vocales dans le navigateur par mois, sans carte ni numéro de téléphone. Il sert à tester, mais il ne peut pas répondre sur votre ligne. Voyez [les options de réceptionniste IA gratuit](/fr/blog/free-ai-receptionist/).
+Quelques fournisseurs prennent gratuitement une partie de vrais appels. Le [forfait IA Free de Smith.ai](https://smith.ai/pricing/ai-receptionist) répond à 25 vrais appels par mois, puis facture 3 $ l'appel. Le forfait Free de LobbyStack vous donne 30 minutes vocales par mois et un numéro américain ou canadien qui répond gratuitement à de vrais appels pendant 14 jours, sans carte. Voyez [les options de réceptionniste IA gratuit](/fr/blog/free-ai-receptionist/).
 
 ### Puis-je garder mon numéro professionnel ?
 
-Oui. Vous renvoyez votre numéro actuel vers le service et vous choisissez une règle de renvoi chez votre opérateur : tous les appels, le débordement ou les appels hors horaires. Certains services reprennent aussi votre numéro par portabilité, et [PATLive](https://www.patlive.com/pricing/) le fait gratuitement, à l'entrée comme à la sortie. Avec LobbyStack, vous renvoyez votre numéro vers un numéro LobbyStack aux États-Unis, au Canada, au Royaume-Uni ou en Australie.
+Oui. Vous renvoyez votre numéro actuel vers le service et vous choisissez une règle de renvoi chez votre opérateur : tous les appels, le débordement ou les appels hors horaires. Certains services reprennent aussi votre numéro par portabilité, et [PATLive](https://www.patlive.com/pricing/) le fait gratuitement, à l'entrée comme à la sortie. Avec LobbyStack, vous renvoyez votre numéro vers un numéro LobbyStack aux États-Unis, au Canada, au Royaume-Uni, en Australie ou en Nouvelle-Zélande.
 
 ### Quelle différence entre un secrétariat téléphonique et un centre d'appels ?
 
@@ -165,4 +165,4 @@ Presque. Les fournisseurs parlent de réceptionniste virtuelle pour un service h
 
 Choisissez l'appel que vous voudriez le moins voir mal tourner, comme une urgence ou un nouveau client un peu perdu. Passez-le à chaque service de votre liste avant de renvoyer votre numéro, et lisez ce que chacun vous envoie ensuite.
 
-Si une solution IA ou hybride vous convient, vous pouvez faire ce test sur LobbyStack dès aujourd'hui. Le forfait Free vous donne 30 minutes vocales dans le navigateur par mois, sans carte ni numéro de téléphone. Quand les appels sonnent juste, le forfait Starter coûte 30 $ par mois pour 150 minutes, puis 0,20 $ la minute, et ajoute un numéro professionnel, la prise de rendez-vous dans Google Calendar et les transferts vers votre équipe. Aucun forfait ne comporte de frais de mise en service. [Essayez LobbyStack gratuitement dans votre navigateur](https://app.lobbystack.com/fr/signup) ou comparez les forfaits sur la [page des tarifs](/fr/pricing/).
+Si une solution IA ou hybride vous convient, vous pouvez faire ce test sur LobbyStack dès aujourd'hui. Le forfait Free vous donne 30 minutes vocales par mois et un numéro américain ou canadien gratuit pendant 14 jours, sans carte. Quand les appels sonnent juste, le forfait Starter coûte 30 $ par mois pour 150 minutes, puis 0,20 $ la minute, et vous permet de garder le numéro, avec la prise de rendez-vous dans Google Calendar et les transferts vers votre équipe. Aucun forfait ne comporte de frais de mise en service. [Essayez LobbyStack gratuitement](https://app.lobbystack.com/fr/signup) ou comparez les forfaits sur la [page des tarifs](/fr/pricing/).

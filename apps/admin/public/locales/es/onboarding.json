@@ -89,19 +89,67 @@
     "continueFailed": "No pudimos continuar en este momento. Inténtelo de nuevo.",
     "skipFailed": "No pudimos omitir este paso en este momento. Inténtelo de nuevo."
   },
+  "testCall": {
+    "title": "Escuche a su recepcionista",
+    "continue": "Continuar",
+    "skip": "Omitir por ahora",
+    "continueFailed": "No pudimos continuar. Inténtelo de nuevo."
+  },
+  "verifyPhone": {
+    "title": "Verifique su número de móvil",
+    "fields": {
+      "mobileNumber": "Número de móvil",
+      "country": "País"
+    },
+    "hint": "Use un móvil que reciba SMS. Los números de internet no funcionan.",
+    "sendCode": "Enviarme un código",
+    "sending": "Enviando…",
+    "sendFailed": "No pudimos enviar el código. Inténtelo de nuevo.",
+    "errors": {
+      "voip": "Use su número de móvil. Los números de internet no se pueden verificar.",
+      "notMobile": "Use un número de móvil que reciba SMS.",
+      "countryMismatch": "Este número no es del país que eligió.",
+      "invalidNumber": "Escriba un número de móvil válido.",
+      "rateLimited": "Demasiados códigos. Espere un momento y vuelva a intentarlo."
+    },
+    "code": {
+      "sentTo": "Escriba el código de 6 dígitos que enviamos al {{phone}}.",
+      "checking": "Comprobando…",
+      "invalid_one": "Ese código no funcionó. Le queda {{count}} intento.",
+      "invalid_many": "Ese código no funcionó. Le quedan {{count}} intentos.",
+      "invalid_other": "Ese código no funcionó. Le quedan {{count}} intentos.",
+      "expired": "Este código caducó. Pida uno nuevo.",
+      "locked": "Demasiados intentos. Pida un código nuevo.",
+      "failed": "No pudimos comprobar el código. Inténtelo de nuevo.",
+      "resend": "Enviar un código nuevo",
+      "changeNumber": "Usar otro número"
+    },
+    "unavailable": {
+      "title": "Todavía no ofrecemos números en este país ({{country}}).",
+      "body": "Puede seguir usando a su recepcionista en el navegador, y podemos escribirle cuando los números lleguen allí.",
+      "notify": "Avísenme cuando estén disponibles",
+      "joined": "Listo. Le escribiremos.",
+      "continue": "Continuar sin número",
+      "failed": "Algo salió mal. Inténtelo de nuevo."
+    }
+  },
   "greeting": {
     "title": "¿Cómo debemos saludar a quienes llaman?",
     "description": "Esto es lo primero que dice su IA. Puede cambiarlo en cualquier momento.",
     "label": "Saludo",
-    "language": "Idioma",
-    "english": "English",
-    "french": "Français",
+    "language": "Idioma de quienes llaman",
     "placeholder": "Gracias por llamar. ¿En qué puedo ayudarle?",
     "continue": "Continuar",
     "submitting": "Guardando...",
     "submitFailed": "No pudimos guardar ese saludo en este momento. Inténtelo de nuevo."
   },
   "number": {
+    "ready": {
+      "label": "Su número está listo",
+      "body": "Llámelo desde su teléfono y escuche cómo responde su recepcionista.",
+      "call": "Llamar al {{number}}"
+    },
+    "planRequired": "Para obtener un número, elija un plan.",
     "title": "Elija el número de teléfono de su IA",
     "description": "Elija un número local en el que sus clientes puedan llamarle.",
     "countryLabel": "País",
@@ -175,7 +223,7 @@
     "popular": "Popular",
     "enterpriseSubject": "Plan Enterprise",
     "compareTitle": "Compare los planes en detalle",
-    "compareDescription": "Pruebe 30 minutos de voz en el navegador con Free, sin número de teléfono. Starter y Pro incluyen un número dedicado y uso mensual incluido.",
+    "compareDescription": "Free le da 30 minutos de voz y un número de EE. UU. o Canadá durante 14 días. Starter y Pro incluyen un número dedicado y uso mensual incluido.",
     "featureHeader": "Función",
     "billingInterval": {
       "label": "Periodo de facturación",
@@ -183,176 +231,9 @@
       "annual": "Anual",
       "save": "Ahorre un 20 %"
     },
-    "tiers": {
-      "free_cloud": {
-        "name": "Free",
-        "price": "$0",
-        "period": "",
-        "description": "Pruebe LobbyStack con suficiente uso para verlo en acción.",
-        "cta": "Empezar gratis",
-        "highlights": {
-          "voiceMinutes": "30 minutos de voz en el navegador incluidos",
-          "bookingContacts": "Sin número de teléfono",
-          "support": "Soporte de la comunidad"
-        }
-      },
-      "starter": {
-        "name": "Starter",
-        "price": {
-          "monthly": "$30",
-          "annual": "$24"
-        },
-        "period": "/mes",
-        "description": {
-          "monthly": "Facturación mensual. Incluye 150 minutos de voz que se renuevan cada mes.",
-          "annual": "Facturación anual. Incluye 150 minutos de voz que se renuevan cada mes."
-        },
-        "cta": {
-          "monthly": "Starter mensual",
-          "annual": "Starter anual"
-        },
-        "highlights": {
-          "voiceMinutes": "150 minutos de voz incluidos\nLuego $0.20/min",
-          "dedicatedNumber": "1 número del negocio dedicado",
-          "alertSms": "50 segmentos de SMS de alerta",
-          "support": "Soporte por correo electrónico"
-        }
-      },
-      "pro": {
-        "name": "Pro",
-        "price": {
-          "monthly": "$100",
-          "annual": "$80"
-        },
-        "period": "/mes",
-        "description": {
-          "monthly": "Facturación mensual. Más uso incluido para un volumen de llamadas en aumento.",
-          "annual": "Facturación anual. Más uso incluido para un volumen de llamadas en aumento."
-        },
-        "cta": {
-          "monthly": "Pro mensual",
-          "annual": "Pro anual"
-        },
-        "highlights": {
-          "voiceMinutes": "500 minutos de voz incluidos\nLuego $0.18/min",
-          "dedicatedNumber": "1 número del negocio dedicado",
-          "alertSms": "200 segmentos de SMS de alerta",
-          "support": "Soporte prioritario por correo electrónico"
-        }
-      },
-      "enterprise": {
-        "name": "Enterprise",
-        "price": "A medida",
-        "period": "",
-        "description": "Para mayor volumen, varios números o necesidades de despliegue personalizadas.",
-        "cta": "Contáctenos",
-        "highlights": {
-          "phoneNumbers": "Varios números dedicados",
-          "selfHosted": "Opción de despliegue con autoalojamiento",
-          "support": "Soporte de implementación dedicado"
-        }
-      }
-    },
     "comparison": {
-      "groups": {
-        "usage": "Uso y límites",
-        "core": "Recepcionista básica",
-        "booking": "Reservas",
-        "routing": "Enrutamiento y transferencias",
-        "notifications": "Notificaciones",
-        "data": "Datos y panel",
-        "deployment": "Despliegue y soporte"
-      },
-      "features": {
-        "voiceMinutes": "Minutos de voz",
-        "outboundCalls": "Intentos de transferencia",
-        "alertSms": "Segmentos de SMS de alerta",
-        "knowledgeStorage": "Base de conocimiento",
-        "phoneNumbers": "Números de teléfono",
-        "callAnswering": "Atención de llamadas 24/7",
-        "callerDetails": "Datos de quien llama y toma de mensajes",
-        "knowledgeAnswers": "Respuestas de la base de conocimiento",
-        "workflows": "Flujos de trabajo en lenguaje sencillo",
-        "spamFiltering": "Filtro de spam",
-        "shortCalls": "Llamadas de menos de 10 s sin facturar",
-        "concurrentCalls": "Llamadas simultáneas",
-        "multilingual": "Responde en el idioma de quien llama",
-        "appointmentBooking": "Reserva de citas",
-        "confirmationTexts": "SMS de confirmación de citas",
-        "googleCalendar": "Integración con Google Calendar",
-        "urgentHandoff": "Derivación de llamadas urgentes",
-        "callTransfers": "Transferencia de llamadas",
-        "afterHours": "Atención fuera de horario",
-        "emailNotifications": "Notificaciones por correo electrónico",
-        "smsNotifications": "Notificaciones por SMS",
-        "summaries": "Resúmenes de llamadas",
-        "history": "Historial de llamadas",
-        "contentRetention": "Conservación de transcripciones y grabaciones",
-        "callerProfiles": "Perfiles y notas de quienes llaman",
-        "contacts": "Contactos",
-        "websiteImport": "Importación de conocimiento del sitio web",
-        "hosting": "Alojamiento",
-        "usageBilling": "Excedentes según el uso",
-        "support": "Soporte"
-      },
-      "values": {
-        "common": {
-          "custom": "A medida",
-          "included": "Incluido",
-          "notIncluded": "No incluido",
-          "multiple": "Varios",
-          "unlimited": "Ilimitado",
-          "browserTesting": "Pruebas en el navegador"
-        },
-        "usage": {
-          "voiceMinutes": {
-            "freeIncluded": "{{minutes}} minutos en el navegador",
-            "starterIncluded": "150 incluidos",
-            "starterThen": "luego $0.20/min",
-            "proIncluded": "500 incluidos",
-            "proThen": "luego $0.18/min"
-          },
-          "outboundCalls": {
-            "starterIncluded": "20 incluidos",
-            "starterThen": "luego $0.02/intento",
-            "proIncluded": "100 incluidos",
-            "proThen": "luego $0.02/intento"
-          },
-          "alertSms": {
-            "starterIncluded": "50 incluidos",
-            "starterThen": "luego $0.02/segmento",
-            "proIncluded": "200 incluidos",
-            "proThen": "luego $0.02/segmento"
-          },
-          "knowledgeStorage": {
-            "free": "1 MB",
-            "starter": "5 MB",
-            "pro": "20 MB"
-          },
-          "phoneNumbers": {
-            "starter": "1 dedicado",
-            "pro": "1 dedicado"
-          }
-        },
-        "data": {
-          "contentRetention": {
-            "free": "{{days}} días",
-            "paid": "{{days}} días"
-          }
-        },
-        "deployment": {
-          "hosting": {
-            "managed": "Nube gestionada",
-            "enterprise": "Nube o autoalojamiento"
-          },
-          "support": {
-            "community": "Comunidad",
-            "email": "Correo electrónico",
-            "priority": "Correo prioritario",
-            "dedicated": "Implementación dedicada"
-          }
-        }
-      }
+      "included": "Incluido",
+      "notIncluded": "No incluido"
     },
     "continue": "Continuar",
     "continuing": "Continuando...",
