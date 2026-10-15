@@ -39,6 +39,27 @@ describe("buildLiveInstructions", () => {
     expect(instructions).not.toContain("Service 41");
   });
 
+  it("keeps every price when the list is too long for descriptions, and tells GPT-Live not to guess a missing one", () => {
+    const services = Array.from({ length: 30 }, (_, index) => ({ id: `svc-${index}`, name: `Feniranje ${index + 1}`, durationMinutes: 45, description: "Duga kosa, feniranje na ravno ili lokne. ".repeat(3), ...(index ? { price: { amountMinor: 700 + index * 100, currency: "RSD" } } : {}) }));
+    const instructions = buildLiveInstructions({ ...demoSnapshot, services }, "voice", callStart);
+    expect(instructions).not.toContain("Duga kosa");
+    expect(instructions).toContain("- Feniranje 1 (45 min)\n");
+    expect(instructions).toContain("- Feniranje 2 (45 min, RSD 800)");
+    expect(instructions).toContain("- Feniranje 30 (45 min, RSD 3,600)");
+    expect(instructions).toContain("When a service lists no price, delegate the question instead of guessing.");
+    expect(buildAgentInstructions({ ...demoSnapshot, services }, { channel: "web_chat" })).toContain("Feniranje 2 (45 min, RSD 800)");
+  });
+
+  it("leaves price guidance out when no service has a price", () => {
+    expect(buildLiveInstructions(demoSnapshot, "voice", callStart)).not.toContain("listed after its duration");
+    expect(buildAgentInstructions(demoSnapshot, { channel: "web_chat" })).not.toContain("listed after its duration");
+  });
+
+  it("marks a starting price", () => {
+    const services = [{ id: "svc-1", name: "Farbanje", durationMinutes: 120, price: { amountMinor: 4000, currency: "RSD", from: true } }];
+    expect(buildLiveInstructions({ ...demoSnapshot, services }, "voice", callStart)).toContain("- Farbanje (120 min, from RSD 4,000)");
+  });
+
   it("keeps GPT-Live's waiting line neutral until the backend confirms an action", () => {
     const instructions = buildLiveInstructions(demoSnapshot, "voice", callStart);
     expect(instructions).toContain("say one short neutral line such as \"One moment.\"");

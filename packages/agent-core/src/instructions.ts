@@ -11,7 +11,8 @@ function businessFacts(snapshot: BusinessContextSnapshot): string[] {
   return [
     `Business: ${snapshot.displayName}.`,
     businessSummary(snapshot) ? `Summary: ${businessSummary(snapshot)}` : "",
-    `Services: ${snapshot.services.map((service) => `${service.name} (${service.durationMinutes} min)`).join(", ") || "none configured"}.`,
+    `Services: ${serviceFacts(snapshot).map((service) => `${service.name} (${[`${service.durationMinutes} min`, service.price].filter(Boolean).join(", ")})`).join(", ") || "none configured"}.`,
+    snapshot.services.some((service) => service.price) ? PRICE_GUIDANCE : "",
     snapshot.employees?.length ? `Employees: ${employeeRoster(snapshot)}. Answer questions about who works here from this list; don't search for it.` : "",
     `Booking policy: ${snapshot.bookingPolicy}`,
     `Transfer rule: ${snapshot.transferPolicy.mode}${snapshot.transferPolicy.transferNumber ? "" : " (no transfer number set, so transfers are unavailable)"}.`,
@@ -111,6 +112,10 @@ function withinTokens<T>(items: T[], budget: number, render: (item: T) => string
   return lines;
 }
 
+// A price set on a service is exact; one missing is unknown, never zero or an estimate.
+const PRICE_GUIDANCE = "A service's price, when the business set one, is listed after its duration; \"from\" marks a starting price. Quote it exactly. When a service lists no price, don't state one: look it up with searchKnowledge, and if that doesn't say, offer to take a message.";
+const LIVE_PRICE_GUIDANCE = "A service's price, when the business set one, is listed after its duration; \"from\" marks a starting price. Quote it exactly, saying the amount in the caller's language. When a service lists no price, delegate the question instead of guessing.";
+
 // Facts from the call's snapshot, so GPT-Live answers them itself instead of
 // delegating and leaving the caller in silence.
 function liveBusinessFacts(snapshot: BusinessContextSnapshot, now: DateTime): string[] {
@@ -131,6 +136,7 @@ function liveBusinessFacts(snapshot: BusinessContextSnapshot, now: DateTime): st
     snapshot.hours.length ? `Opening hours (${timezone}):\n${weeklyHours(snapshot).join("\n")}` : "",
     closures.length ? `Upcoming closures: ${closures.map((closure) => describeClosure(closure, timezone)).join("; ")}.` : "",
     services.length ? `${servicesHeading}\n${describeServices(services, LIVE_SERVICES_MAX_CHARS)}` : "",
+    services.some((service) => service.price) ? LIVE_PRICE_GUIDANCE : "",
     snapshot.employees?.length
       ? [
         `Employees: ${employeeRoster(snapshot)}. Answer questions about who works here from this list yourself, without delegating.`,

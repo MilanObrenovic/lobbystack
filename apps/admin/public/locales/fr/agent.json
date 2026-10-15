@@ -103,6 +103,11 @@
       "editKnowledge": "Modifier le service",
       "edit": "Modifier",
       "duplicate": "Dupliquer",
+      "price": {
+        "column": "Prix",
+        "from": "à partir de {{amount}}",
+        "none": "Non défini"
+      },
       "duplicated": "Service dupliqué.",
       "duplicateFailed": "Impossible de dupliquer le service.",
       "copyName": "{{name}} (copie)",
@@ -159,6 +164,13 @@
           "minutes": "Minutes",
           "hoursTitle": "h",
           "minutesTitle": "min"
+        },
+        "price": {
+          "label": "Prix",
+          "hint": "Facultatif. Le réceptionniste annonce ce prix tel quel ; laissez-le vide et il n'en inventera pas.",
+          "placeholder": "0",
+          "invalid": "Saisissez un prix, par exemple 3500 ou 12,50.",
+          "from": "Prix de départ (« à partir de »)"
         },
         "active": {
           "label": "Réservable",
@@ -308,6 +320,12 @@
         "indian": "Océan Indien",
         "pacific": "Pacifique"
       }
+    },
+    "currency": {
+      "label": "Devise",
+      "hint": "La devise des prix de vos services.",
+      "search": "Rechercher une devise",
+      "noResults": "Aucune devise trouvée."
     },
     "transferNumber": {
       "label": "Numéro de transfert par défaut",

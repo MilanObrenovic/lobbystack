@@ -166,6 +166,7 @@ export const snapshotSchema = z.object({
     localizedNames: z.object({ en: z.string().optional(), fr: z.string().optional() }).optional(),
     durationMinutes: z.number().int().positive(),
     description: z.string().optional(),
+    price: z.object({ amountMinor: z.number().int().nonnegative(), currency: z.string().regex(/^[A-Z]{3}$/), from: z.boolean().optional() }).optional(),
   })),
   contactChannels: z.object({
     phoneNumber: z.string().optional(),

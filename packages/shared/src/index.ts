@@ -94,7 +94,52 @@ export type ServiceSummary = {
   localizedNames?: Partial<Record<RuntimeLocale, string>>;
   durationMinutes: number;
   description?: string;
+  price?: ServicePrice;
 };
+
+/** A service's price: a whole number of the currency's smallest unit. `from` marks a starting price. */
+export type ServicePrice = { amountMinor: number; currency: string; from?: boolean };
+
+/** Whether a value is an ISO 4217 code Intl can format. */
+export function isCurrencyCode(value: unknown): value is string {
+  if (typeof value !== "string" || !/^[A-Z]{3}$/.test(value)) return false;
+  try {
+    new Intl.NumberFormat("en", { style: "currency", currency: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Intl gives these two decimals, but prices in them are quoted in whole units.
+const WHOLE_UNIT_CURRENCIES = new Set(["RSD", "HUF"]);
+
+/** The digits after the decimal point prices in this currency use: 2 for EUR, 0 for RSD and JPY. */
+export function currencyFractionDigits(currency: string): number {
+  if (WHOLE_UNIT_CURRENCIES.has(currency)) return 0;
+  return new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
+}
+
+/** "700 RSD", or "from 700 RSD" for a starting price, in the given locale. */
+export function formatServicePrice(price: ServicePrice, locale = "en", labels: { from: (amount: string) => string } = { from: (amount) => `from ${amount}` }): string {
+  const digits = currencyFractionDigits(price.currency);
+  const amount = new Intl.NumberFormat(locale, { style: "currency", currency: price.currency, currencyDisplay: "code", minimumFractionDigits: price.amountMinor % 10 ** digits === 0 ? 0 : digits, maximumFractionDigits: digits }).format(price.amountMinor / 10 ** digits).replace(/[\u00a0\u202f]/gu, " ");
+  return price.from ? labels.from(amount) : amount;
+}
+
+const TIMEZONE_CURRENCIES: Record<string, string> = {
+  "Europe/Belgrade": "RSD", "Europe/London": "GBP", "Europe/Zurich": "CHF", "America/Mexico_City": "MXN",
+  "America/Toronto": "CAD", "America/Vancouver": "CAD", "America/Edmonton": "CAD", "America/Winnipeg": "CAD", "America/Halifax": "CAD", "America/St_Johns": "CAD", "America/Regina": "CAD", "America/Montreal": "CAD",
+};
+const EURO_TIMEZONES = new Set(["Europe/Paris", "Europe/Berlin", "Europe/Madrid", "Europe/Rome", "Europe/Amsterdam", "Europe/Brussels", "Europe/Vienna", "Europe/Lisbon", "Europe/Dublin", "Europe/Athens", "Europe/Helsinki", "Europe/Ljubljana", "Europe/Zagreb", "Europe/Podgorica", "Europe/Luxembourg", "Europe/Bratislava", "Europe/Tallinn", "Europe/Riga", "Europe/Vilnius", "Europe/Malta", "Atlantic/Canary"]);
+
+/** A new business's currency, from the timezone it picked. USD when the zone doesn't say. */
+export function defaultCurrencyForTimezone(timezone: string): string {
+  if (TIMEZONE_CURRENCIES[timezone]) return TIMEZONE_CURRENCIES[timezone];
+  if (EURO_TIMEZONES.has(timezone)) return "EUR";
+  if (timezone.startsWith("Australia/")) return "AUD";
+  return "USD";
+}
 
 export type TransferPolicy = {
   mode: "never" | "always" | "on_request" | "on_urgent" | "during_business_hours";

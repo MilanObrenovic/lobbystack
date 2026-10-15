@@ -103,6 +103,11 @@
       "editKnowledge": "Edit Service",
       "edit": "Edit",
       "duplicate": "Duplicate",
+      "price": {
+        "column": "Price",
+        "from": "from {{amount}}",
+        "none": "Not set"
+      },
       "duplicated": "Service duplicated.",
       "duplicateFailed": "Couldn't duplicate the service.",
       "copyName": "{{name}} (copy)",
@@ -159,6 +164,13 @@
           "minutes": "Minutes",
           "hoursTitle": "h",
           "minutesTitle": "min"
+        },
+        "price": {
+          "label": "Price",
+          "hint": "Optional. The receptionist quotes this price exactly; leave it empty and it won't guess one.",
+          "placeholder": "0",
+          "invalid": "Enter a price, such as 3500 or 12.50.",
+          "from": "Starting price (\"from\")"
         },
         "active": {
           "label": "Bookable",
@@ -308,6 +320,12 @@
         "indian": "Indian Ocean",
         "pacific": "Pacific"
       }
+    },
+    "currency": {
+      "label": "Currency",
+      "hint": "The currency your service prices are in.",
+      "search": "Search currencies",
+      "noResults": "No currencies found."
     },
     "transferNumber": {
       "label": "Default transfer number",

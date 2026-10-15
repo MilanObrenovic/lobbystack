@@ -38,8 +38,10 @@ type AgentBasicSettingsPageProps = {
 
 type TimeZoneItemGroup = { value: string; label: string; items: TimeZoneOption[] };
 
+type CurrencyOption = { id: string; label: string };
+
 type AgentSettings = {
-  business: { defaultLocale: RuntimeLocale; timezone: string } | null;
+  business: { defaultLocale: RuntimeLocale; timezone: string; currency?: string } | null;
   profile: { greeting: string; summary: string; summarySource: "placeholder" | "generated" | "operator"; summaryRegenerateStatus?: "pending" | "completed" | "empty" | "failed" | null; transferNumber: string | null; transferMode: string; appointmentChangePolicy: AppointmentChangePolicy | null; bookingMode: BookingMode } | null;
   hasKnowledgeSources?: boolean;
 };
@@ -111,7 +113,7 @@ export function AgentBasicSettingsPage({
   const configuration = query.data;
   const hours = useBusinessHours(businessId);
   const isLoadingConfiguration = !businessId || query.isLoading;
-  async function saveProfile({ defaultLocale: locale, ...patch }: { businessId: string; defaultLocale?: RuntimeLocale; timezone?: string; greeting?: string; summary?: string; regenerateSummary?: true; transferNumber?: string | null; transferMode?: string; appointmentChangePolicy?: AppointmentChangePolicy; bookingMode?: BookingMode }, refetchType: "active" | "none" = "active") {
+  async function saveProfile({ defaultLocale: locale, ...patch }: { businessId: string; defaultLocale?: RuntimeLocale; timezone?: string; currency?: string; greeting?: string; summary?: string; regenerateSummary?: true; transferNumber?: string | null; transferMode?: string; appointmentChangePolicy?: AppointmentChangePolicy; bookingMode?: BookingMode }, refetchType: "active" | "none" = "active") {
     await requestJson(`/api/agent?businessId=${encodeURIComponent(businessId)}`, { method: "PATCH", body: JSON.stringify({ ...patch, ...(locale ? { locale } : {}) }) });
     await queryClient.invalidateQueries({ queryKey: ["agent-settings", businessId], refetchType });
   }
@@ -127,6 +129,10 @@ export function AgentBasicSettingsPage({
     label: group.region === null ? "" : isTimeZoneRegion(group.region) ? t(`agent:fields.timezone.regions.${group.region.toLowerCase()}`) : group.region,
     items: group.zones,
   })), [t, timeZoneGroups]);
+  const currencyItems = useMemo<CurrencyOption[]>(() => {
+    const names = new Intl.DisplayNames([intlLocale(i18n.language)], { type: "currency", fallback: "code" });
+    return Intl.supportedValuesOf("currency").map((code) => ({ id: code, label: `${code} · ${names.of(code) ?? code}` }));
+  }, [i18n.language]);
 
   const [greeting, setGreeting] = useState("");
   const [summary, setSummary] = useState("");
@@ -186,6 +192,8 @@ export function AgentBasicSettingsPage({
   const [defaultLocale, setDefaultLocale] = useState<RuntimeLocale>("en");
   const [timezone, setTimezone] = useState("");
   const [isTimezoneSaving, setIsTimezoneSaving] = useState(false);
+  const [currency, setCurrency] = useState("");
+  const [isCurrencySaving, setIsCurrencySaving] = useState(false);
   const [transferNumber, setTransferNumber] = useState("");
   const [transferNumberInputValue, setTransferNumberInputValue] = useState("");
   const [allowAppointmentCancel, setAllowAppointmentCancel] = useState(true);
@@ -201,6 +209,7 @@ export function AgentBasicSettingsPage({
   const [isAppointmentChangeSaving, setIsAppointmentChangeSaving] = useState(false);
   useEffect(() => {
     setTimezone(configuration?.business?.timezone ?? "");
+    setCurrency(configuration?.business?.currency ?? "");
     const profile = configuration?.profile;
     if (!profile) {
       return;
@@ -341,6 +350,25 @@ export function AgentBasicSettingsPage({
       toast.error(t("agent:actions.saveFailed"));
     } finally {
       setIsTimezoneSaving(false);
+    }
+  }
+
+  async function saveCurrency(nextCurrency: string): Promise<void> {
+    if (!canManageTenant) return;
+    const previous = currency;
+    setCurrency(nextCurrency);
+    setIsCurrencySaving(true);
+    try {
+      await saveProfile({ businessId, currency: nextCurrency }, "none");
+      // Service prices show in this currency.
+      await queryClient.invalidateQueries({ queryKey: ["catalog", businessId] });
+      telemetry.track("web.agent.settings_saved", { businessId, setting: "currency" });
+      toast.success(t("agent:actions.saved"));
+    } catch {
+      setCurrency(previous);
+      toast.error(t("agent:actions.saveFailed"));
+    } finally {
+      setIsCurrencySaving(false);
     }
   }
 
@@ -582,6 +610,39 @@ export function AgentBasicSettingsPage({
                           </ComboboxGroup>
                         )}
                       </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                )}
+              </ItemActions>
+            </Item>
+
+            <Item
+              className="rounded-none border-x-0 border-t-0 border-b border-border last:border-b-0"
+              variant="default"
+            >
+              <ItemContent>
+                <ItemTitle>{t("agent:fields.currency.label")}</ItemTitle>
+                <ItemDescription>{t("agent:fields.currency.hint")}</ItemDescription>
+              </ItemContent>
+              <ItemActions className="w-full min-w-0 sm:w-auto">
+                {isLoadingConfiguration ? (
+                  <Skeleton className="h-10 w-full rounded-md sm:w-56" />
+                ) : (
+                  <Combobox
+                    disabled={isCurrencySaving || !currency || !canManageTenant}
+                    isItemEqualToValue={(item: CurrencyOption, value: CurrencyOption) => item.id === value.id}
+                    items={currencyItems}
+                    itemToStringLabel={(option: CurrencyOption) => option.label}
+                    onValueChange={(option: CurrencyOption | null) => { if (option && option.id !== currency) void saveCurrency(option.id); }}
+                    value={currencyItems.find((option) => option.id === currency) ?? null}
+                  >
+                    <ComboboxTrigger aria-label={t("agent:fields.currency.label")} className={COMBOBOX_TRIGGER_CLASS} id="agent-currency" loading={isCurrencySaving}>
+                      <span className="min-w-0 flex-1 truncate text-left"><ComboboxValue /></span>
+                    </ComboboxTrigger>
+                    <ComboboxContent className="min-w-(--anchor-width)">
+                      <ComboboxInput className="relative z-10" placeholder={t("agent:fields.currency.search")} showTrigger={false} />
+                      <ComboboxEmpty>{t("agent:fields.currency.noResults")}</ComboboxEmpty>
+                      <ComboboxList>{(option: CurrencyOption) => <ComboboxItem key={option.id} value={option}>{option.label}</ComboboxItem>}</ComboboxList>
                     </ComboboxContent>
                   </Combobox>
                 )}

@@ -103,6 +103,11 @@
       "editKnowledge": "Editar servicio",
       "edit": "Editar",
       "duplicate": "Duplicar",
+      "price": {
+        "column": "Precio",
+        "from": "desde {{amount}}",
+        "none": "Sin definir"
+      },
       "duplicated": "Servicio duplicado.",
       "duplicateFailed": "No se pudo duplicar el servicio.",
       "copyName": "{{name}} (copia)",
@@ -159,6 +164,13 @@
           "minutes": "Minutos",
           "hoursTitle": "h",
           "minutesTitle": "min"
+        },
+        "price": {
+          "label": "Precio",
+          "hint": "Opcional. La recepcionista dice este precio tal cual; si lo deja vacío, no se inventará uno.",
+          "placeholder": "0",
+          "invalid": "Escriba un precio, por ejemplo 3500 o 12,50.",
+          "from": "Precio inicial («desde»)"
         },
         "active": {
           "label": "Reservable",
@@ -308,6 +320,12 @@
         "indian": "Océano Índico",
         "pacific": "Pacífico"
       }
+    },
+    "currency": {
+      "label": "Moneda",
+      "hint": "La moneda de los precios de sus servicios.",
+      "search": "Buscar moneda",
+      "noResults": "No se encontraron monedas."
     },
     "transferNumber": {
       "label": "Número de transferencia predeterminado",

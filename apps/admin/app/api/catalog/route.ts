@@ -15,6 +15,6 @@ export const POST = operatorRoute(async ({ userId, businessId, body: input, doma
   const durationMinutes = typeof input.durationMinutes === "number" ? input.durationMinutes : Number(input.durationMinutes);
   const name = typeof input.name === "string" ? input.name : "";
   const slug = typeof input.slug === "string" ? input.slug : name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const serviceId = await createService(domain, { userId, businessId, name, slug, durationMinutes, ...(input.active !== undefined ? { active: input.active as boolean } : {}), ...(input.description != null ? { description: input.description as string } : {}) });
+  const serviceId = await createService(domain, { userId, businessId, name, slug, durationMinutes, ...(input.active !== undefined ? { active: input.active as boolean } : {}), ...(input.description != null ? { description: input.description as string } : {}), ...(input.priceMinor !== undefined ? { priceMinor: input.priceMinor as number | null } : {}), ...(input.priceIsFrom !== undefined ? { priceIsFrom: input.priceIsFrom as boolean } : {}) });
   return NextResponse.json({ serviceId }, { status: 201 });
 });

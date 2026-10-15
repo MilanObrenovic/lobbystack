@@ -103,6 +103,11 @@
       "editKnowledge": "Izmeni uslugu",
       "edit": "Izmeni",
       "duplicate": "Dupliraj",
+      "price": {
+        "column": "Cena",
+        "from": "od {{amount}}",
+        "none": "Nije postavljena"
+      },
       "duplicated": "Usluga je duplirana.",
       "duplicateFailed": "Usluga nije duplirana.",
       "copyName": "{{name}} (kopija)",
@@ -159,6 +164,13 @@
           "minutes": "Minuti",
           "hoursTitle": "h",
           "minutesTitle": "min"
+        },
+        "price": {
+          "label": "Cena",
+          "hint": "Opciono. Recepcioner navodi tačno ovu cenu; ako je ostavite praznu, neće je izmišljati.",
+          "placeholder": "0",
+          "invalid": "Unesite cenu, na primer 3500 ili 12,50.",
+          "from": "Početna cena („od“)"
         },
         "active": {
           "label": "Može se zakazati",
@@ -308,6 +320,12 @@
         "indian": "Indijski okean",
         "pacific": "Pacifik"
       }
+    },
+    "currency": {
+      "label": "Valuta",
+      "hint": "Valuta u kojoj su cene Vaših usluga.",
+      "search": "Pretražite valute",
+      "noResults": "Nema pronađenih valuta."
     },
     "transferNumber": {
       "label": "Podrazumevani broj za preusmeravanje",

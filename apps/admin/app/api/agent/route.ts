@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { updateBusinessInTransaction } from "@lobbystack/domain";
 import { businesses, enqueueOutbox, knowledgeDocuments, knowledgeSnippets, receptionistProfiles } from "@lobbystack/db";
-import { defaultAppointmentChangePolicy, runtimeLocales, type AppointmentChangePolicy, type BookingMode, type RuntimeLocale } from "@lobbystack/shared";
+import { defaultAppointmentChangePolicy, isCurrencyCode, runtimeLocales, type AppointmentChangePolicy, type BookingMode, type RuntimeLocale } from "@lobbystack/shared";
 import { jsonError } from "@/lib/api-helpers";
 import { operatorRoute } from "@/lib/operator-request";
 
@@ -66,7 +66,7 @@ function readProfilePatch(body: Record<string, unknown>): ProfilePatch {
 
 export const GET = operatorRoute(async ({ businessId, transaction }) => NextResponse.json(await transaction(async (tx) => {
   const [business, profile, snippet, document] = await Promise.all([
-    tx.select({ id: businesses.id, name: businesses.name, timezone: businesses.timezone, defaultLocale: businesses.defaultLocale }).from(businesses).where(eq(businesses.id, businessId)).limit(1),
+    tx.select({ id: businesses.id, name: businesses.name, timezone: businesses.timezone, defaultLocale: businesses.defaultLocale, currency: businesses.currency }).from(businesses).where(eq(businesses.id, businessId)).limit(1),
     tx.select().from(receptionistProfiles).where(eq(receptionistProfiles.businessId, businessId)).limit(1),
     tx.select({ id: knowledgeSnippets.id }).from(knowledgeSnippets).where(and(eq(knowledgeSnippets.businessId, businessId), eq(knowledgeSnippets.active, true))).limit(1),
     tx.select({ id: knowledgeDocuments.id }).from(knowledgeDocuments).where(and(eq(knowledgeDocuments.businessId, businessId), eq(knowledgeDocuments.active, true), eq(knowledgeDocuments.status, "indexed"))).limit(1),
@@ -81,11 +81,13 @@ export const PATCH = operatorRoute(async ({ businessId, body, transaction }) => 
   if (locale !== undefined && !(runtimeLocales as readonly unknown[]).includes(locale)) throw jsonError("locale is invalid.");
   const { timezone } = body;
   if (timezone !== undefined && typeof timezone !== "string") throw jsonError("timezone must be a string.");
+  const { currency } = body;
+  if (currency !== undefined && !isCurrencyCode(currency)) throw jsonError("currency is invalid.");
   // Hands the summary back to AI, which rewrites it from the knowledge sources.
   const { regenerateSummary } = body;
   if (regenerateSummary !== undefined && regenerateSummary !== true) throw jsonError("regenerateSummary must be true.");
   if (regenerateSummary && patch.summary !== undefined) throw jsonError("Send summary or regenerateSummary, not both.");
-  if (Object.keys(patch).length === 0 && locale === undefined && timezone === undefined && !regenerateSummary) {
+  if (Object.keys(patch).length === 0 && locale === undefined && timezone === undefined && currency === undefined && !regenerateSummary) {
     throw jsonError("At least one profile field is required.");
   }
 
@@ -93,8 +95,8 @@ export const PATCH = operatorRoute(async ({ businessId, body, transaction }) => 
   if (!business) throw jsonError("Business not found.", 404);
 
   // Opening hours keep their clock times in a new zone; booked appointments keep theirs.
-  if (locale !== undefined || timezone !== undefined) {
-    await updateBusinessInTransaction(tx, { businessId, ...(locale !== undefined ? { defaultLocale: locale } : {}), ...(timezone !== undefined ? { timezone } : {}) });
+  if (locale !== undefined || timezone !== undefined || currency !== undefined) {
+    await updateBusinessInTransaction(tx, { businessId, ...(locale !== undefined ? { defaultLocale: locale } : {}), ...(timezone !== undefined ? { timezone } : {}), ...(currency !== undefined ? { currency } : {}) });
   }
 
   const [profile] = await tx.insert(receptionistProfiles).values({

@@ -26,19 +26,22 @@ export async function listCatalog(
     const limit = Math.min(Math.max(Math.trunc(input.limit ?? 100), 1), 100);
     const offset = Math.max(Math.trunc(input.offset ?? 0), 0);
     const [total] = await tx.select({ count: count() }).from(services).where(and(eq(services.businessId, input.businessId), isNull(services.deletedAt), ...(input.search?.trim() ? [ilike(services.name, `%${input.search.trim()}%`)] : [])));
+    const [business] = await tx.select({ currency: businesses.currency }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1);
     const page = serviceRows.slice(0, limit);
     const serviceIds = page.map((service) => service.id);
     const assignments = serviceIds.length ? await tx.select({ serviceId: staffServiceAssignments.serviceId, staffId: staffServiceAssignments.staffId }).from(staffServiceAssignments).where(and(eq(staffServiceAssignments.businessId, input.businessId), inArray(staffServiceAssignments.serviceId, serviceIds))) : [];
-    return { staff: staffRows, services: page.map((service) => ({ ...service, assignedStaffIds: assignments.filter((assignment) => assignment.serviceId === service.id).map((assignment) => assignment.staffId) })), servicesPagination: { limit, offset, total: Number(total?.count ?? 0), hasNext: serviceRows.length > limit }, hours: hoursRows, closures: closureRows, phoneNumbers: numberRows, receptionistProfile: profileRows[0] ?? null, rules: ruleRows };
+    return { currency: business?.currency ?? "USD", staff: staffRows, services: page.map((service) => ({ ...service, assignedStaffIds: assignments.filter((assignment) => assignment.serviceId === service.id).map((assignment) => assignment.staffId) })), servicesPagination: { limit, offset, total: Number(total?.count ?? 0), hasNext: serviceRows.length > limit }, hours: hoursRows, closures: closureRows, phoneNumbers: numberRows, receptionistProfile: profileRows[0] ?? null, rules: ruleRows };
   });
 }
 
 /**
  * The rules a service's fields follow, on create and on update: a name and a
- * slug of up to 160 characters, a whole number of minutes up to a day, and a
- * description of up to 2,000 characters. Fields left out aren't checked.
+ * slug of up to 160 characters, a whole number of minutes up to a day, a
+ * description of up to 2,000 characters, and a price that is a whole,
+ * non-negative number of the currency's smallest unit (null clears it).
+ * Fields left out aren't checked.
  */
-function assertServiceFields(input: { name?: string | undefined; slug?: string | undefined; durationMinutes?: number | undefined; description?: string | null | undefined; active?: boolean | undefined }): void {
+function assertServiceFields(input: { name?: string | undefined; slug?: string | undefined; durationMinutes?: number | undefined; description?: string | null | undefined; active?: boolean | undefined; priceMinor?: number | null | undefined; priceIsFrom?: boolean | undefined }): void {
   const invalid = (field: string) => Object.assign(new Error(`${field} is invalid.`), { status: 400 });
   const text = (value: unknown, maxLength: number) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= maxLength;
   if (input.name !== undefined && !text(input.name, 160)) throw invalid("name");
@@ -46,11 +49,13 @@ function assertServiceFields(input: { name?: string | undefined; slug?: string |
   if (input.durationMinutes !== undefined && !(Number.isInteger(input.durationMinutes) && input.durationMinutes >= 1 && input.durationMinutes <= 1_440)) throw invalid("durationMinutes");
   if (input.description != null && !text(input.description, 2_000)) throw invalid("description");
   if (input.active !== undefined && typeof input.active !== "boolean") throw invalid("active");
+  if (input.priceMinor != null && !(Number.isSafeInteger(input.priceMinor) && input.priceMinor >= 0 && input.priceMinor <= 1_000_000_000_000)) throw invalid("priceMinor");
+  if (input.priceIsFrom !== undefined && typeof input.priceIsFrom !== "boolean") throw invalid("priceIsFrom");
 }
 
 export async function createService(
   context: DomainContext,
-  input: { userId: string; businessId: string; name: string; slug: string; durationMinutes: number; description?: string; active?: boolean },
+  input: { userId: string; businessId: string; name: string; slug: string; durationMinutes: number; description?: string; active?: boolean; priceMinor?: number | null; priceIsFrom?: boolean },
 ): Promise<string> {
   assertServiceFields(input);
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
@@ -61,6 +66,8 @@ export async function createService(
       slug: input.slug.trim().toLowerCase(),
       durationMinutes: input.durationMinutes,
       description: input.description?.trim(),
+      priceMinor: input.priceMinor ?? null,
+      priceIsFrom: input.priceIsFrom ?? false,
       active: input.active ?? true,
     }).returning({ id: services.id });
     if (!service) {
@@ -80,7 +87,7 @@ export async function createService(
 
 export async function updateService(
   context: DomainContext,
-  input: { userId: string; businessId: string; serviceId: string; name?: string; slug?: string; durationMinutes?: number; description?: string | null; active?: boolean },
+  input: { userId: string; businessId: string; serviceId: string; name?: string; slug?: string; durationMinutes?: number; description?: string | null; active?: boolean; priceMinor?: number | null; priceIsFrom?: boolean },
 ): Promise<void> {
   assertServiceFields(input);
   await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
@@ -90,6 +97,8 @@ export async function updateService(
       ...(input.slug !== undefined ? { slug: input.slug.trim().toLowerCase() } : {}),
       durationMinutes: input.durationMinutes,
       description: typeof input.description === "string" ? input.description.trim() : input.description,
+      priceMinor: input.priceMinor,
+      priceIsFrom: input.priceIsFrom,
       active: input.active,
       updatedAt: new Date(),
     }).where(and(eq(services.id, input.serviceId), eq(services.businessId, input.businessId), isNull(services.deletedAt))).returning({ id: services.id });

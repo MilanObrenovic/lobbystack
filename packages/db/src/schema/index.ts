@@ -1,6 +1,7 @@
 import { customType } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   date,
   doublePrecision,
@@ -121,6 +122,8 @@ export const businesses = pgTable(
     legalName: text("legal_name"),
     timezone: varchar("timezone", { length: 80 }).notNull(),
     defaultLocale: varchar("default_locale", { length: 8 }).default("en").notNull(),
+    /** ISO 4217 code every service price is in. */
+    currency: varchar("currency", { length: 3 }).default("USD").notNull(),
     businessType: varchar("business_type", { length: 64 }).notNull(),
     deploymentMode: varchar("deployment_mode", { length: 32 }).default("cloud").notNull(),
     status: varchar("status", { length: 32 }).default("active").notNull(),
@@ -247,6 +250,9 @@ export const services = pgTable(
     localizedNames: jsonb("localized_names").$type<Record<string, string>>(),
     description: text("description"),
     durationMinutes: integer("duration_minutes").notNull(),
+    /** In the business currency's smallest unit; null when no price is set. */
+    priceMinor: bigint("price_minor", { mode: "number" }),
+    priceIsFrom: boolean("price_is_from").default(false).notNull(),
     active: boolean("active").default(true).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...legacyId,

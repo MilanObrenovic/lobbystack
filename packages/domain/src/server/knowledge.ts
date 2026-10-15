@@ -600,6 +600,7 @@ export async function refreshBusinessSnapshot(
       services: serviceRows.map((row) => ({
         id: row.id, name: row.name, durationMinutes: row.durationMinutes,
         ...(row.description ? { description: row.description } : {}),
+        ...(row.priceMinor != null ? { price: { amountMinor: row.priceMinor, currency: business[0]!.currency, ...(row.priceIsFrom ? { from: true } : {}) } } : {}),
         ...(row.localizedNames ? { localizedNames: Object.fromEntries(runtimeLocales.flatMap((locale) => typeof row.localizedNames?.[locale] === "string" ? [[locale, row.localizedNames[locale]]] : [])) } : {}),
       })),
       rules: ruleRows.map((row) => ({ id: row.id, title: row.title, content: row.content, order: row.sortOrder })),
