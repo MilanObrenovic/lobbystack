@@ -1,0 +1,141 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  billableVoiceSeconds,
+  billingPlanCatalog,
+  billingMeterEventNames,
+  billingUsageKinds,
+  contentRetentionCategories,
+  contentRetentionDaysForPlan,
+  getKnowledgeStorageLimitBytes,
+  getPolarMeteredUsagePayload,
+} from "./billing";
+
+describe("knowledge storage limits", () => {
+  it("matches the configured plan allowances", () => {
+    expect(getKnowledgeStorageLimitBytes("self_host")).toBeNull();
+    expect(getKnowledgeStorageLimitBytes("free_cloud")).toBe(1 * 1024 * 1024);
+    expect(getKnowledgeStorageLimitBytes("starter")).toBe(5 * 1024 * 1024);
+    expect(getKnowledgeStorageLimitBytes("pro")).toBe(20 * 1024 * 1024);
+    expect(getKnowledgeStorageLimitBytes("enterprise")).toBeNull();
+  });
+});
+
+describe("content retention by plan", () => {
+  it("keeps free content at 30 days across every category", () => {
+    for (const category of contentRetentionCategories) {
+      expect(contentRetentionDaysForPlan("free_cloud", category)).toBe(30);
+    }
+  });
+
+  it("uses the longer paid and self-host defaults", () => {
+    expect(contentRetentionDaysForPlan("starter", "messages")).toBe(365);
+    expect(contentRetentionDaysForPlan("starter", "transcripts")).toBe(90);
+    expect(contentRetentionDaysForPlan("starter", "recordings")).toBe(90);
+    expect(contentRetentionDaysForPlan("starter", "follow_ups")).toBe(365);
+    expect(contentRetentionDaysForPlan("pro", "messages")).toBe(365);
+    expect(contentRetentionDaysForPlan("enterprise", "transcripts")).toBe(90);
+    expect(contentRetentionDaysForPlan("self_host", "messages")).toBe(365);
+    expect(contentRetentionDaysForPlan("self_host", "recordings")).toBe(90);
+  });
+
+  it("never raises free content above the 30 day hard cap", () => {
+    expect(contentRetentionDaysForPlan("free_cloud", "messages", { messages: 999 })).toBe(30);
+    expect(contentRetentionDaysForPlan("free_cloud", "recordings", { recordings: 5 })).toBe(30);
+    expect(contentRetentionDaysForPlan("free_cloud", "follow_ups", { messages: 365, follow_ups: 365 })).toBe(30);
+  });
+
+  it("applies paid overrides per category and keeps paid defaults for absent categories", () => {
+    expect(contentRetentionDaysForPlan("starter", "messages", { messages: 10 })).toBe(10);
+    expect(contentRetentionDaysForPlan("starter", "transcripts", { messages: 10 })).toBe(90);
+    expect(contentRetentionDaysForPlan("self_host", "recordings", { recordings: 45 })).toBe(45);
+  });
+});
+
+describe("website chat AI sessions", () => {
+  it("declares chat_ai_tokens as a billing usage kind", () => {
+    expect(billingUsageKinds).toContain("chat_ai_tokens");
+    expect(billingMeterEventNames.chatAiTokens).toBe("billing.chat_ai_tokens");
+    expect(getPolarMeteredUsagePayload("chat_ai_tokens", 3)).toEqual({ eventName: "billing.chat_ai_tokens", quantity: 3 });
+  });
+
+  it("configures chat session allowances per plan", () => {
+    expect(billingPlanCatalog.free_cloud.chatAiTokensIncluded).toBe(5);
+    expect(billingPlanCatalog.starter.chatAiTokensIncluded).toBe(50);
+    expect(billingPlanCatalog.pro.chatAiTokensIncluded).toBe(200);
+    expect(billingPlanCatalog.self_host.chatAiTokensIncluded).toBeNull();
+    expect(billingPlanCatalog.enterprise.chatAiTokensIncluded).toBeNull();
+  });
+});
+
+describe("hosted plan pricing", () => {
+  it("configures the free cloud plan with 30 included minutes", () => {
+    expect(billingPlanCatalog.free_cloud.voiceSecondsIncluded).toBe(1_800);
+    expect(billingPlanCatalog.free_cloud.overagesBillable).toBe(false);
+  });
+
+  it("configures starter pricing and usage", () => {
+    expect(billingPlanCatalog.starter.voiceSecondsIncluded).toBe(9_000);
+    expect(billingPlanCatalog.starter.voiceOverageRatePerMinuteCents).toBe(20);
+    expect(billingPlanCatalog.starter.monthlyChargeCents).toBe(3_000);
+    expect(billingPlanCatalog.starter.annualEffectiveMonthlyChargeCents).toBe(2_400);
+    expect(billingPlanCatalog.starter.annualChargeCents).toBe(28_800);
+  });
+
+  it("configures pro pricing and usage", () => {
+    expect(billingPlanCatalog.pro.voiceSecondsIncluded).toBe(30_000);
+    expect(billingPlanCatalog.pro.voiceOverageRatePerMinuteCents).toBe(18);
+    expect(billingPlanCatalog.pro.monthlyChargeCents).toBe(10_000);
+    expect(billingPlanCatalog.pro.annualEffectiveMonthlyChargeCents).toBe(8_000);
+    expect(billingPlanCatalog.pro.annualChargeCents).toBe(96_000);
+  });
+});
+
+describe("billableVoiceSeconds", () => {
+  it("bills calls of 10 seconds or longer in full", () => {
+    expect(billableVoiceSeconds(10)).toBe(10);
+    expect(billableVoiceSeconds(184.5)).toBe(184.5);
+  });
+
+  it("exempts wrong numbers and instant hang-ups under 10 seconds", () => {
+    expect(billableVoiceSeconds(9.99)).toBe(0);
+    expect(billableVoiceSeconds(0)).toBe(0);
+  });
+
+  it("exempts a call that ran under 10 seconds even when the provider bills a minimum", () => {
+    expect(billableVoiceSeconds(15, "caller_finished", 0.8)).toBe(0);
+    expect(billableVoiceSeconds(15, "caller_finished", 12)).toBe(15);
+  });
+
+  it("exempts calls the receptionist ended as spam", () => {
+    expect(billableVoiceSeconds(240, "spam_ended")).toBe(0);
+  });
+
+  it("bills other dispositions normally", () => {
+    expect(billableVoiceSeconds(240, "caller_finished")).toBe(240);
+    expect(billableVoiceSeconds(240, "abuse_ended")).toBe(240);
+    expect(billableVoiceSeconds(240, null)).toBe(240);
+  });
+
+  it("treats negative durations as zero", () => {
+    expect(billableVoiceSeconds(-30)).toBe(0);
+  });
+});
+
+describe("billableVoiceSeconds with provider rounding", () => {
+  it("exempts a 9.2 second call the provider reported as 10 seconds", () => {
+    expect(billableVoiceSeconds(10, null, 9.2)).toBe(0);
+  });
+
+  it("bills a call both sources agree ran past the cutoff", () => {
+    expect(billableVoiceSeconds(11, null, 10.4)).toBe(11);
+  });
+
+  it("keeps the provider duration when it is the longer measure", () => {
+    expect(billableVoiceSeconds(65, null, 64.2)).toBe(65);
+  });
+
+  it("still exempts spam regardless of the measured time", () => {
+    expect(billableVoiceSeconds(300, "spam_ended", 299.5)).toBe(0);
+  });
+});

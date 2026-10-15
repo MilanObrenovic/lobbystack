@@ -1,0 +1,104 @@
+---
+title: "Configure voice and behavior"
+description: "Configure the opening line, default customer language, opening hours, appointment changes, and default transfer number for your AI receptionist."
+sidebarTitle: "AI settings"
+contentType: "How-to"
+---
+
+Open **Agent** > **AI settings** to edit the basic behavior used by the receptionist.
+
+## Greeting
+
+The greeting is the opening line your receptionist uses when answering a call or starting a conversation. Keep it short and specific.
+
+Good greetings usually include the business name, a brief disclosure that the caller is speaking with the AI receptionist, and a clear offer to help.
+
+| Business type | Example greeting |
+| --- | --- |
+| Dental clinic | Thanks for calling Bright Smile Dental. I'm the AI receptionist. How can I help? |
+| Salon | Thanks for calling North Loop Salon. I can help with services, availability, and messages for the team. |
+| Home services | Thanks for calling Peak HVAC. I'm the AI receptionist. Are you calling about service, scheduling, or an urgent issue? |
+| Restaurant | Thanks for calling Maple Table. I can help with hours, reservations, and messages for the staff. |
+
+<Steps>
+  <Step title="Open AI settings">
+    In the dashboard sidebar, go to **Agent** > **AI settings**.
+  </Step>
+  <Step title="Edit the greeting">
+    Update the **Greeting** field.
+  </Step>
+  <Step title="Save">
+    Click **Save** beside the greeting field.
+  </Step>
+</Steps>
+
+## Business summary
+
+The business summary is what your receptionist tells callers when they ask what the business does or offers. It reads the summary before every call.
+
+You don't have to write it. When you add your website or documents in **Knowledge**, AI writes a summary of two to four sentences from them, in your default customer language. It rewrites the summary a few minutes after your knowledge changes, and only when the content changed.
+
+To write your own, edit the **Business summary** field and click **Save**. AI never changes a summary you wrote. To go back to the AI summary, click **Rewrite with AI**.
+
+## Opening hours
+
+Your receptionist books appointments only inside your opening hours. With instant booking on and no hours set, it can't offer a time. It takes the caller's request as a message for your team instead, and the booking settings show a warning until you add hours.
+
+You don't have to type them in. When your website or documents state your hours, AI fills in **Opening hours** a few minutes after your knowledge changes. It reads hours in any language and saves a lunch break as two windows on the same day. It only uses hours your sources state, and a note above the hours tells you to check them.
+
+To set the hours yourself, turn each day on or off and enter its times. Click **Add hours** for a second window around a break, then click **Save hours**. AI never changes hours you saved here or through the API.
+
+For holidays and other times you're closed, click **Add closure** and enter when you close and reopen. Use your business timezone, then click **Save hours**. Your receptionist won't book appointments during a closure. It tells callers the business is closed then and offers another day.
+
+## Default customer language
+
+The **Default customer language** setting supports:
+
+| Option | Value |
+| --- | --- |
+| English | `en` |
+| French | `fr` |
+| Spanish | `es` |
+| Serbian (Latin script) | `sr` |
+| German | `de` |
+| Portuguese (Brazil) | `pt` |
+| Italian | `it` |
+| Dutch | `nl` |
+
+Choose the fallback language your receptionist should use when the caller's language is unclear. If you haven't changed the greeting, it switches to the default greeting in the new language.
+
+<Note>
+  This setting is a fallback, not a limit on conversation language. The receptionist can respond in other languages when the caller's language is clear. Add greeting, knowledge, service, and rule content in the languages your callers are most likely to use.
+</Note>
+
+## Default transfer number
+
+The **Default transfer number** is the phone number used when the receptionist performs a live handoff to a human.
+
+Use a number that is answered during business hours. If different teams handle different requests, keep the default number as the safest general handoff and add rules for when a caller should be transferred.
+
+<Steps>
+  <Step title="Enter a number">
+    Add a complete phone number in the transfer number field.
+  </Step>
+  <Step title="Save">
+    Click **Save** beside the transfer number field.
+  </Step>
+  <Step title="Add rules if needed">
+    Use **Agent** > **Rules** to describe when the receptionist should transfer, take a message, or ask for callback details.
+  </Step>
+</Steps>
+
+<Note>
+  Add a transfer number when you want live human handoff. Without one, the receptionist takes callback or follow-up details so your team can respond from the dashboard.
+</Note>
+
+## Appointment changes
+
+Use **Appointment changes** to choose whether the AI receptionist can cancel or reschedule appointments automatically.
+
+You can also require a one-time code before any appointment is changed.
+
+<Card title="Learn about appointment changes" icon="calendar-clock" href="/agent/ai-settings/appointment-changes">
+  See how LobbyStack confirms the customer, updates the calendar, and hands off uncertain requests to your team.
+</Card>

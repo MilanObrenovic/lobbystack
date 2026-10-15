@@ -1,0 +1,80 @@
+"use client";
+
+import { useCallback, useRef } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+type ConfirmActionDialogProps = {
+  cancelLabel: string;
+  confirmLabel: string;
+  confirmVariant?: "default" | "destructive";
+  description: string;
+  /** For example "ph-mask" when the description names a customer. */
+  descriptionClassName?: string;
+  onConfirm: () => Promise<void> | void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  pending?: boolean;
+  title: string;
+};
+
+export function ConfirmActionDialog({
+  cancelLabel,
+  confirmLabel,
+  confirmVariant = "default",
+  description,
+  descriptionClassName,
+  onConfirm,
+  onOpenChange,
+  open,
+  pending = false,
+  title,
+}: ConfirmActionDialogProps) {
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const handleConfirm = useCallback(async () => {
+    try {
+      await onConfirm();
+      onOpenChange(false);
+    } catch {
+      // Leave the dialog open so the caller can surface the failure state.
+    }
+  }, [onConfirm, onOpenChange]);
+
+  return (
+    <AlertDialog onOpenChange={onOpenChange} open={open}>
+      <AlertDialogContent initialFocus={confirmRef} onOverlayClick={() => { if (!pending) onOpenChange(false); }}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription className={descriptionClassName}>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogClose
+            render={<Button disabled={pending} type="button" variant="outline" />}
+          >
+            {cancelLabel}
+          </AlertDialogClose>
+          <Button
+            disabled={pending}
+            onClick={() => {
+              void handleConfirm();
+            }}
+            ref={confirmRef}
+            type="button"
+            variant={confirmVariant}
+          >
+            {confirmLabel}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

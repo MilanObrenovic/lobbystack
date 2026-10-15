@@ -1,0 +1,1063 @@
+{
+  "header": {
+    "title": "Réglages",
+    "description": "Gérez les détails de votre compte et vos identifiants de connexion."
+  },
+  "layout": {
+    "businessDescription": "Gérez les détails de votre compte et vos identifiants de connexion.",
+    "integrationsDescription": "Connectez vos outils et applications préférés.",
+    "billingDescription": "Consultez votre forfait hébergé et l’activité récente.",
+    "usageDescription": "Suivez l'utilisation hébergée, les limites du forfait et la date de réinitialisation de la période en cours."
+  },
+  "sections": {
+    "business": "Équipe",
+    "phoneNumber": "Numéro de téléphone",
+    "appearance": "Préférences",
+    "integrations": "Intégrations",
+    "billing": "Forfait",
+    "usage": "Utilisation",
+    "notifications": "Notifications",
+    "widget": "Widget de site web",
+    "apiKeys": "Clés API",
+    "connectedApps": "Applications connectées"
+  },
+  "widget": {
+    "title": "Widget de site web",
+    "description": "Intégrez le widget de clavardage à votre site web.",
+    "created": {
+      "title": "Clé de widget créée",
+      "description": "Copiez cette clé maintenant. Vous ne la verrez plus.",
+      "copy": "Copier",
+      "copied": "Copié",
+      "copySnippet": "Copier le code d’intégration",
+      "hint": "Ajoutez le code à une page d’une origine autorisée. Le widget se charge automatiquement.",
+      "done": "Terminé"
+    },
+    "create": {
+      "title": "Créer une clé de widget",
+      "description": "Chaque clé appartient à cet espace de travail et possède sa propre liste d’origines autorisées.",
+      "action": "Créer la clé de widget"
+    },
+    "restricted": {
+      "title": "Les nouveaux widgets de site web ne sont pas encore disponibles",
+      "description": "Nous ne délivrons pas encore de nouvelles clés de widget. Les widgets existants continuent de fonctionner et vous pouvez toujours les modifier ou les mettre en pause ci-dessous."
+    },
+    "fields": {
+      "label": "Étiquette",
+      "labelPlaceholder": "Site principal",
+      "origins": "Origines autorisées",
+      "color": "Couleur d’accent",
+      "position": "Position",
+      "title": "Titre",
+      "titlePlaceholder": "Discutez avec nous",
+      "subtitle": "Sous-titre",
+      "subtitlePlaceholder": "Nous répondons en quelques minutes",
+      "greeting": "Message d’accueil",
+      "greetingPlaceholder": "Bonjour. Comment pouvons-nous vous aider ?",
+      "localeOverride": "Langue",
+      "leadEnabled": "Demander les coordonnées des visiteurs",
+      "requireEmail": "Courriel obligatoire",
+      "requirePhone": "Téléphone obligatoire",
+      "showBeforeChat": "Demander avant le clavardage"
+    },
+    "positions": {
+      "bottomRight": "Bas à droite",
+      "bottomLeft": "Bas à gauche",
+      "bottomCenter": "Bas au centre"
+    },
+    "locales": {
+      "visitor": "Langue du visiteur",
+      "english": "Anglais",
+      "french": "Français",
+      "spanish": "Espagnol",
+      "serbian": "Serbe"
+    },
+    "leadCapture": {
+      "title": "Formulaire de coordonnées",
+      "enabled": "Activé"
+    },
+    "status": {
+      "active": "Actif",
+      "disabled": "En pause",
+      "revoked": "Révoqué"
+    },
+    "keys": {
+      "title": "Clés de widget",
+      "fallbackBusiness": "Espace de travail actif",
+      "refresh": "Actualiser",
+      "loading": "Chargement des clés de widget...",
+      "unavailable": "Les clés de widget sont indisponibles.",
+      "empty": "Aucune clé de widget pour le moment.",
+      "untitled": "Widget sans nom",
+      "pause": "Mettre en pause",
+      "resume": "Reprendre",
+      "revoke": "Révoquer",
+      "revokeConfirm": "Révoquer cette clé de widget ? Les intégrations existantes cesseront de fonctionner.",
+      "save": "Enregistrer",
+      "lastUsed": "Dernière utilisation {{date}}"
+    }
+  },
+  "billing": {
+    "toast": {
+      "checkoutSuccess": "Le paiement a bien été lancé.",
+      "checkoutFailed": "Impossible d'ouvrir le paiement.",
+      "portalFailed": "Impossible d'ouvrir le portail client."
+    },
+    "pastDueBanner": {
+      "title": "Échec du paiement",
+      "description": "Votre service reste actif pendant le délai de grâce. Mettez à jour votre mode de paiement pour éviter une interruption.",
+      "action": "Mettre à jour le paiement",
+      "openingPortal": "Ouverture de la facturation..."
+    },
+    "planLabels": {
+      "selfHost": "Auto-hébergé",
+      "freeCloud": "Gratuit",
+      "freeCloudCard": "Forfait gratuit",
+      "starter": "Starter",
+      "starterCard": "Forfait Starter",
+      "pro": "Pro",
+      "proCard": "Forfait Pro",
+      "enterprise": "Entreprise",
+      "enterpriseCard": "Forfait Entreprise"
+    },
+    "subscriptionStates": {
+      "active": "Actif",
+      "trialing": "Essai",
+      "past_due": "Paiement en retard",
+      "canceled": "Annulé",
+      "revoked": "Révoqué",
+      "inactive": "Inactif"
+    },
+    "actions": {
+      "upgradeToPro": "Passer à Pro",
+      "starter": {
+        "monthly": "Starter mensuel",
+        "annual": "Starter annuel"
+      },
+      "pro": {
+        "monthly": "Pro mensuel",
+        "annual": "Pro annuel"
+      },
+      "manageBilling": "Gérer la facturation",
+      "manageSubscription": "Gérer l'abonnement",
+      "openingCheckout": "Ouverture du paiement...",
+      "openingPortal": "Ouverture du portail...",
+      "viewInvoice": "Voir la facture",
+      "retry": "Réessayer",
+      "cancelPlan": "Annuler le forfait"
+    },
+    "currentPlan": {
+      "title": "Votre forfait",
+      "description": "La facturation hébergée s'applique seulement aux espaces cloud. L'auto-hébergement garde le produit complet avec vos propres fournisseurs.",
+      "planLabel": "Forfait actuel",
+      "monthlyChargeValue": "{{amount}}/mois",
+      "freeLabel": "Gratuit",
+      "customPricing": "Tarification et conditions d'utilisation personnalisées.",
+      "includedNumberTitle": "Numéros d'entreprise inclus",
+      "includedNumberValue": "{{count}} inclus",
+      "customIncludedNumbers": "Personnalisé selon l'entente",
+      "billingContactTitle": "Contact de facturation",
+      "billingContactMissing": "Aucun contact de facturation pour le moment.",
+      "subscriptionStateTitle": "État de l'abonnement",
+      "billingPeriod": "La période en cours se réinitialise le {{resetAt}}",
+      "selfHostNotice": "Les espaces auto-hébergés utilisent vos propres fournisseurs. Aucune limite d'utilisation ni facturation ne s'applique.",
+      "enterpriseNotice": "L'utilisation et les limites sont régies par votre entente entreprise.",
+      "proNotice": "L'utilisation incluse se réinitialise chaque mois. L'utilisation supplémentaire est facturée au tarif de dépassement.",
+      "monthlySuffix": "/mois",
+      "annualEffectiveSuffix": "/mois, facturé annuellement",
+      "paygMonthlySuffix": "+ utilisation à l'usage",
+      "includedTitle": "Ce qui est inclus :",
+      "includedStorageLabel": "stockage",
+      "includedVoiceLabel": "minutes vocales",
+      "includedSmsLabel": "alertes SMS",
+      "includedOutboundLabel": "tentatives de transfert",
+      "includedStorageCustom": "Volume de stockage sur mesure",
+      "includedVoiceCustom": "Volume vocal sur mesure",
+      "includedSmsCustom": "Volume SMS sur mesure",
+      "includedOutboundCustom": "Allocation de transferts personnalisée",
+      "includedStorage": "{{amount}} {{unit}} stockage"
+    },
+    "upgradeDialog": {
+      "title": "Changer de forfait",
+      "description": "Choisissez le forfait qui convient le mieux à votre équipe.",
+      "enterpriseSubject": "Forfait Entreprise",
+      "billingIntervalLabel": "Intervalle de facturation",
+      "annualDiscount": "Économisez 20 %",
+      "billingIntervals": {
+        "monthly": "Mensuel",
+        "annual": "Annuel"
+      },
+      "actions": {
+        "currentPlan": "Forfait actuel"
+      }
+    },
+    "usage": {
+      "title": "Utilisation incluse",
+      "description": "Réinitialisation le {{resetAt}}.",
+      "paygTitle": "Utilisation à l'usage",
+      "paygDescription": "Utilisation supplémentaire facturable pour cette période. Réinitialisation le {{resetAt}}.",
+      "knowledgeTitle": "Base de connaissances",
+      "voiceTitle": "Minutes vocales",
+      "voiceValue": "{{minutes}} minutes utilisées",
+      "voiceRemaining": "{{minutes}} minutes restantes",
+      "alertSmsTitle": "Segments SMS d'alerte",
+      "alertSmsValue": "{{formattedCount}} segments utilisés",
+      "alertSmsRemaining": "{{formattedCount}} segments restants",
+      "outboundAttemptsTitle": "Tentatives de transfert",
+      "outboundAttemptsValue": "{{formattedCount}} tentatives utilisées",
+      "outboundAttemptsRemaining": "{{formattedCount}} tentatives restantes",
+      "overageEnabled": "L'utilisation supplémentaire est facturée en dépassement.",
+      "included": "Inclus",
+      "overage": "Dépassement",
+      "used": "utilisés",
+      "remaining": "restants",
+      "of": "sur",
+      "meteredSuffix": "(mesuré)",
+      "unlimited": "Illimité",
+      "blocked": "Limite atteinte",
+      "blockedDescription": "Limite atteinte — l'utilisation est suspendue jusqu'à la prochaine période.",
+      "overageCount": "{{count}} au-dessus de la limite",
+      "overageCost": "≈ {{amount}} de dépassements",
+      "noOverages": "Aucun dépassement — l'utilisation est plafonnée au volume inclus.",
+      "overIncludedSummary": "{{count}} {{unit}} au-delà du volume inclus · <amount>≈ {{amount}}</amount> de dépassements",
+      "units": {
+        "voice": "min",
+        "outboundAttempts": "tentatives",
+        "segments": "segments",
+        "storage": "MB"
+      },
+      "unavailable": "Les données d’utilisation sont indisponibles.",
+      "customAllowance": "{{used}} {{unit}} utilisés · Volume sur mesure"
+    },
+    "spendingCap": {
+      "title": "Plafond mensuel de dépenses",
+      "placeholder": "25,00",
+      "amountLabel": "Plafond de dépassement (USD)",
+      "noCap": "Aucun plafond de dépenses défini",
+      "currentSpend": "Dépenses de dépassement actuelles",
+      "spendOfCap": "{{spend}} sur {{cap}}",
+      "spendAtLeastOfCap": "Au moins {{spend}} sur {{cap}}",
+      "reached": "Plafond atteint — la nouvelle utilisation au-delà des volumes inclus est suspendue.",
+      "adminOnly": "Seuls les propriétaires et les administrateurs de l’espace peuvent modifier ce plafond.",
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "update": "Mettre à jour",
+      "updating": "Mise à jour...",
+      "remove": "Supprimer le plafond",
+      "removing": "Suppression...",
+      "saved": "Plafond mensuel de dépassement enregistré.",
+      "removed": "Plafond mensuel de dépassement supprimé.",
+      "invalidAmount": "Saisissez un montant USD positif ou nul avec au plus deux décimales.",
+      "saveFailed": "Impossible d’enregistrer le plafond mensuel de dépassement.",
+      "removeFailed": "Impossible de supprimer le plafond mensuel de dépassement."
+    },
+    "transactions": {
+      "title": "Historique des transactions",
+      "description": "Commandes, remboursements et frais d'activation synchronisés depuis Polar.",
+      "empty": "Aucune transaction pour le moment.",
+      "columns": {
+        "date": "Date",
+        "description": "Description",
+        "amount": "Montant",
+        "status": "Statut",
+        "invoice": "Facture"
+      },
+      "invoice": "Facture",
+      "refundedAmount": "Remboursé : {{amount}}",
+      "statusLabels": {
+        "paid": "Payé",
+        "pending": "En attente",
+        "refunded": "Remboursé",
+        "partially_refunded": "Remboursement partiel"
+      },
+      "kindLabels": {
+        "order": "Commande",
+        "refund": "Remboursement"
+      }
+    },
+    "checkoutErrors": {
+      "inProgress": "Un paiement est déjà en cours pour cet espace de travail. Terminez-le ou lancez-en un nouveau dans 30 minutes.",
+      "subscriptionActive": "Cet espace de travail a déjà un forfait payant. Pour le modifier, utilisez Gérer l'abonnement sur la page Forfait."
+    },
+    "cancel": {
+      "title": "Annuler votre forfait {{plan}} ?",
+      "description": "Votre forfait reste actif jusqu'au {{date}}. Vous passerez ensuite au forfait gratuit.",
+      "descriptionNoDate": "Votre forfait reste actif jusqu'à la fin de la période de facturation en cours. Vous passerez ensuite au forfait gratuit.",
+      "reasonLabel": "Pourquoi annulez-vous ? (facultatif)",
+      "reasons": {
+        "setup": "La configuration était confuse ou lente",
+        "quality": "La qualité de la voix ou des appels",
+        "price": "Le prix",
+        "missing_feature": "Une fonctionnalité manquante",
+        "other": "Autre chose"
+      },
+      "commentLabel": "Dites-nous-en plus (facultatif)",
+      "keep": "Garder mon forfait",
+      "confirm": "Annuler le forfait",
+      "canceling": "Annulation du forfait...",
+      "failed": "Impossible d'annuler votre forfait. Réessayez ou utilisez Gérer l'abonnement.",
+      "endsOn": "Votre forfait {{plan}} prend fin le {{date}}. Il reste actif d'ici là."
+    },
+    "success": {
+      "received": {
+        "title": "Paiement reçu",
+        "description": "Cette page se met à jour dès que votre forfait est prêt.",
+        "status": "Activation de votre forfait..."
+      },
+      "missing": {
+        "title": "Nous ne trouvons pas ce paiement",
+        "description": "Ouvrez la page de votre forfait pour voir votre forfait actuel.",
+        "action": "Voir mon forfait"
+      },
+      "title": "Votre forfait {{plan}} est prêt",
+      "unlocks": {
+        "voiceMinutes_one": "{{count}} minute vocale par mois",
+        "voiceMinutes_many": "{{count}} minutes vocales par mois",
+        "voiceMinutes_other": "{{count}} minutes vocales par mois",
+        "numbers_one": "{{count}} numéro d'entreprise dédié",
+        "numbers_many": "{{count}} numéros d'entreprise dédiés",
+        "numbers_other": "{{count}} numéros d'entreprise dédiés",
+        "alertSms_one": "{{count}} segment SMS d'alerte par mois",
+        "alertSms_many": "{{count}} segments SMS d'alerte par mois",
+        "alertSms_other": "{{count}} segments SMS d'alerte par mois",
+        "transfers_one": "{{count}} tentative de transfert par mois",
+        "transfers_many": "{{count}} tentatives de transfert par mois",
+        "transfers_other": "{{count}} tentatives de transfert par mois"
+      },
+      "number": {
+        "label": "Votre numéro",
+        "keep": "Ce numéro est à vous.",
+        "choose": "Choisir votre numéro"
+      },
+      "steps": {
+        "title": "Prochaines étapes",
+        "call": {
+          "title": "Appelez-le maintenant",
+          "description": "Écoutez votre réceptionniste répondre à un vrai appel."
+        },
+        "forward": {
+          "title": "Transférez votre ligne d'entreprise vers ce numéro",
+          "description": "Vos appelants composent toujours le numéro qu'ils connaissent. Votre opérateur transfère ces appels vers votre numéro LobbyStack.",
+          "action": "Guide du renvoi d'appel"
+        },
+        "transfer": {
+          "title": "Choisissez où vont les appels urgents",
+          "description": "Ajoutez un numéro de transfert dans les Paramètres IA pour que votre réceptionniste puisse passer les appels urgents à une personne.",
+          "action": "Ouvrir les Paramètres IA"
+        }
+      },
+      "continue": "Continuer la configuration",
+      "dashboard": "Aller au tableau de bord"
+    }
+  },
+  "phoneNumber": {
+    "current": {
+      "label": "Numéro de téléphone actuel",
+      "description": "C'est le numéro que les appelants utilisent pour joindre votre réceptionniste IA.",
+      "empty": "Vous n'avez pas encore de numéro."
+    },
+    "reclaim": {
+      "title": "Ce numéro sera libéré le {{date}}",
+      "description": "Les forfaits gratuits n'incluent pas de numéro d'entreprise dédié. Passez à Starter ou Pro avant cette date pour conserver {{number}}.",
+      "upgradeCta": "Mettre à niveau pour conserver ce numéro"
+    },
+    "freeTrial": {
+      "description": "Vous n'avez pas encore de numéro. Essayez-en un gratuitement pendant 14 jours.",
+      "cta": "Choisir mon numéro"
+    },
+    "requiresPaidPlan": {
+      "title": "Les numéros dédiés sont réservés aux forfaits payants",
+      "description": "Passez à Starter ou Pro pour obtenir un numéro local que les appelants peuvent composer.",
+      "upgradeCta": "Voir les forfaits"
+    },
+    "actions": {
+      "requestChange": "Demander un changement",
+      "getNumber": "Obtenir un numéro"
+    },
+    "dialog": {
+      "title": "Choisir un nouveau numéro",
+      "description": "Vous pouvez changer votre numéro de téléphone une seule fois.",
+      "getNumberTitle": "Choisir un numéro",
+      "getNumberDescription": "Choisissez un numéro que les appelants peuvent utiliser pour joindre votre réceptionniste IA."
+    },
+    "picker": {
+      "countryLabel": "Pays",
+      "areaCodeLabel": "Indicatif régional",
+      "areaCodePlaceholder": "Indicatif",
+      "search": "Rechercher",
+      "phoneNumberHeader": "Numéro de téléphone",
+      "select": "Sélectionner",
+      "claiming": "Connexion de votre nouveau numéro...",
+      "loadMore": "Charger plus",
+      "empty": "Aucun numéro ne correspond à cette recherche.",
+      "loadFailed": "Impossible de charger les numéros pour le moment.",
+      "searchFailed": "Impossible de rechercher des numéros pour le moment.",
+      "claimFailed": "Impossible de remplacer le numéro de téléphone. Veuillez réessayer.",
+      "unavailable": "Ce numéro vient d'être pris. Choisissez-en un autre dans la liste actualisée."
+    },
+    "toast": {
+      "changed": "Numéro de téléphone modifié. Votre ancien numéro restera actif pendant 30 jours.",
+      "added": "Numéro de téléphone ajouté."
+    }
+  },
+  "appearance": {
+    "title": "Préférences",
+    "description": "Définissez la langue du tableau de bord, le format de l'heure et le thème.",
+    "save": "Mettre à jour les préférences",
+    "saved": "Préférences d'apparence mises à jour.",
+    "language": {
+      "label": "Langue du tableau de bord",
+      "description": "Choisissez la langue utilisée dans le tableau de bord.",
+      "saveFailed": "Nous n’avons pas pu enregistrer votre langue. Veuillez réessayer."
+    },
+    "timeFormat": {
+      "label": "Format de l'heure",
+      "description": "Choisissez entre le format 24 h et le format AM/PM.",
+      "twentyFourHour": "24 h",
+      "ampm": "AM/PM"
+    },
+    "theme": {
+      "label": "Thème",
+      "description": "Choisissez votre thème visuel préféré.",
+      "light": "Clair",
+      "lightDescription": "Des surfaces lumineuses au contraste doux pour le travail de jour.",
+      "dark": "Sombre",
+      "darkDescription": "Des surfaces tamisées plus confortables pour les sessions tardives."
+    },
+    "telemetry": {
+      "label": "Partager les données de télémétrie",
+      "description": "Aidez-nous à améliorer LobbyStack en partageant des données d'utilisation et d'erreurs anonymisées.",
+      "saveFailed": "Nous n’avons pas pu enregistrer votre préférence de télémétrie. Veuillez réessayer."
+    }
+  },
+  "integrations": {
+    "permissions": {
+      "manageRequired": "Seuls les propriétaires et les administrateurs peuvent gérer les intégrations."
+    },
+    "actions": {
+      "connect": "Connecter",
+      "connected": "Connecté",
+      "settings": "Ouvrir les réglages de l'intégration",
+      "manage": "Gérer",
+      "setUp": "Configurer"
+    },
+    "providers": {
+      "google": "Synchronisez les réservations avec Google Calendar."
+    },
+    "google": {
+      "sheetTitle": "Google Calendar",
+      "sheetDescription": "Connectez les calendriers de l'équipe et choisissez celui qui reçoit les réservations.",
+      "privacyNoticeText": "La connexion à Google Calendar permet à LobbyStack de lire la disponibilité de votre calendrier et de créer, mettre à jour ou supprimer des rendez-vous sur le calendrier que vous sélectionnez.",
+      "privacyPolicyLinkText": "Politique de confidentialité",
+      "staffLabel": "Membre de l'équipe",
+      "selectStaff": "Choisir un membre",
+      "chooseStaffFirst": "Choisissez le membre de l'équipe dont vous voulez connecter le Google Calendar.",
+      "connect": "Connecter Google",
+      "connecting": "Redirection...",
+      "reconnect": "Reconnecter Google",
+      "disconnect": "Déconnecter Google",
+      "disconnecting": "Déconnexion...",
+      "connectedSuccess": "Google Calendar a bien été connecté.",
+      "disconnectedSuccess": "Google Calendar a bien été déconnecté.",
+      "connectFailed": "Impossible de terminer la connexion Google Calendar.",
+      "disconnectFailed": "Impossible de déconnecter Google Calendar.",
+      "disconnectConfirmTitle": "Déconnecter Google Calendar ?",
+      "disconnectConfirmDescription": "Cela supprimera la connexion Google Calendar actuelle pour les réservations.",
+      "disconnectConfirm": "Confirmer ?",
+      "disconnectConfirmAction": "Déconnecter Google Calendar",
+      "disconnectCancel": "Annuler",
+      "selectedCalendar": "Calendrier sélectionné",
+      "noCalendarSelected": "Aucun calendrier sélectionné pour le moment.",
+      "calendarLabel": "Calendrier Google",
+      "selectCalendar": "Choisir un calendrier",
+      "chooseCalendarFirst": "Choisissez un calendrier Google avant d'enregistrer.",
+      "loadingCalendars": "Chargement des calendriers...",
+      "refreshCalendars": "Actualiser",
+      "calendarSaved": "Le calendrier Google sélectionné a été enregistré.",
+      "calendarSaveFailed": "Impossible d'enregistrer le calendrier Google sélectionné.",
+      "calendarListFailed": "Impossible de charger les calendriers Google pour ce membre de l'équipe.",
+      "mappedConnections": "Connexions Google associées",
+      "mappedConnectionsDescription": "Chaque connexion Google appartient à un seul membre réservable de l'équipe.",
+      "unknownStaff": "Membre de l'équipe inconnu",
+      "noConnections": "Aucune connexion Google Calendar n'existe encore.",
+      "notConnectedForStaff": "Ce membre de l'équipe n'a pas encore de Google Calendar connecté.",
+      "notConnectedDescription": "Connectez Google Calendar pour commencer à synchroniser les réservations.",
+      "noStaff": "Ajoutez un membre réservable de l'équipe avant de connecter Google Calendar.",
+      "primaryCalendarLabel": "{{summary}} (Principal)",
+      "lastSyncState": "État de la dernière synchronisation",
+      "lastSyncOk": "Sain",
+      "syncNeedsAttention": "Attention requise",
+      "discoveryFailed": "L’accès au calendrier ou sa synchronisation n’a pas pu être vérifié. Réessayez la synchronisation ou reconnectez votre compte Google."
+    },
+    "cards": {
+      "google": {
+        "title": "Google Calendar",
+        "description": "Synchronisez les réservations avec un Google Calendar."
+      },
+      "webhooks": {
+        "title": "Webhooks",
+        "description": "Envoyez les appels, les réservations et les messages à vos outils."
+      },
+      "zapier": {
+        "title": "Zapier",
+        "description": "Reliez les appels, les réservations et les contacts à des milliers d'applications."
+      }
+    },
+    "status": {
+      "connected": "Connecté",
+      "reconnectRequired": "Reconnexion requise",
+      "syncing": "Synchronisation en cours",
+      "notConnected": "Pas encore connecté"
+    },
+    "summary": {
+      "title": "Résumé de synchronisation",
+      "description": "Un aperçu rapide du fonctionnement des intégrations calendaires.",
+      "connectedCalendars": "Calendriers connectés",
+      "openIssues": "Problèmes ouverts",
+      "syncedAppointments": "Rendez-vous synchronisés"
+    }
+  },
+  "profile": {
+    "title": "Profil de la réceptionniste",
+    "description": "Définissez la voix, le ton, la politique de réservation et les règles de transfert qui façonnent votre réceptionniste.",
+    "greeting": "Salutation",
+    "tone": "Ton",
+    "defaultCustomerLanguage": "Langue client par défaut",
+    "businessSummary": "Résumé de l'entreprise",
+    "bookingPolicy": "Politique de réservation",
+    "transferMode": "Mode de transfert",
+    "transferNumber": "Numéro de transfert",
+    "voiceInstructions": "Instructions vocales",
+    "smsInstructions": "Instructions SMS",
+    "selectDefaultLanguage": "Choisir une langue par défaut",
+    "selectTransferMode": "Choisir le mode de transfert",
+    "transferModes": {
+      "never": "Jamais",
+      "always": "Toujours",
+      "on_request": "Sur demande",
+      "on_urgent": "Pour les urgences",
+      "during_business_hours": "Pendant les heures d'ouverture"
+    },
+    "save": "Enregistrer le profil",
+    "saving": "Enregistrement...",
+    "saved": "Profil de la réceptionniste enregistré.",
+    "placeholders": {
+      "transferNumber": "+1 555 123 4567"
+    }
+  },
+  "account": {
+    "title": "Account",
+    "actions": {
+      "change": "Modifier"
+    },
+    "businessName": {
+      "label": "Nom de l'entreprise",
+      "description": "Il s'agit du nom affiche partout dans le tableau de bord et dans les renseignements visibles par les clients.",
+      "placeholder": "Clinique familiale Maple",
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "saved": "Modifications enregistrées"
+    },
+    "changeEmail": {
+      "label": "Changer le courriel",
+      "description": "Entrez votre nouveau courriel et votre mot de passe actuel. Nous enverrons un lien de confirmation avant de modifier votre courriel de connexion.",
+      "newEmailPlaceholder": "Nouveau courriel",
+      "currentPasswordPlaceholder": "Mot de passe actuel",
+      "save": "Envoyer le lien de confirmation",
+      "title": "Courriel",
+      "currentPasswordLabel": "Mot de passe actuel",
+      "currentEmail": "Courriel actuel : {{email}}",
+      "confirmationSent": "Nous avons envoye un lien de confirmation a {{email}}.",
+      "errors": {
+        "invalidPassword": "Le mot de passe actuel est incorrect.",
+        "alreadyExists": "Un compte existe deja avec ce courriel.",
+        "unchanged": "Entrez une adresse courriel differente.",
+        "noEmail": "Aucun courriel n'est configure pour ce compte.",
+        "required": "Entrez une nouvelle adresse courriel.",
+        "failed": "Impossible d'envoyer un lien de confirmation. Veuillez reessayer."
+      }
+    },
+    "changePassword": {
+      "title": "Mot de passe",
+      "label": "Changer le mot de passe",
+      "description": "Mot de passe utilise pour vous connecter.",
+      "dialogDescription": "Entrez votre mot de passe actuel et un nouveau mot de passe.",
+      "currentPasswordLabel": "Mot de passe actuel",
+      "currentPasswordPlaceholder": "Mot de passe actuel",
+      "newPasswordLabel": "Nouveau mot de passe",
+      "newPasswordPlaceholder": "Nouveau mot de passe",
+      "confirmPasswordLabel": "Confirmer le nouveau mot de passe",
+      "confirmPasswordPlaceholder": "Confirmer le nouveau mot de passe",
+      "save": "Enregistrer",
+      "saved": "Mot de passe mis a jour.",
+      "errors": {
+        "mismatch": "Les nouveaux mots de passe ne correspondent pas.",
+        "failed": "Impossible de mettre a jour le mot de passe."
+      }
+    }
+  },
+  "workspaceTeam": {
+    "members": {
+      "title": "Membres",
+      "table": {
+        "email": "Courriel",
+        "role": "Rôle"
+      },
+      "empty": "Aucun membre pour le moment.",
+      "noEmail": "Aucun courriel enregistré",
+      "joinedOn": "A rejoint le {{date}}",
+      "invitedOn": "Invité le {{date}}",
+      "status": {
+        "pending": "En attente"
+      },
+      "actions": {
+        "moreOptions": "Plus d'options",
+        "remove": "Retirer",
+        "cancelInvite": "Annuler l'invitation"
+      },
+      "removeSuccess": "Membre retiré.",
+      "removeFailed": "Impossible de retirer ce membre."
+    },
+    "roles": {
+      "admin": "Administrateur",
+      "viewer": "Lecteur"
+    },
+    "invite": {
+      "action": "Inviter",
+      "title": "Inviter un membre de l'équipe",
+      "description": "Envoyez une invitation par courriel pour rejoindre cet espace.",
+      "emailLabel": "Adresse courriel",
+      "emailPlaceholder": "collegue@entreprise.com",
+      "roleLabel": "Sélectionner le rôle",
+      "roles": {
+        "adminDescription": "Inviter et gérer les membres, modifier les paramètres de l'espace et la facturation.",
+        "viewerDescription": "Consulter les appels, les contacts et l'activité du tableau de bord sans effectuer de modifications."
+      },
+      "submit": "Envoyer l'invitation",
+      "sending": "Envoi de l'invitation...",
+      "sent": "Invitation envoyée à {{email}}.",
+      "errors": {
+        "invalidEmail": "Entrez une adresse courriel valide.",
+        "failed": "Impossible d'envoyer cette invitation. Veuillez réessayer."
+      }
+    },
+    "pending": {
+      "resend": "Renvoyer",
+      "revoke": "Révoquer",
+      "resendSuccess": "Invitation renvoyée.",
+      "resendFailed": "Impossible de renvoyer cette invitation.",
+      "revokeSuccess": "Invitation révoquée.",
+      "revokeFailed": "Impossible de révoquer cette invitation."
+    }
+  },
+  "hours": {
+    "title": "Heures d'ouverture",
+    "description": "Les heures structurées font autorité sur les documents et aident la réceptionniste à répondre correctement aux questions de disponibilité.",
+    "save": "Enregistrer les heures",
+    "saving": "Enregistrement...",
+    "leaveBlank": "Laissez une journée vide pour l'indiquer comme fermée.",
+    "saved": "Heures d'ouverture enregistrées.",
+    "saveFailed": "Impossible d'enregistrer les heures d'ouverture.",
+    "invalidHours": "Heures invalides pour {{day}}."
+  },
+  "services": {
+    "title": "Services",
+    "description": "Les définitions de service alimentent à la fois la logique de réservation et l'instantané entendu par les appelants.",
+    "serviceName": "Nom du service",
+    "englishLabel": "Libellé anglais",
+    "frenchLabel": "Libellé français",
+    "slug": "Slug",
+    "durationMinutes": "Durée (minutes)",
+    "descriptionLabel": "Description",
+    "placeholders": {
+      "serviceName": "Consultation initiale",
+      "englishLabel": "Initial Consultation",
+      "frenchLabel": "Consultation initiale",
+      "description": "Un premier rendez-vous de 30 minutes."
+    },
+    "save": "Ajouter le service",
+    "update": "Mettre à jour le service",
+    "cancelEdit": "Annuler",
+    "edit": "Modifier le service",
+    "saving": "Enregistrement...",
+    "saved": "Service enregistré.",
+    "noDescription": "Aucune description pour le moment.",
+    "empty": "Aucun service configuré pour le moment."
+  },
+  "phoneRouting": {
+    "title": "Routage des numéros de téléphone",
+    "description": "Associez les numéros Twilio à cette entreprise pour que les appels en direct et les SMS chargent le bon instantané de réceptionniste.",
+    "managedNumber": "Numéro géré",
+    "selectNumber": "Choisir un numéro",
+    "addNewNumber": "Ajouter un numéro",
+    "e164Number": "Numéro E.164",
+    "twilioPhoneSid": "SID de téléphone Twilio",
+    "status": "Statut",
+    "selectStatus": "Choisir un statut",
+    "statuses": {
+      "active": "Actif",
+      "provisioning": "En cours de provisionnement",
+      "inactive": "Inactif"
+    },
+    "voiceEnabled": "Voix activée",
+    "smsEnabled": "SMS activé",
+    "save": "Enregistrer le routage",
+    "saveNew": "Ajouter le numéro",
+    "saving": "Enregistrement...",
+    "saved": "Routage du numéro enregistré.",
+    "added": "Routage du numéro ajouté.",
+    "saveFailed": "Impossible d'enregistrer le routage du numéro.",
+    "currentMappings": "Associations actuelles",
+    "noSid": "Aucun SID de téléphone Twilio enregistré pour le moment.",
+    "empty": "Aucun numéro Twilio n'est encore associé. Ajoutez le numéro actif configuré dans Twilio au format E.164 exact."
+  },
+  "team": {
+    "title": "Équipe réservable",
+    "description": "La réservation ne fonctionne que pour les services attribués à au moins un membre actif de l'équipe.",
+    "member": "Membre de l'équipe",
+    "selectMember": "Choisir un membre",
+    "addNewMember": "Ajouter un membre",
+    "name": "Nom",
+    "timezone": "Fuseau horaire",
+    "transferNumber": "Numéro de transfert",
+    "placeholders": {
+      "name": "Jordan Lee",
+      "timezone": "America/Toronto",
+      "transferNumber": "+15145550123"
+    },
+    "activeForBooking": "Actif pour la réservation",
+    "save": "Enregistrer le membre",
+    "saveNew": "Ajouter le membre",
+    "saving": "Enregistrement...",
+    "saved": "Membre de l'équipe enregistré.",
+    "added": "Membre de l'équipe ajouté.",
+    "saveFailed": "Impossible d'enregistrer le membre de l'équipe.",
+    "serviceAssignments": "Affectations de services",
+    "assignmentDescription": "Choisissez quels services chaque membre de l'équipe peut réserver par téléphone ou par SMS.",
+    "emptyStaff": "Ajoutez au moins un membre de l'équipe avant d'affecter des services.",
+    "emptyServices": "Ajoutez d'abord des services, puis revenez ici pour les rendre réservables.",
+    "saveAssignments": "Enregistrer les affectations",
+    "savingAssignments": "Enregistrement...",
+    "savedAssignments": "Affectations de services enregistrées.",
+    "saveAssignmentsFailed": "Impossible d'enregistrer les affectations de services.",
+    "assignedServices": "{{count}} services"
+  },
+  "snapshot": {
+    "title": "Instantané de la réceptionniste",
+    "description": "Votre réceptionniste charge ce contexte d'entreprise une fois au début de chaque appel.",
+    "business": "Entreprise",
+    "timezone": "Fuseau horaire",
+    "transferPolicy": "Politique de transfert",
+    "services": "Services dans l'instantané",
+    "knowledgeDigest": "Résumé des connaissances",
+    "emptyDigest": "Aucun résumé généré pour le moment. Ajoutez des connaissances ou des documents pour enrichir la réceptionniste."
+  },
+  "nextSteps": {
+    "title": "Prochaines étapes",
+    "description": "Affinez le comportement de la réceptionniste avant d'acheminer du trafic réel.",
+    "hours": "Définissez les heures, les services et les affectations d'équipe afin que la réservation puisse proposer de vrais créneaux.",
+    "transfer": "Ajoutez des règles de transfert et un numéro de secours avant de transférer les appels urgents.",
+    "snapshot": "Actualisez votre instantané après d'importants changements de politique pour que la voix les prenne rapidement en compte."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Choisissez quels événements déclenchent une alerte par téléphone ou par courriel.",
+    "actions": {
+      "testEmail": "Tester le courriel",
+      "testSms": "Tester le SMS",
+      "testing": "Envoi..."
+    },
+    "toast": {
+      "saveFailed": "Les préférences de notification n'ont pas été enregistrées.",
+      "smsUnavailable": "Vérifiez un numéro de téléphone avant d'activer les notifications SMS.",
+      "smsSenderUnavailable": "Configurez un expéditeur SMS d'alerte avant d'activer les notifications SMS.",
+      "testEmailSent": "Courriel de test envoyé.",
+      "testSmsSent": "SMS de test envoyé.",
+      "testFailed": "Impossible d'envoyer la notification de test."
+    },
+    "sources": {
+      "title": "Canaux",
+      "email": {
+        "title": "Courriel",
+        "description": "Recevez les alertes par courriel."
+      },
+      "sms": {
+        "title": "SMS",
+        "description": "Recevez les alertes par SMS.",
+        "senderMissingDescription": "Indisponible. Cet espace de travail n'a pas d'expéditeur SMS d'alertes."
+      }
+    },
+    "communication": {
+      "title": "Communication",
+      "eventColumn": "Événement"
+    },
+    "events": {
+      "voiceMessage": {
+        "title": "Message vocal capturé",
+        "description": "Quand un appelant laisse un message pendant un appel."
+      },
+      "pausedSms": {
+        "title": "Nouveau SMS",
+        "description": "Quand un client envoie un SMS à votre numéro d’entreprise."
+      },
+      "smsFailed": {
+        "title": "Notification SMS client échouée",
+        "description": "Quand un SMS de confirmation ou de rappel de rendez-vous échoue ou n'est pas livré."
+      },
+      "calendarSync": {
+        "title": "Problème de synchronisation du calendrier",
+        "description": "Quand un rendez-vous ne peut pas être synchronisé au calendrier et nécessite une attention."
+      },
+      "transferFailed": {
+        "title": "Transfert d'appel échoué",
+        "description": "Quand l'IA a essayé de transférer un appelant à un humain, mais que le transfert n'a pas abouti."
+      },
+      "widgetChat": {
+        "title": "Nouveau message sur le clavardage du site",
+        "description": "Lorsqu’un visiteur envoie un message via le widget de votre site. Vous recevez au plus une alerte par conversation chaque jour."
+      },
+      "webhookDisabled": {
+        "title": "Point de terminaison webhook désactivé",
+        "description": "Quand LobbyStack cesse d'envoyer des événements à un point de terminaison webhook parce que toutes les livraisons ont échoué pendant environ une journée."
+      }
+    },
+    "systemIssues": {
+      "title": "Problèmes système"
+    },
+    "phoneVerification": {
+      "phone": {
+        "title": "Votre numéro de mobile",
+        "consent": "En envoyant le code, vous acceptez de recevoir les alertes LobbyStack par SMS. Fréquence variable. Des frais de messagerie et de données peuvent s'appliquer. Répondez STOP pour vous désabonner, HELP pour de l'aide."
+      },
+      "confirm": {
+        "title": "Activer les alertes par SMS",
+        "consent": "En les activant, vous acceptez de recevoir les alertes LobbyStack par SMS à votre numéro vérifié. Fréquence variable. Des frais de messagerie et de données peuvent s'appliquer. Répondez STOP pour vous désabonner, HELP pour de l'aide.",
+        "turnOn": "Activer"
+      },
+      "fields": {
+        "mobileNumber": "Numéro de mobile",
+        "country": "Pays"
+      },
+      "cancel": "Annuler",
+      "sendCode": "Envoyer le code",
+      "sending": "Envoi du code...",
+      "code": {
+        "title": "Entrez le code",
+        "description": "Envoyé au {{phone}}.",
+        "verifying": "Vérification du code...",
+        "didntGet": "Vous ne l'avez pas reçu ?",
+        "resend": "Renvoyer",
+        "resending": "Envoi...",
+        "changeNumber": "Utiliser un autre numéro"
+      },
+      "errors": {
+        "invalidNumber": "Entrez un numéro de mobile valide.",
+        "unreachable": "Les alertes viennent d'un numéro sans frais. Utilisez un numéro américain ou canadien.",
+        "senderMissing": "Cet espace de travail n'a pas d'expéditeur SMS d'alertes.",
+        "cooldown": "Attendez 30 secondes avant de redemander.",
+        "rateLimited": "Trop de codes. Réessayez dans une heure.",
+        "sendFailed": "Impossible d'envoyer le code. Réessayez.",
+        "deliveryFailed": "Impossible d'envoyer un SMS à ce numéro.",
+        "wrongCode": "Code incorrect.",
+        "locked": "Trop de codes incorrects. Demandez-en un nouveau.",
+        "expired": "Code expiré. Demandez-en un nouveau.",
+        "unavailable": "Ce code ne fonctionne plus. Demandez-en un nouveau.",
+        "checkFailed": "Impossible de vérifier le code. Réessayez."
+      }
+    }
+  },
+  "secretReveal": {
+    "copy": "Copier",
+    "copied": "Copié"
+  },
+  "apiKeys": {
+    "title": "Clés API",
+    "description": "Utilisez une clé pour connecter votre propre code ou une autre application à l'API LobbyStack.",
+    "empty": "Aucune clé API pour l'instant.",
+    "neverUsed": "Jamais",
+    "createdBy": "{{date}} par {{name}}",
+    "revoked": "Révoquée le {{date}}",
+    "restricted": {
+      "title": "Seuls les propriétaires et les administrateurs gèrent les clés API",
+      "description": "Demandez à un propriétaire ou à un administrateur de cette entreprise de créer une clé pour vous."
+    },
+    "columns": {
+      "name": "Nom",
+      "key": "Clé",
+      "scopes": "Accès",
+      "created": "Créée",
+      "lastUsed": "Dernière utilisation",
+      "actions": "Actions"
+    },
+    "create": {
+      "action": "Créer une clé API",
+      "title": "Créer une clé API",
+      "description": "Donnez à la clé un nom que vous reconnaîtrez et n'autorisez que l'accès dont elle a besoin.",
+      "nameLabel": "Nom",
+      "namePlaceholder": "Synchro CRM",
+      "scopesLabel": "Accès",
+      "cancel": "Annuler",
+      "submit": "Créer la clé",
+      "creating": "Création…"
+    },
+    "created": {
+      "title": "{{name}} est prête",
+      "description": "Copiez la clé et conservez-la dans un gestionnaire de mots de passe ou dans les réglages de votre outil.",
+      "warning": "Vous ne reverrez plus cette clé. Si vous la perdez, révoquez-la et créez-en une autre.",
+      "done": "Terminé"
+    },
+    "revoke": {
+      "action": "Révoquer",
+      "title": "Révoquer cette clé API?",
+      "description": "Tout ce qui utilise {{name}} cesse de fonctionner immédiatement. Cette action est définitive. LobbyStack désactive aussi les webhooks créés par cette clé.",
+      "confirm": "Révoquer la clé",
+      "cancel": "Annuler",
+      "done": "Clé API révoquée",
+      "failed": "Impossible de révoquer la clé. Réessayez."
+    },
+    "scopes": {
+      "business_read": "Lire les informations, les heures et les services de l'entreprise",
+      "business_write": "Modifier les informations et les heures de l'entreprise",
+      "calls_read": "Lire les appels, les résumés et les transcriptions",
+      "contacts_read": "Lire les contacts",
+      "contacts_write": "Créer et modifier des contacts",
+      "appointments_read": "Lire les rendez-vous et les plages libres",
+      "appointments_write": "Réserver, annuler et déplacer des rendez-vous",
+      "messages_read": "Lire les messages pris par la réceptionniste",
+      "knowledge_write": "Ajouter des entrées de connaissances et des FAQ",
+      "webhooks_manage": "Créer et supprimer des points de terminaison webhook"
+    }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "description": "LobbyStack envoie une requête HTTPS POST à votre URL quand quelque chose se produit, par exemple un appel terminé ou une nouvelle réservation. Chaque requête est signée pour que vous puissiez vérifier qu'elle vient de nous.",
+    "empty": "Aucun point de terminaison webhook pour l'instant.",
+    "enabledLabel": "Envoyer les événements à ce point de terminaison",
+    "restricted": {
+      "title": "Seuls les propriétaires et les administrateurs gèrent les webhooks",
+      "description": "Demandez à un propriétaire ou à un administrateur de cette entreprise de configurer le webhook."
+    },
+    "status": {
+      "enabled": "Activé",
+      "disabled": "Désactivé"
+    },
+    "failing": {
+      "title": "Nous avons désactivé ce point de terminaison",
+      "description": "Toutes les livraisons ont échoué pendant environ une journée. Corrigez le point de terminaison, puis réactivez-le. Utilisez Renvoyer dans le journal des livraisons pour envoyer les événements manqués."
+    },
+    "form": {
+      "urlLabel": "URL du point de terminaison",
+      "urlHint": "Utilisez une adresse https:// accessible depuis Internet.",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Facultatif, par exemple Synchronisation CRM",
+      "eventsLabel": "Événements à envoyer",
+      "cancel": "Annuler"
+    },
+    "events": {
+      "call_completed": "Un appel s'est terminé et son résumé est prêt",
+      "appointment_booked": "Un rendez-vous a été réservé",
+      "appointment_rescheduled": "Un rendez-vous a été déplacé",
+      "appointment_cancelled": "Un rendez-vous a été annulé",
+      "message_taken": "La réceptionniste a pris un message pour votre équipe",
+      "contact_created": "Un nouveau contact a été ajouté"
+    },
+    "create": {
+      "action": "Ajouter un point de terminaison",
+      "title": "Ajouter un point de terminaison webhook",
+      "description": "Choisissez où LobbyStack envoie les événements et lesquels envoyer.",
+      "submit": "Ajouter"
+    },
+    "edit": {
+      "action": "Modifier",
+      "title": "Modifier le point de terminaison webhook",
+      "description": "Les changements s'appliquent au prochain événement envoyé par LobbyStack.",
+      "submit": "Enregistrer"
+    },
+    "delete": {
+      "action": "Supprimer",
+      "title": "Supprimer ce point de terminaison?",
+      "description": "LobbyStack cesse d'envoyer des événements à {{url}} et supprime son journal des livraisons.",
+      "confirm": "Supprimer",
+      "done": "Point de terminaison supprimé"
+    },
+    "rotate": {
+      "action": "Changer le secret",
+      "title": "Changer le secret de signature?",
+      "description": "Le secret actuel cesse de fonctionner immédiatement. Mettez à jour votre point de terminaison avec le nouveau secret avant le prochain événement.",
+      "confirm": "Changer le secret"
+    },
+    "secret": {
+      "createdTitle": "Point de terminaison ajouté",
+      "rotatedTitle": "Nouveau secret de signature",
+      "description": "Utilisez ce secret pour vérifier l'en-tête webhook-signature de chaque requête.",
+      "warning": "Vous ne reverrez plus ce secret. Si vous le perdez, changez-le pour en obtenir un nouveau.",
+      "done": "Terminé"
+    },
+    "test": {
+      "action": "Envoyer un événement test",
+      "queued": "Événement test en file d'attente. Consultez le journal des livraisons."
+    },
+    "deliveries": {
+      "show": "Journal des livraisons",
+      "hide": "Masquer le journal",
+      "empty": "Aucune livraison pour l'instant.",
+      "resend": "Renvoyer",
+      "resent": "Événement remis en file d'attente",
+      "nextAttempt": "Prochain essai {{time}}",
+      "columns": {
+        "event": "Événement",
+        "status": "Statut",
+        "response": "Réponse",
+        "attempts": "Essais",
+        "time": "Dernier essai",
+        "actions": "Actions"
+      },
+      "status": {
+        "pending": "En file d'attente",
+        "retrying": "Nouvel essai prévu",
+        "succeeded": "Livré",
+        "failed": "Échec",
+        "skipped": "Ignoré"
+      }
+    }
+  },
+  "connectedApps": {
+    "title": "Applications connectées",
+    "description": "Les assistants IA comme Claude ou ChatGPT connectés à LobbyStack. Chacun ne fonctionne que pour cette entreprise, avec l'accès approuvé lors de la connexion.",
+    "empty": "Aucune application connectée pour l'instant. Pour en connecter une, ajoutez LobbyStack dans les réglages de l'assistant et connectez-vous.",
+    "neverUsed": "Jamais",
+    "unnamed": "Application sans nom",
+    "grantedBy": "{{date}} par {{name}}",
+    "restricted": {
+      "title": "Seuls les propriétaires et les administrateurs gèrent les applications connectées",
+      "description": "Demandez à un propriétaire ou à un administrateur de cette entreprise de les vérifier."
+    },
+    "columns": {
+      "app": "Application",
+      "access": "Accès",
+      "granted": "Connectée",
+      "lastUsed": "Dernière utilisation",
+      "actions": "Actions"
+    },
+    "revoke": {
+      "action": "Déconnecter",
+      "title": "Déconnecter {{name}}?",
+      "description": "{{name}} perd l'accès à cette entreprise immédiatement. Pour l'utiliser de nouveau, connectez-la et approuvez l'accès une autre fois.",
+      "confirm": "Déconnecter",
+      "cancel": "Annuler",
+      "done": "Application déconnectée",
+      "failed": "Impossible de déconnecter l'application. Réessayez."
+    },
+    "scopes": {
+      "business_read": "Lire les informations, les heures, les services et le personnel de l'entreprise",
+      "business_write": "Modifier les informations et les heures de l'entreprise",
+      "calls_read": "Lire les appels, les résumés et les transcriptions",
+      "contacts_read": "Lire les contacts",
+      "contacts_write": "Créer et modifier des contacts",
+      "appointments_read": "Lire les rendez-vous et les plages libres",
+      "appointments_write": "Réserver, annuler et déplacer des rendez-vous",
+      "messages_read": "Lire les messages pris par la réceptionniste",
+      "knowledge_write": "Ajouter des entrées de connaissances et des FAQ"
+    }
+  }
+}

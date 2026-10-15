@@ -1,0 +1,469 @@
+{
+  "page": {
+    "eyebrow": "Agent workspace",
+    "title": "Agent",
+    "description": "Configure how your AI receptionist behaves, what it knows, and how it handles calls and messages."
+  },
+  "sections": {
+    "basicSettings": {
+      "title": "AI settings",
+      "description": "Greeting and transfer settings for your receptionist."
+    },
+    "knowledge": {
+      "title": "Knowledge",
+      "description": "Information and guidelines your receptionist uses to answer questions.",
+      "listTitle": "Knowledge Base",
+      "addKnowledge": "Add Knowledge",
+      "addKnowledgeOptions": {
+        "upload": "Upload",
+        "website": "Website",
+        "text": "Text"
+      },
+      "editKnowledge": "Edit Knowledge",
+      "deleteWebsite": { "action": "Delete all pages", "title": "Delete all pages from this website?", "description": "This will permanently remove every page imported from {{host}}.", "deleted": "All pages from {{host}} deleted." },
+      "toast": { "added": "Knowledge added.", "updated": "Knowledge updated.", "uploaded": "Document uploaded. It will be ready shortly.", "deleted": "Knowledge deleted.", "enabled": "Knowledge enabled.", "disabled": "Knowledge disabled." },
+      "uploadDocument": "Upload Document",
+      "websiteImport": {
+        "badge": "Website",
+        "title": "Import Website",
+        "description": "Crawl the public pages of your website so your receptionist can use them as knowledge.",
+        "submit": "Import",
+        "submitting": "Importing…",
+        "success": "Website import started. Pages will appear here as they finish processing.",
+        "submitFailed": "We couldn't start the website import. Please try again.",
+        "previewPending": "We're crawling this website. Imported pages will appear here automatically.",
+        "previewFailed": "Import failed. Please try again.",
+        "status": {
+          "inProgress": "In progress",
+          "failed": "Failed"
+        },
+        "validation": {
+          "urlRequired": "Enter a website URL to import."
+        }
+      },
+      "addKnowledgeDescription": "Add opening hours, pricing, policies, or any other information your receptionist should know.",
+      "editKnowledgeDescription": "Update the information your receptionist should use when answering customer questions.",
+      "uploadDocumentDescription": "Upload a file so your receptionist can use it.",
+      "documentBadge": "Document",
+      "textBadge": "Text",
+      "emptyState": "No knowledge added yet.",
+      "previewPending": "This document is being processed.",
+      "previewError": "This document couldn't be processed.",
+      "status": {
+        "analyzing": "Analyzing...",
+        "inProgress": "In progress",
+        "queued": "Queued",
+        "indexing": "Indexing",
+        "indexed": "Ready",
+        "error": "Error",
+        "cancelled": "Cancelled"
+      },
+      "uploadValidation": {
+        "fileRequired": "Choose a file to upload.",
+        "unsupportedFile": "Supported document types are PDF, DOCX, TXT, and Markdown.",
+        "maxSize": "Documents must be 10 MB or smaller.",
+        "uploadFailed": "We couldn't upload this document. Please try again."
+      },
+      "fields": {
+        "file": {
+          "label": "File",
+          "hint": "Supports PDF, DOCX, TXT, and Markdown.",
+          "dropzonePrefix": "Drag and drop a file here, or",
+          "chooseFile": "Choose File"
+        },
+        "websiteUrl": {
+          "label": "Website URL",
+          "placeholder": "example.com",
+          "hint": "Use the public home page or section you want to import."
+        },
+        "title": {
+          "label": "Title",
+          "placeholder": "Opening Hours",
+          "hint": "A short, descriptive title for this piece of knowledge.",
+          "required": "Enter a title for this knowledge."
+        },
+        "content": {
+          "label": "Content",
+          "placeholder": "We are open Monday to Friday from 9am to 5pm.",
+          "hint": "The actual information the receptionist should use.",
+          "required": "Enter the information the receptionist should use."
+        },
+        "tags": {
+          "label": "Tags",
+          "placeholder": "Hours, location",
+          "hint": "Optional. Comma-separated keywords to help categorize this knowledge."
+        }
+      }
+    },
+    "services": {
+      "title": "Services",
+      "description": "Service details your receptionist can use to explain offerings and help book the right appointment.",
+      "listTitle": "Services",
+      "addKnowledge": "Add Service",
+      "editKnowledge": "Edit Service",
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "price": {
+        "column": "Price",
+        "from": "from {{amount}}",
+        "range": "{{min}} – {{max}}",
+        "inPerson": "Set in person",
+        "none": "Not set",
+        "discounted": "{{price}} (−{{percent}}%)"
+      },
+      "duplicated": "Service duplicated.",
+      "duplicateFailed": "Couldn't duplicate the service.",
+      "copyName": "{{name}} (copy)",
+      "copyNameNumbered": "{{name}} (copy {{number}})",
+      "uploadDocument": "Upload Document",
+      "addKnowledgeDescription": "Add your services, what they include, who they are for, and anything your receptionist should mention.",
+      "editKnowledgeDescription": "Update the service details your receptionist should mention and use while booking.",
+      "uploadDocumentDescription": "Upload a file so your receptionist can use it.",
+      "documentBadge": "Document",
+      "textBadge": "Text",
+      "emptyState": "No services added yet.",
+      "unavailable": "Service catalog is unavailable.",
+      "durationValue": "{{duration}} appointment",
+      "previewPending": "This document is being processed.",
+      "previewError": "This document couldn't be processed.",
+      "status": {
+        "analyzing": "Analyzing...",
+        "inProgress": "In progress",
+        "queued": "Queued",
+        "indexing": "Indexing",
+        "indexed": "Ready",
+        "error": "Error"
+      },
+      "uploadValidation": {
+        "fileRequired": "Choose a file to upload.",
+        "unsupportedFile": "Supported document types are PDF, DOCX, TXT, and Markdown.",
+        "maxSize": "Documents must be 10 MB or smaller.",
+        "uploadFailed": "We couldn't upload this document. Please try again."
+      },
+      "fields": {
+        "file": {
+          "label": "File",
+          "hint": "Supports PDF, DOCX, TXT, and Markdown.",
+          "dropzonePrefix": "Drag and drop a file here, or",
+          "chooseFile": "Choose File"
+        },
+        "title": {
+          "label": "Title",
+          "placeholder": "Initial Consultation",
+          "hint": "A short, descriptive title for this service.",
+          "required": "Enter a name for this service."
+        },
+        "content": {
+          "label": "Content",
+          "placeholder": "A 30-minute consultation to understand the caller's needs and recommend the right next step.",
+          "hint": "Describe the service so the receptionist can explain it clearly."
+        },
+        "duration": {
+          "label": "Duration",
+          "placeholder": "30",
+          "hint": "Appointment length, used for availability checks.",
+          "required": "Choose a duration of at least 1 minute.",
+          "hours": "Hours",
+          "minutes": "Minutes",
+          "hoursTitle": "h",
+          "minutesTitle": "min"
+        },
+        "price": {
+          "label": "Price",
+          "hint": "Optional. The receptionist quotes this price exactly; leave the amount empty and it won't guess one.",
+          "placeholder": "0",
+          "amount": "Price",
+          "lowest": "Lowest price",
+          "highest": "Highest price",
+          "inPersonHint": "The receptionist tells callers the price is set once the business knows what they need.",
+          "types": {
+            "fixed": "Fixed",
+            "from": "From",
+            "range": "Between",
+            "in_person": "In person"
+          },
+          "errors": {
+            "invalid": "Enter a price, such as 3,500 or 12.50.",
+            "rangeIncomplete": "Enter both the lowest and the highest price.",
+            "rangeOrder": "The highest price must be more than the lowest.",
+            "discountInvalid": "Enter a discount from 0 to 100%."
+          },
+          "discount": "Discount",
+          "discountPercent": "Discount percentage",
+          "discountPreview": "Customers pay {{price}} instead of {{regular}}."
+        },
+        "active": {
+          "label": "Bookable",
+          "hint": "Only bookable services are offered during calls."
+        },
+        "tags": {
+          "label": "Tags",
+          "placeholder": "Consultation, new clients",
+          "hint": "Optional. Comma-separated keywords to help categorize these services."
+        }
+      },
+      "deleteTitle": "Delete service?",
+      "deleteDescription": "Your receptionist stops offering it. Past appointments still show it."
+    },
+    "employees": {
+      "title": "Employees",
+      "description": "People your receptionist can book appointments with and transfer calls to."
+    },
+    "rules": {
+      "title": "Rules",
+      "description": "Instructions that guide how your receptionist should handle calls and messages.",
+      "listTitle": "Rules",
+      "addKnowledge": "Add Rule",
+      "editKnowledge": "Edit Rule",
+      "uploadDocument": "Upload Document",
+      "addKnowledgeDescription": "What your receptionist should do, like transfer calls, ask questions and send texts.",
+      "editKnowledgeDescription": "Update the instruction your receptionist should follow during calls and follow-up flows.",
+      "uploadDocumentDescription": "Upload a file so your receptionist can use it.",
+      "documentBadge": "Document",
+      "textBadge": "Text",
+      "emptyState": "No rules added yet.",
+      "previewPending": "This document is being processed.",
+      "previewError": "This document couldn't be processed.",
+      "status": {
+        "analyzing": "Analyzing...",
+        "inProgress": "In progress",
+        "queued": "Queued",
+        "indexing": "Indexing",
+        "indexed": "Ready",
+        "error": "Error"
+      },
+      "uploadValidation": {
+        "fileRequired": "Choose a file to upload.",
+        "unsupportedFile": "Supported document types are PDF, DOCX, TXT, and Markdown.",
+        "maxSize": "Documents must be 10 MB or smaller.",
+        "uploadFailed": "We couldn't upload this document. Please try again."
+      },
+      "fields": {
+        "file": {
+          "label": "File",
+          "hint": "Supports PDF, DOCX, TXT, and Markdown.",
+          "dropzonePrefix": "Drag and drop a file here, or",
+          "chooseFile": "Choose File"
+        },
+        "title": {
+          "label": "Title",
+          "placeholder": "Transfer requests to talk to someone to Jannie",
+          "hint": "A short, descriptive title for this rule.",
+          "required": "Enter a title for this rule."
+        },
+        "content": {
+          "label": "Content",
+          "placeholder": "When someone asks to speak to a human, transfer them to 555-123-4567.",
+          "hint": "Describe what the receptionist should do.",
+          "required": "Describe what the receptionist should do."
+        },
+        "tags": {
+          "label": "Tags",
+          "placeholder": "Transfers, escalation",
+          "hint": "Optional. Comma-separated keywords to help categorize these rules."
+        }
+      }
+    }
+  },
+  "table": {
+    "searchPlaceholder": "Search entries",
+    "title": "Title",
+    "preview": "Preview",
+    "status": "Status",
+    "disabled": "Disabled",
+    "added": "Added",
+    "empty": "No matching entries found.",
+    "documentPreviewHint": "Click to preview this document.",
+    "documentPreviewUnavailable": "Document preview is available on the Knowledge page."
+  },
+  "pagination": {
+    "rowsPerPage": "Rows per page",
+    "pageOf": "Page {{page}} of {{total}}",
+    "firstPage": "First page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "lastPage": "Last page",
+    "goToPage": "Go to page {{page}}"
+  },
+  "fields": {
+    "defaults": {
+      "title": "Defaults"
+    },
+    "instructions": {
+      "title": "Instructions"
+    },
+    "summary": {
+      "label": "Business summary",
+      "hint": "What your receptionist tells callers about the business.",
+      "placeholder": "For example: Maple Family Clinic is a family practice in Toronto offering checkups, vaccinations and physiotherapy.",
+      "regenerate": "Rewrite with AI",
+      "regenerating": "AI is rewriting it from your knowledge. This takes a moment.",
+      "rewriteCompleted": "Business summary rewritten.",
+      "rewriteEmpty": "Your knowledge doesn't say what the business does yet, so the summary wasn't changed.",
+      "rewriteFailed": "We couldn't rewrite the summary. Please try again.",
+      "rewriteNeedsKnowledge": "Add knowledge first, so AI has something to write from."
+    },
+    "bookingPolicy": {
+      "label": "Booking policy",
+      "hint": "Instructions for offering and confirming appointments."
+    },
+    "voiceInstructions": {
+      "label": "Voice instructions"
+    },
+    "smsInstructions": {
+      "label": "SMS instructions"
+    },
+    "greeting": {
+      "label": "Greeting",
+      "placeholder": "Hello, thank you for calling…",
+      "hint": "The opening line your receptionist uses when answering a call or starting a conversation."
+    },
+    "defaultLocale": {
+      "label": "Default customer language",
+      "placeholder": "Select a default language",
+      "hint": "Choose the fallback language your receptionist should use when a caller's preference is unknown."
+    },
+    "timezone": {
+      "label": "Business timezone",
+      "hint": "Your receptionist uses this timezone for your opening hours and the appointment times it offers customers.",
+      "search": "Search time zones...",
+      "noResults": "No time zones found.",
+      "regions": {
+        "africa": "Africa",
+        "america": "Americas",
+        "antarctica": "Antarctica",
+        "arctic": "Arctic",
+        "asia": "Asia",
+        "atlantic": "Atlantic",
+        "australia": "Australia",
+        "europe": "Europe",
+        "indian": "Indian Ocean",
+        "pacific": "Pacific"
+      }
+    },
+    "currency": {
+      "label": "Currency",
+      "hint": "The currency your service prices are in.",
+      "search": "Search currencies",
+      "noResults": "No currencies found."
+    },
+    "transferNumber": {
+      "label": "Default transfer number",
+      "placeholder": "+1 555-123-4567",
+      "hint": "The phone number your receptionist should use when handing a caller off to a human.",
+      "errors": {
+        "invalid": "Enter a complete valid transfer number before saving."
+      }
+    }
+  },
+  "booking": {
+    "title": "Booking",
+    "mode": {
+      "label": "Appointments",
+      "options": {
+        "instant": "Books appointments",
+        "request": "Takes requests",
+        "off": "Doesn't book"
+      },
+      "descriptions": {
+        "instant": "The agent checks your open times and books the appointment.",
+        "request": "The agent notes the service and preferred time. You confirm from the inbox.",
+        "off": "The agent takes a message instead of booking."
+      }
+    }
+  },
+  "appointmentChanges": {
+    "title": "Appointment changes",
+    "allowCancel": {
+      "label": "Allow AI cancellations",
+      "hint": "Let the receptionist cancel a verified future appointment."
+    },
+    "allowReschedule": {
+      "label": "Allow AI rescheduling",
+      "hint": "Let the receptionist move a verified future appointment after availability is checked."
+    },
+    "requireOtp": {
+      "label": "Require one-time code",
+      "hint": "Send a code before any cancellation or reschedule."
+    }
+  },
+  "actions": {
+    "add": "Add",
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "saving": "Saving…",
+    "saved": "Changes saved.",
+    "deleted": "Deleted",
+    "importCancelled": "Import cancelled.",
+    "moreOptions": "More options",
+    "delete": "Delete",
+    "confirmDelete": "Confirm?",
+    "deleteTitle": "Delete entry?",
+    "deleteDescription": "This will permanently remove this entry from the agent workspace.",
+    "deleteCancel": "Cancel",
+    "cancelImport": "Cancel import",
+    "cancelImportTitle": "Cancel website import?",
+    "cancelImportDescription": "This will stop the website import and remove the in-progress entry from the table.",
+    "enable": "Enable",
+    "disable": "Disable",
+    "retry": "Retry",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "dragToReorder": "Drag to reorder",
+    "activateEntry": "Activate entry",
+    "deactivateEntry": "Deactivate entry",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "saveFailed": "We couldn't save your settings. Please try again.",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "editField": "Edit {{field}}"
+  },
+  "loading": {
+    "workspace": "Loading workspace…",
+    "rules": "Loading rules…",
+    "knowledge": "Loading knowledge…"
+  },
+  "readOnly": "Viewer access is read-only.",
+  "empty": {
+    "description": "Create a business first, then return here to configure your AI receptionist."
+  },
+  "hours": {
+    "title": "Opening hours",
+    "description": "The agent offers appointments only inside these hours.",
+    "generated": "We filled these in from your website and documents. Check them.",
+    "empty": "Add your hours so the agent can book appointments.",
+    "closed": "Closed",
+    "openOn": "Open on {{day}}",
+    "opensAt": "{{day}} opening time",
+    "closesAt": "{{day}} closing time",
+    "addWindow": "Add hours",
+    "removeWindow": "Remove these hours",
+    "picker": { "hours": "Hours", "minutes": "Minutes", "period": "AM or PM", "hoursTitle": "HH", "minutesTitle": "MM" },
+    "save": "Save hours",
+    "invalid": "Check {{day}}: each closing time must come after its opening time, with no overlaps.",
+    "noHoursAlert": {
+      "title": "Add opening hours to book appointments",
+      "description": "The agent offers times only inside your opening hours. Until you add them, it takes a message instead.",
+      "action": "Add opening hours"
+    },
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "notSet": "Not set",
+    "closures": {
+      "title": "Closures",
+      "description": "Add holidays and other times you're closed. The agent won't book appointments during them. Times are in {{timezone}}.",
+      "startsAt": "Closure {{number}}: closed from",
+      "endsAt": "Closure {{number}}: closed until",
+      "reason": "Closure {{number}}: reason",
+      "reasonPlaceholder": "Reason (optional)",
+      "add": "Add closure",
+      "remove": "Remove closure {{number}}",
+      "summary": "Closures: {{list}}",
+      "order": "Enter a start and a later end for the highlighted closure.",
+      "ended": "The highlighted closure ends in the past. Change its dates or remove it.",
+      "far": "The highlighted closure ends more than two years from now. Change its dates.",
+      "overlap": "The highlighted closure overlaps another one. Change its dates."
+    }
+  }
+}

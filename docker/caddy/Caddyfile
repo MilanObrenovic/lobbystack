@@ -1,0 +1,7 @@
+{
+  auto_https off
+}
+
+http://{$APP_HOSTNAME:localhost} {
+  reverse_proxy admin:3000
+}

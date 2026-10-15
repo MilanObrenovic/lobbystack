@@ -1,0 +1,423 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { config as loadEnv } from "dotenv";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import type { PoolClient } from "pg";
+import { initializeTelemetry, shutdownTelemetry } from "@lobbystack/telemetry/node";
+
+import { createDatabaseClient, databaseHealthCheck } from "./client";
+import {
+  concurrentIndexName,
+  MIGRATION_JOURNAL_TABLE,
+  LEGACY_BASELINE_MIGRATIONS,
+  ROLE_MIGRATION,
+  SCHEMA_MIGRATIONS,
+} from "./migrations/raw-migrations";
+import { businesses, schema } from "./schema";
+
+const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
+if (process.env.LOBBYSTACK_SKIP_ENV_FILES !== "true") {
+  loadEnv({ path: [resolve(repositoryRoot, ".env.local"), resolve(repositoryRoot, ".env")], quiet: true });
+}
+
+async function main(): Promise<void> {
+  await initializeTelemetry({ serviceName: "lobbystack-migrator" });
+  const command = process.argv[2] ?? "check";
+  const migrator = createDatabaseClient("lobbystack_migrator");
+  let migrationLockClient: PoolClient | undefined;
+
+  try {
+    switch (command) {
+      case "migrate": {
+        // Keep this session checked out for the whole migration run. Concurrent
+        // index builds are visible as invalid until their final phase, so a
+        // second migrator must not mistake an active build for a failed one.
+        migrationLockClient = await migrator.pool.connect();
+        // Data repairs report what they changed with RAISE NOTICE.
+        migrationLockClient.on("notice", (notice) => { if (notice.message) console.log(notice.message); });
+        await migrationLockClient.query("select pg_advisory_lock(hashtext('lobbystack:migrations'))");
+        const lockedMigrator = { ...migrator, db: drizzle(migrationLockClient, { schema }) };
+        const applied = await prepareMigrationJournal(lockedMigrator);
+        if (applied.size === 0 && (await appSchemaExists(lockedMigrator))) {
+          // The database was provisioned before this journal existed and already
+          // has the full schema. Record the known history as applied instead of
+          // replaying DDL against live tables.
+          await baselineExistingMigrations(lockedMigrator, applied);
+          console.log(`Baselined ${LEGACY_BASELINE_MIGRATIONS.length} previously-applied migrations into ${MIGRATION_JOURNAL_TABLE}.`);
+        }
+        await applyRawMigration(lockedMigrator, ROLE_MIGRATION, applied);
+        await migrate(lockedMigrator.db, { migrationsFolder: "./migrations/generated" });
+        for (const fileName of SCHEMA_MIGRATIONS) {
+          await applyRawMigration(lockedMigrator, fileName, applied);
+        }
+        console.log("Database migrations applied.");
+        break;
+      }
+      case "bootstrap": {
+        const rolePasswords: Array<[string, string | undefined]> = [
+          ["lobbystack_migrator", process.env.LOBBYSTACK_MIGRATOR_PASSWORD],
+          ["lobbystack_auth", process.env.LOBBYSTACK_AUTH_PASSWORD],
+          ["lobbystack_app", process.env.LOBBYSTACK_APP_PASSWORD],
+          ["lobbystack_worker", process.env.LOBBYSTACK_WORKER_PASSWORD],
+          ["lobbystack_dispatcher", process.env.LOBBYSTACK_DISPATCHER_PASSWORD],
+          ["lobbystack_readonly", process.env.LOBBYSTACK_READONLY_PASSWORD],
+          ["lobbystack_finance_export", process.env.LOBBYSTACK_FINANCE_EXPORT_PASSWORD],
+        ];
+        const existingRoles = new Set(
+          (await migrator.db.execute<{ rolname: string }>(sql`select rolname from pg_roles where rolname like 'lobbystack_%'`)).rows.map((row) => row.rolname),
+        );
+        let updated = 0;
+        for (const [role, password] of rolePasswords) {
+          if (!password || !existingRoles.has(role)) continue;
+          // ALTER ROLE is a utility statement: it cannot take a bind parameter for
+          // the password. Role names come from the fixed allowlist above and the
+          // password is escaped as a single-quoted literal.
+          await migrator.db.execute(sql.raw(`alter role "${role.replaceAll('"', '""')}" with login password '${password.replaceAll("'", "''")}'`));
+          updated += 1;
+        }
+        console.log(`Database role logins configured for ${updated} roles.`);
+        break;
+      }
+      case "check": {
+        const health = await databaseHealthCheck(migrator);
+        if (!health.ok) {
+          throw new Error("PostgreSQL health check failed.");
+        }
+        console.log(JSON.stringify(health));
+        break;
+      }
+      case "seed":
+        await migrator.db.insert(businesses).values({
+          slug: "demo-business",
+          name: "Demo Business",
+          timezone: "America/Toronto",
+          defaultLocale: "en",
+          businessType: "service_company",
+          deploymentMode: process.env.DEPLOYMENT_MODE ?? "development",
+        }).onConflictDoNothing({ target: businesses.slug });
+        console.log("Deterministic seed applied.");
+        break;
+      case "reset-test":
+        if (process.env.NODE_ENV === "production") {
+          throw new Error("db:reset:test is disabled in production.");
+        }
+        await migrator.db.execute(sql`drop schema if exists public cascade; create schema public;`);
+        console.log("Test database reset. Run db:migrate before use.");
+        break;
+      case "verify-rls": {
+        const rows = await migrator.db.execute<{ relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }>(sql`
+          select c.relname, c.relrowsecurity, c.relforcerowsecurity
+          from pg_class c
+          join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('__drizzle_migrations', '__lobbystack_migrations')
+          order by c.relname
+        `);
+        const failures = rows.rows.filter((row) => !row.relrowsecurity || !row.relforcerowsecurity);
+        if (failures.length > 0) {
+          throw new Error(`RLS verification failed for: ${failures.map((row) => row.relname).join(", ")}`);
+        }
+        const policyFailures = await migrator.db.execute<{ relname: string }>(sql`
+          select c.relname
+          from pg_class c
+          join pg_namespace n on n.oid = c.relnamespace
+          left join pg_policies p on p.schemaname = n.nspname and p.tablename = c.relname
+          where n.nspname = 'public'
+            and c.relkind = 'r'
+            and c.relname not in ('__drizzle_migrations', '__lobbystack_migrations')
+            and c.relrowsecurity
+          group by c.relname
+          having count(p.policyname) = 0
+          order by c.relname
+        `);
+        if (policyFailures.rows.length > 0) {
+          throw new Error(`RLS policy verification failed for: ${policyFailures.rows.map((row) => row.relname).join(", ")}`);
+        }
+        const grantFailures = await migrator.db.execute<{ role_name: string; table_name: string; privilege_type: string }>(sql`
+          select expected.role_name, expected.table_name, expected.privilege_type
+          from (values
+            ('lobbystack_auth', 'users', 'SELECT'),
+            ('lobbystack_auth', 'accounts', 'SELECT'),
+            ('lobbystack_auth', 'sessions', 'SELECT'),
+            ('lobbystack_auth', 'verifications', 'SELECT'),
+            ('lobbystack_app', 'outbox_messages', 'INSERT'),
+            ('lobbystack_worker', 'outbox_messages', 'INSERT'),
+            ('lobbystack_dispatcher', 'outbox_messages', 'SELECT'),
+            ('lobbystack_dispatcher', 'outbox_messages', 'INSERT'),
+            ('lobbystack_dispatcher', 'outbox_messages', 'UPDATE'),
+            ('lobbystack_dispatcher', 'outbox_messages', 'DELETE'),
+            ('lobbystack_readonly', 'outbox_messages', 'SELECT'),
+            ('lobbystack_app', 'prospect_demos', 'SELECT'),
+            ('lobbystack_worker', 'prospect_demos', 'SELECT'),
+            ('lobbystack_readonly', 'prospect_demos', 'SELECT')
+            ,('lobbystack_finance_export', 'businesses', 'SELECT')
+            ,('lobbystack_finance_export', 'billing_accounts', 'SELECT')
+            ,('lobbystack_finance_export', 'calls', 'SELECT')
+            ,('lobbystack_finance_export', 'appointments', 'SELECT')
+            ,('lobbystack_finance_export', 'unit_economics_events', 'SELECT')
+            ,('lobbystack_finance_export', 'billing_transactions', 'SELECT')
+          ) as expected(role_name, table_name, privilege_type)
+          where not has_table_privilege(expected.role_name, 'public.' || expected.table_name, expected.privilege_type)
+        `);
+        if (grantFailures.rows.length > 0) {
+          throw new Error(`Database grant verification failed for: ${grantFailures.rows.map((row) => `${row.role_name}:${row.table_name}:${row.privilege_type}`).join(", ")}`);
+        }
+        const affiliateUserGrantFailures = await migrator.db.execute<{ column_name: string }>(sql`
+          select expected.column_name
+          from (values ('id'), ('email'), ('name')) as expected(column_name)
+          where not has_column_privilege('lobbystack_worker', 'public.users', expected.column_name, 'SELECT')
+        `);
+        if (affiliateUserGrantFailures.rows.length > 0) {
+          throw new Error(`Affiliate worker user grant verification failed for: ${affiliateUserGrantFailures.rows.map((row) => row.column_name).join(", ")}`);
+        }
+        const demoResolverGrantFailures = await migrator.db.execute<{ role_name: string; function_name: string }>(sql`
+          select role_name, function_name
+          from (values
+            ('lobbystack_app', 'app.resolve_business_by_demo_token(text)'),
+            ('lobbystack_worker', 'app.resolve_business_by_demo_token(text)'),
+            ('lobbystack_app', 'app.resolve_prospect_demo_by_token(text)'),
+            ('lobbystack_worker', 'app.resolve_prospect_demo_by_token(text)'),
+            ('lobbystack_app', 'app.resolve_operator_prospect_demo(uuid)'),
+            ('lobbystack_app', 'app.list_operator_prospect_demos()'),
+            ('lobbystack_worker', 'app.expire_prospect_demos()'),
+            ('lobbystack_app', 'app.detach_prospect_demo_operator(uuid)'),
+            ('lobbystack_worker', 'app.resolve_onboarding_followup_recipient(uuid, timestamptz)'),
+            ('lobbystack_worker', 'app.list_businesses_by_contact_phone(text)')
+          ) as expected(role_name, function_name)
+          where not has_function_privilege(expected.role_name, expected.function_name, 'EXECUTE')
+        `);
+        if (demoResolverGrantFailures.rows.length > 0) {
+          throw new Error(`Demo resolver grant verification failed for: ${demoResolverGrantFailures.rows.map((row) => `${row.role_name}:${row.function_name}`).join(", ")}`);
+        }
+        const widgetResolverGrantFailures = await migrator.db.execute<{ role_name: string; function_name: string }>(sql`
+          select role_name, function_name
+          from (values
+            ('lobbystack_app', 'app.resolve_business_by_widget_key(text)'),
+            ('lobbystack_worker', 'app.resolve_business_by_widget_key(text)'),
+            ('lobbystack_app', 'app.resolve_api_key(text)'),
+            ('lobbystack_worker', 'app.resolve_api_key(text)'),
+            ('lobbystack_worker', 'app.resolve_oauth_access_token(text)'),
+            ('lobbystack_worker', 'app.touch_oauth_grant(text)'),
+            ('lobbystack_app', 'app.list_oauth_grantors(uuid)'),
+            ('lobbystack_app', 'app.list_business_members(uuid)'),
+            ('lobbystack_worker', 'app.list_open_live_call_businesses(timestamptz, timestamptz)'),
+            ('lobbystack_dispatcher', 'app.list_scheduler_businesses()'),
+            ('lobbystack_dispatcher', 'app.list_summary_backfill_businesses()'),
+            ('lobbystack_dispatcher', 'app.list_reembed_businesses(text)')
+          ) as expected(role_name, function_name)
+          where not has_function_privilege(expected.role_name, expected.function_name, 'EXECUTE')
+        `);
+        if (widgetResolverGrantFailures.rows.length > 0) {
+          throw new Error(`Widget resolver grant verification failed for: ${widgetResolverGrantFailures.rows.map((row) => `${row.role_name}:${row.function_name}`).join(", ")}`);
+        }
+        if (process.env.VERIFY_RLS_BEHAVIOR === "true") {
+          await verifyRlsBehavior(migrator);
+        }
+        console.log(`RLS enabled and forced on ${rows.rows.length} tables.`);
+        break;
+      }
+      default:
+        throw new Error(`Unknown database command: ${command}`);
+    }
+  } finally {
+    if (migrationLockClient) {
+      await migrationLockClient.query("select pg_advisory_unlock(hashtext('lobbystack:migrations'))").catch(() => undefined);
+      migrationLockClient.removeAllListeners("notice");
+      migrationLockClient.release();
+    }
+    await migrator.pool.end().catch(() => undefined);
+    await shutdownTelemetry();
+  }
+}
+
+async function ensureMigrationJournal(client: ReturnType<typeof createDatabaseClient>): Promise<void> {
+  await client.db.execute(sql`
+    create table if not exists public.__lobbystack_migrations (
+      name text primary key,
+      checksum text not null,
+      applied_at timestamptz not null default now()
+    )
+  `);
+}
+
+async function readAppliedMigrations(client: ReturnType<typeof createDatabaseClient>): Promise<Map<string, string>> {
+  const result = await client.db.execute<{ name: string; checksum: string }>(sql`
+    select name, checksum from public.__lobbystack_migrations
+  `);
+  return new Map(result.rows.map((row) => [row.name, row.checksum]));
+}
+
+async function appSchemaExists(client: ReturnType<typeof createDatabaseClient>): Promise<boolean> {
+  const result = await client.db.execute<{ present: boolean }>(sql`
+    select to_regnamespace('app') is not null as present
+  `);
+  return result.rows[0]?.present ?? false;
+}
+
+async function prepareMigrationJournal(client: ReturnType<typeof createDatabaseClient>): Promise<Map<string, string>> {
+  await ensureMigrationJournal(client);
+  return readAppliedMigrations(client);
+}
+
+async function baselineExistingMigrations(
+  client: ReturnType<typeof createDatabaseClient>,
+  applied: Map<string, string>,
+): Promise<void> {
+  for (const fileName of LEGACY_BASELINE_MIGRATIONS) {
+    const contents = await readFile(resolve("migrations", fileName), "utf8");
+    const checksum = createHash("sha256").update(contents).digest("hex");
+    await client.db.execute(sql`
+      insert into public.__lobbystack_migrations (name, checksum)
+      values (${fileName}, ${checksum})
+      on conflict (name) do nothing
+    `);
+    applied.set(fileName, checksum);
+  }
+}
+
+async function applyRawMigration(
+  client: ReturnType<typeof createDatabaseClient>,
+  fileName: string,
+  applied: Map<string, string>,
+): Promise<void> {
+  const contents = await readFile(resolve("migrations", fileName), "utf8");
+  const checksum = createHash("sha256").update(contents).digest("hex");
+  const recorded = applied.get(fileName);
+  const indexName = concurrentIndexName(contents);
+  if (recorded !== undefined) {
+    if (recorded !== checksum) {
+      console.warn(`Migration ${fileName} was already applied with a different checksum; leaving the applied version in place.`);
+      return;
+    }
+    if (!indexName || (await readConcurrentIndexValidity(client, indexName)) === true) {
+      console.log(`Skipping already-applied migration ${fileName}.`);
+      return;
+    }
+    console.warn(`Repairing missing or invalid concurrent index ${indexName} for migration ${fileName}.`);
+  }
+  if (indexName) {
+    // CREATE INDEX CONCURRENTLY is intentionally outside a transaction so it
+    // does not block writes for the duration of a production index build. A
+    // failed concurrent build can leave an invalid index behind; remove only
+    // that invalid artifact before retrying the idempotent migration.
+    if ((await readConcurrentIndexValidity(client, indexName)) === false) {
+      await client.db.execute(sql.raw(`drop index concurrently if exists public."${indexName}"`));
+    }
+    await client.db.execute(sql.raw(contents));
+    if ((await readConcurrentIndexValidity(client, indexName)) !== true) {
+      throw new Error(`Concurrent index migration ${fileName} did not create a valid ${indexName} index.`);
+    }
+    await client.db.execute(sql`
+      insert into public.__lobbystack_migrations (name, checksum)
+      values (${fileName}, ${checksum})
+      on conflict (name) do update set checksum = excluded.checksum, applied_at = now()
+    `);
+    applied.set(fileName, checksum);
+    console.log(`Applied migration ${fileName}.`);
+    return;
+  }
+  // Apply the file and record it in one transaction so a failure never marks a
+  // migration as done. Postgres treats a multi-statement simple query as a
+  // single implicit transaction, so this preserves the previous atomicity while
+  // making it explicit for the journal write.
+  await client.db.transaction(async (tx) => {
+    await tx.execute(sql.raw(contents));
+    await tx.execute(sql`
+      insert into public.__lobbystack_migrations (name, checksum)
+      values (${fileName}, ${checksum})
+      on conflict (name) do update set checksum = excluded.checksum, applied_at = now()
+    `);
+  });
+  applied.set(fileName, checksum);
+  console.log(`Applied migration ${fileName}.`);
+}
+
+async function readConcurrentIndexValidity(
+  client: ReturnType<typeof createDatabaseClient>,
+  indexName: string,
+): Promise<boolean | undefined> {
+  const result = await client.db.execute<{ valid: boolean }>(sql`
+    select i.indisvalid as valid
+    from pg_catalog.pg_index i
+    where i.indexrelid = to_regclass(${`public.${indexName}`})
+  `);
+  return result.rows[0]?.valid;
+}
+
+async function verifyRlsBehavior(client: ReturnType<typeof createDatabaseClient>): Promise<void> {
+  await client.db.transaction(async (tx) => {
+    const ids = (await tx.execute<{
+      business_a: string;
+      business_b: string;
+      user_id: string;
+    }>(sql`select gen_random_uuid() as business_a, gen_random_uuid() as business_b, gen_random_uuid() as user_id`)).rows[0];
+    if (!ids) throw new Error("Could not create RLS verification identifiers.");
+
+    await tx.execute(sql`
+      insert into public.businesses (id, slug, name, timezone, business_type)
+      values
+        (${ids.business_a}::uuid, ${`rls-a-${ids.business_a}`} , 'RLS Verification A', 'UTC', 'test'),
+        (${ids.business_b}::uuid, ${`rls-b-${ids.business_b}`} , 'RLS Verification B', 'UTC', 'test')
+    `);
+    await tx.execute(sql`
+      insert into public.users (id, email, normalized_email)
+      values (${ids.user_id}::uuid, ${`rls-${ids.user_id}@example.invalid`}, ${`rls-${ids.user_id}@example.invalid`})
+    `);
+    await tx.execute(sql`
+      insert into public.business_memberships (business_id, user_id, role)
+      values (${ids.business_a}::uuid, ${ids.user_id}::uuid, 'business_owner')
+    `);
+    await tx.execute(sql`
+      insert into public.services (business_id, name, slug, duration_minutes)
+      values
+        (${ids.business_a}::uuid, 'RLS Service A', ${`rls-service-a-${ids.business_a}`}, 30),
+        (${ids.business_b}::uuid, 'RLS Service B', ${`rls-service-b-${ids.business_b}`}, 30)
+    `);
+
+    try {
+      await tx.execute(sql.raw("set local role lobbystack_app"));
+      await tx.execute(sql`select set_config('app.business_id', ${ids.business_a}, true)`);
+      await tx.execute(sql`select set_config('app.user_id', ${ids.user_id}, true)`);
+      await tx.execute(sql`select set_config('app.actor_type', 'operator', true)`);
+      const ownBusiness = (await tx.execute<{ count: string }>(sql`select count(*)::text as count from public.businesses`)).rows[0]?.count;
+      const foreignServices = (await tx.execute<{ count: string }>(sql`select count(*)::text as count from public.services where business_id = ${ids.business_b}::uuid`)).rows[0]?.count;
+      if (ownBusiness !== "1" || foreignServices !== "0") {
+        throw new Error(`RLS visibility check failed for app role (own=${ownBusiness ?? "missing"}, foreign=${foreignServices ?? "missing"}).`);
+      }
+
+      await tx.execute(sql`select set_config('app.business_id', ${ids.business_b}, true)`);
+      const unauthorizedBusiness = (await tx.execute<{ count: string }>(sql`select count(*)::text as count from public.businesses`)).rows[0]?.count;
+      if (unauthorizedBusiness !== "0") {
+        throw new Error(`RLS cross-tenant check failed (unauthorized business count=${unauthorizedBusiness}).`);
+      }
+
+      await tx.execute(sql`select set_config('app.actor_type', 'worker', true)`);
+      const spoofedWorkerServices = (await tx.execute<{ count: string }>(sql`select count(*)::text as count from public.services where business_id = ${ids.business_b}::uuid`)).rows[0]?.count;
+      await tx.execute(sql`select set_config('app.actor_type', 'dispatcher', true)`);
+      const spoofedDispatcherServices = (await tx.execute<{ count: string }>(sql`select count(*)::text as count from public.services where business_id = ${ids.business_b}::uuid`)).rows[0]?.count;
+      if (spoofedWorkerServices !== "0" || spoofedDispatcherServices !== "0") {
+        throw new Error(`RLS role spoofing check failed (worker=${spoofedWorkerServices ?? "missing"}, dispatcher=${spoofedDispatcherServices ?? "missing"}).`);
+      }
+
+      await tx.execute(sql.raw("set local role lobbystack_worker"));
+      await tx.execute(sql`select set_config('app.actor_type', 'worker', true)`);
+      const workerBusiness = (await tx.execute<{ count: string }>(sql`select count(*)::text as count from public.businesses`)).rows[0]?.count;
+      if (workerBusiness !== "1") {
+        throw new Error(`RLS worker-context check failed (count=${workerBusiness ?? "missing"}).`);
+      }
+    } finally {
+      await tx.execute(sql.raw("reset role"));
+      await tx.execute(sql`delete from public.businesses where id in (${ids.business_a}::uuid, ${ids.business_b}::uuid)`);
+      await tx.execute(sql`delete from public.users where id = ${ids.user_id}::uuid`);
+    }
+  });
+}
+
+void main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});

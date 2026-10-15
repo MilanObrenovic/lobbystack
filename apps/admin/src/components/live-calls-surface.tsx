@@ -1,0 +1,284 @@
+"use client";
+
+import { useActiveBusiness } from "@/hooks/use-active-business";
+import { subscribeRealtimeQuery } from "@/lib/realtime-query";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  flexRender,
+  useTable,
+  type ColumnDef,
+  type PaginationState,
+} from "@tanstack/react-table";
+import { Pause, Play, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { CallRecordingPlayer } from "@/components/audio/call-recording-player";
+import { DataTablePagination, paginationFeatures } from "@/components/data-table/pagination";
+import { TableCardSkeleton } from "@/components/loading-skeletons";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCard,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type { CallOutcome } from "../../../../packages/domain/src/server/callOutcome";
+import { formatCallOutcomeSummary } from "@/lib/call-outcome";
+import { intlLocale, formatDateTime } from "@/lib/locale";
+import { getChannelLabel, getContactDisplayName, hasDisplayablePhone, normalizeChannel } from "@/lib/contact-display";
+import { formatPhoneNumberDisplay } from "@/lib/phone";
+
+type Call = {
+  outcome: CallOutcome;
+  id: string;
+  providerCallId: string;
+  status: string;
+  transport?: string | null;
+  disposition: string | null;
+  reason: string | null;
+  startedAt: string;
+  providerDurationSeconds: number | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  contactEmail?: string | null;
+  recordingState: "available" | "pending" | "expired" | "missing";
+  transcriptPreview: string | null;
+};
+
+function callerName(call: Call, locale: string, t: (key: string) => string): string {
+  return getContactDisplayName({ name: call.contactName, phone: call.contactPhone, email: call.contactEmail, channels: [call.transport] }, locale, t);
+}
+
+/** The caller's number, or the channel for a web call, which has none. */
+function callerNumber(call: Call, locale: string, t: (key: string) => string): string {
+  if (hasDisplayablePhone(call.contactPhone)) return formatPhoneNumberDisplay(call.contactPhone, locale);
+  return normalizeChannel(call.transport) === "web_call" ? getChannelLabel(call.transport, t) : t("table.noNumber");
+}
+
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { credentials: "include", signal: AbortSignal.timeout(5_000) });
+  if (!response.ok) throw new Error("Unable to load live call data.");
+  return await response.json() as T;
+}
+
+export function LiveCallsSurface() {
+  const { i18n, t } = useTranslation("calls");
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  // Search once typing pauses rather than on every keystroke.
+  const [searchQuery, setSearchQuery] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, []);
+  const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  const { businesses, business } = useActiveBusiness();
+  const calls = useQuery({
+    queryKey: ["calls", business?.businessId, searchQuery, pagination.pageIndex, pagination.pageSize],
+    queryFn: () => getJson<{ calls: Call[]; pagination: { total: number } }>(`/api/calls?limit=${pagination.pageSize}&offset=${pagination.pageIndex * pagination.pageSize}&search=${encodeURIComponent(searchQuery)}`),
+    enabled: Boolean(business),
+    // Keep the current rows on screen while the next page or search loads.
+    placeholderData: keepPreviousData,
+  });
+  const activeCalls = useQuery({
+    queryKey: ["active-calls", business?.businessId],
+    queryFn: () => getJson<{ active: number }>(`/api/calls/active?businessId=${encodeURIComponent(business!.businessId)}`),
+    enabled: Boolean(business),
+    retry: false,
+    refetchInterval: 5_000,
+  });
+  const recording = useQuery({
+    queryKey: ["call-recording", activeRecordingId],
+    queryFn: () => getJson<{ url: string }>(`/api/calls/${encodeURIComponent(activeRecordingId!)}/recording`),
+    enabled: Boolean(activeRecordingId),
+  });
+
+  useEffect(() => {
+    if (!business?.businessId) return;
+    return subscribeRealtimeQuery(queryClient, business?.businessId, ["calls", business?.businessId], ["call.started", "call.updated", "call.completed", "recording.available"]);
+  }, [business?.businessId, queryClient]);
+
+  useEffect(() => {
+    if (!business?.businessId) return;
+    return subscribeRealtimeQuery(queryClient, business.businessId, ["active-calls", business.businessId], ["call.started", "call.updated", "call.completed"]);
+  }, [business?.businessId, queryClient]);
+
+  const rows = calls.data?.calls ?? [];
+  const total = calls.data?.pagination.total ?? 0;
+
+  useEffect(() => {
+    if (!calls.data) return;
+    setPagination((current) => {
+      const finalPage = Math.max(0, Math.ceil(total / current.pageSize) - 1);
+      return current.pageIndex > finalPage ? { ...current, pageIndex: finalPage } : current;
+    });
+  }, [total, calls.data]);
+
+  const columns = useMemo<Array<ColumnDef<typeof paginationFeatures, Call>>>(() => [
+    {
+      id: "caller",
+      accessorFn: (call) => callerName(call, i18n.language, t),
+      header: () => t("table.caller"),
+      cell: ({ row }) => <span className="ph-mask font-medium">{callerName(row.original, i18n.language, t)}</span>,
+    },
+    {
+      id: "number",
+      accessorFn: (call) => callerNumber(call, i18n.language, t),
+      header: () => t("table.number"),
+      cell: ({ row }) => <span className="ph-mask">{callerNumber(row.original, i18n.language, t)}</span>,
+    },
+    {
+      id: "purpose",
+      accessorFn: (call) => call.reason ?? t("outcome.none"),
+      header: () => t("table.purpose"),
+      cell: ({ row }) => <span className="type-body-muted">{row.original.outcome?.kind !== "none" ? formatCallOutcomeSummary(row.original.outcome, i18n.language, t) : row.original.transcriptPreview?.trim() || t("outcome.none")}</span>,
+    },
+    {
+      id: "time",
+      accessorFn: (call) => call.startedAt,
+      header: () => <span className="block text-right">{t("table.time")}</span>,
+      cell: ({ row }) => <span className="block text-right">{formatDateTime(row.original.startedAt, i18n.language, { dateStyle: "medium", timeStyle: "short" })}</span>,
+    },
+    {
+      id: "play",
+      header: () => null,
+      cell: ({ row }) => {
+        const call = row.original;
+        if (call.recordingState !== "available") {
+          return <span className="type-body-muted">{call.recordingState === "pending" ? t("actions.audioPending") : t("actions.audioUnavailable")}</span>;
+        }
+        const active = call.id === activeRecordingId;
+        return (
+          <Button
+            aria-label={active ? t("actions.pause") : t("actions.play")}
+            onClick={(event) => {
+              event.stopPropagation();
+              setActiveRecordingId((current) => current === call.id ? null : call.id);
+            }}
+            size="icon-sm"
+            title={active ? t("actions.pause") : t("actions.play")}
+            variant="ghost"
+          >
+            {active ? <Pause className="size-4" /> : <Play className="size-4" />}
+          </Button>
+        );
+      },
+    },
+  ], [activeRecordingId, i18n.language, t]);
+
+  const table = useTable({
+    features: paginationFeatures,
+    columns,
+    data: rows,
+    manualPagination: true,
+    rowCount: total,
+    onPaginationChange: setPagination,
+    state: { pagination },
+  });
+  const liveCalls = activeCalls.isError || activeCalls.fetchStatus === "paused" || !activeCalls.data || now - activeCalls.dataUpdatedAt > 15_000 ? null : activeCalls.data.active;
+
+  return (
+    <div className="flex flex-1 flex-col gap-6">
+      <PageHeader
+        actions={
+          <div className="inline-flex shrink-0 items-center gap-2">
+            {activeCalls.isLoading ? <Skeleton className="h-6 w-8" /> : liveCalls === null
+              ? <span className="text-sm text-muted-foreground">{t("page.liveUnavailable")}</span>
+              : <span className="text-base font-semibold leading-none">{liveCalls.toLocaleString(intlLocale(i18n.language))}</span>}
+            {!activeCalls.isLoading && <span className="relative flex size-2.5 shrink-0" aria-hidden="true" data-testid="live-call-indicator">
+              {liveCalls !== null && liveCalls > 0 && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500/45" />}
+              <span className={`relative inline-flex size-2.5 rounded-full ${liveCalls === null ? "bg-muted-foreground" : "bg-emerald-500"}`} />
+            </span>}
+          </div>
+        }
+        title={t("page.title")}
+      />
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-10"
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPagination((current) => ({ ...current, pageIndex: 0 }));
+          }}
+          placeholder={t("filters.searchPlaceholder")}
+          value={search}
+        />
+      </div>
+      <CallRecordingPlayer
+        autoPlay
+        downloadLabel={t("actions.download")}
+        initialDurationSeconds={rows.find((call) => call.id === activeRecordingId)?.providerDurationSeconds ?? 0}
+        onEnded={() => setActiveRecordingId(null)}
+        pauseLabel={t("actions.pause")}
+        playLabel={t("actions.play")}
+        src={recording.data?.url ?? null}
+        variant="hidden"
+      />
+      {businesses.isLoading || calls.isLoading ? <TableCardSkeleton columns={5} /> : (
+        <>
+          <TableCard>
+            <Table className="min-w-[56rem]">
+              <TableHeader>
+                {table.getHeaderGroups().map((group) => (
+                  <TableRow key={group.id}>
+                    {group.headers.map((header) => (
+                      <TableHead className={header.column.id === "purpose" ? "min-w-80" : header.column.id === "play" ? "w-12 text-right" : undefined} key={header.id}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    className="h-12 cursor-pointer"
+                    data-state={row.original.id === activeRecordingId ? "selected" : undefined}
+                    key={row.id}
+                    onClick={() => router.push(`/calls/${row.original.id}`)}
+                  >
+                    {row.getAllCells().map((cell) => (
+                      <TableCell className={cell.column.id === "purpose" ? "max-w-0 whitespace-normal" : cell.column.id === "play" ? "w-12 text-right" : undefined} key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+                {table.getRowModel().rows.length === 0 ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={5}>{t("table.empty")}</TableCell></TableRow> : null}
+              </TableBody>
+            </Table>
+          </TableCard>
+          <DataTablePagination
+            labels={{
+              rowsPerPage: t("pagination.rowsPerPage"),
+              pageOf: (page, total) => t("pagination.pageOf", { page, total }),
+              firstPage: t("pagination.firstPage"),
+              previousPage: t("pagination.previousPage"),
+              nextPage: t("pagination.nextPage"),
+              lastPage: t("pagination.lastPage"),
+              goToPage: (page) => t("pagination.goToPage", { page }),
+            }}
+            table={table}
+          />
+        </>
+      )}
+    </div>
+  );
+}

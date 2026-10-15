@@ -1,0 +1,242 @@
+{
+  "shell": {
+    "signOut": "Déconnexion",
+    "terms": "Conditions",
+    "privacy": "Confidentialité"
+  },
+  "errors": {
+    "tooManyBusinesses": "Vous possédez déjà 10 espaces de travail, la limite pour un compte."
+  },
+  "adminRequired": {
+    "eyebrow": "Configuration de l'espace de travail",
+    "title": "La configuration attend un administrateur",
+    "description": "Cet espace de travail est encore en configuration. Demandez à un propriétaire ou à un administrateur de terminer la configuration avant de l'utiliser.",
+    "descriptionWithBusiness": "{{businessName}} est encore en configuration. Demandez à un propriétaire ou à un administrateur de terminer la configuration avant de l'utiliser.",
+    "statusTitle": "Votre accès est actif",
+    "statusDescription": "Vous pourrez utiliser l'espace de travail dès qu'un administrateur aura terminé l'accueil. Les changements de configuration sont réservés aux propriétaires et aux administrateurs.",
+    "goToWorkspace": "Aller à l'espace de travail"
+  },
+  "businessName": {
+    "title": "D'abord, quel est le nom de votre entreprise ?",
+    "description": "",
+    "createTitle": "Créer un espace de travail",
+    "createDescription": "Ces informations constituent la base du contexte de votre réceptionniste.",
+    "existingTitle": "L'espace de travail existe déjà",
+    "existingDescription": "Continuez la configuration avec l'espace de travail actif.",
+    "configured": "Les détails de l'entreprise sont déjà configurés.",
+    "continueSetup": "Continuer la configuration",
+    "loading": "Chargement des espaces de travail...",
+    "unavailable": "La configuration de l'espace de travail est indisponible.",
+    "label": "Nom de l'entreprise",
+    "placeholder": "Bar George",
+    "slugLabel": "Slug",
+    "slugPlaceholder": "clinique-familiale-maple",
+    "timezoneLabel": "Fuseau horaire",
+    "timezonePlaceholder": "America/Toronto",
+    "typeLabel": "Type d'entreprise",
+    "types": {
+      "serviceCompany": "Entreprise de services",
+      "clinic": "Clinique",
+      "salon": "Salon ou spa",
+      "professionalServices": "Services professionnels",
+      "other": "Autre"
+    },
+    "create": "Créer et continuer",
+    "continue": "Continuer",
+    "submitting": "Enregistrement...",
+    "submitFailed": "Impossible d'enregistrer cette entreprise pour le moment. Réessayez."
+  },
+  "website": {
+    "title": "Entraînons LobbyStack avec votre site web",
+    "description": "",
+    "label": "Site web",
+    "placeholder": "votreentreprise.com",
+    "sourceName": "Nom de la source",
+    "sourceNameHint": "Libellé facultatif pour la source importée.",
+    "sourceNamePlaceholder": "Site web de l'entreprise",
+    "continue": "Continuer",
+    "submitting": "Démarrage de l'import...",
+    "skip": "Je n'ai pas de site web",
+    "skipping": "Ignorer...",
+    "submitFailed": "Impossible de démarrer l'import maintenant. Réessayez.",
+    "invalidUrl": "Entrez l'adresse de votre site web, par exemple votreentreprise.com.",
+    "skipFailed": "Impossible d'ignorer cette étape maintenant. Réessayez."
+  },
+  "knowledge": {
+    "title": "Ajouter des documents d'entraînement",
+    "description": "Aidez votre IA à comprendre votre entreprise.",
+    "tabs": {
+      "upload": "Téléverser des fichiers",
+      "paste": "Coller du texte"
+    },
+    "upload": {
+      "headline": "Glissez-déposez ou cliquez pour téléverser",
+      "formats": "PDF, DOCX, TXT, MD pris en charge",
+      "remove": "Retirer",
+      "tooLarge": "Les documents doivent faire 10 Mo ou moins.",
+      "unsupportedType": "Types pris en charge : PDF, DOCX, TXT, Markdown.",
+      "failed": "Impossible de téléverser ce document. Réessayez."
+    },
+    "paste": {
+      "placeholder": "Collez les infos de votre entreprise : services, FAQ, horaires, politiques...",
+      "hint": "Nous ajouterons ce contenu à la base de connaissances de votre IA immédiatement.",
+      "defaultTitle": "Notes d'intégration"
+    },
+    "continue": "Continuer",
+    "continuing": "Enregistrement...",
+    "skip": "Ignorer pour l'instant",
+    "skipping": "Ignorer...",
+    "continueFailed": "Impossible de continuer maintenant. Réessayez.",
+    "skipFailed": "Impossible d'ignorer cette étape maintenant. Réessayez."
+  },
+  "testCall": {
+    "title": "Écoutez votre réceptionniste",
+    "continue": "Continuer",
+    "skip": "Passer pour l'instant",
+    "continueFailed": "Impossible de continuer. Réessayez."
+  },
+  "verifyPhone": {
+    "title": "Vérifiez votre numéro de mobile",
+    "fields": {
+      "mobileNumber": "Numéro de mobile",
+      "country": "Pays"
+    },
+    "hint": "Utilisez un mobile qui reçoit les SMS. Les numéros Internet ne fonctionnent pas.",
+    "sendCode": "M'envoyer un code",
+    "sending": "Envoi…",
+    "sendFailed": "Impossible d'envoyer le code. Réessayez.",
+    "errors": {
+      "voip": "Utilisez votre numéro de mobile. Les numéros Internet ne peuvent pas être vérifiés.",
+      "notMobile": "Utilisez un numéro de mobile qui reçoit les SMS.",
+      "countryMismatch": "Ce numéro ne vient pas du pays choisi.",
+      "invalidNumber": "Entrez un numéro de mobile valide.",
+      "rateLimited": "Trop de codes demandés. Patientez un moment, puis réessayez."
+    },
+    "code": {
+      "sentTo": "Entrez le code à 6 chiffres envoyé au {{phone}}.",
+      "checking": "Vérification…",
+      "invalid_one": "Ce code ne fonctionne pas. Il vous reste {{count}} essai.",
+      "invalid_many": "Ce code ne fonctionne pas. Il vous reste {{count}} essais.",
+      "invalid_other": "Ce code ne fonctionne pas. Il vous reste {{count}} essais.",
+      "expired": "Ce code a expiré. Demandez-en un nouveau.",
+      "locked": "Trop d'essais. Demandez un nouveau code.",
+      "failed": "Impossible de vérifier le code. Réessayez.",
+      "resend": "Envoyer un nouveau code",
+      "changeNumber": "Utiliser un autre numéro"
+    },
+    "unavailable": {
+      "title": "Nous n'offrons pas encore de numéros dans ce pays ({{country}}).",
+      "body": "Vous pouvez quand même utiliser votre réceptionniste dans le navigateur, et nous pouvons vous écrire quand les numéros y arriveront.",
+      "notify": "M'écrire quand ils seront disponibles",
+      "joined": "C'est noté. Nous vous écrirons.",
+      "continue": "Continuer sans numéro",
+      "failed": "Une erreur est survenue. Réessayez."
+    }
+  },
+  "greeting": {
+    "title": "Comment devons-nous accueillir vos appelants ?",
+    "description": "C'est la première phrase que dira votre IA. Modifiable à tout moment.",
+    "label": "Message d'accueil",
+    "language": "Langue des appelants",
+    "placeholder": "Merci d'appeler. Comment puis-je vous aider ?",
+    "continue": "Continuer",
+    "submitting": "Enregistrement...",
+    "submitFailed": "Impossible d'enregistrer ce message maintenant. Réessayez."
+  },
+  "number": {
+    "ready": {
+      "label": "Votre numéro est prêt",
+      "body": "Appelez-le depuis votre téléphone et écoutez votre réceptionniste répondre.",
+      "call": "Appeler le {{number}}"
+    },
+    "planRequired": "Pour obtenir un numéro, choisissez un forfait.",
+    "title": "Choisissez le numéro de votre IA",
+    "description": "Choisissez un numéro local que vos appelants peuvent composer.",
+    "countryLabel": "Pays",
+    "kindLocal": "Local",
+    "kindTollFree": "Sans frais",
+    "areaCodeLabel": "Indicatif",
+    "areaCodePlaceholder": "Indicatif",
+    "cityLabel": "Ville",
+    "cityPlaceholder": "Ville",
+    "location": "Emplacement",
+    "capabilities": "Fonctions",
+    "voiceSms": "Voix · SMS",
+    "search": "Rechercher",
+    "tableHeaders": {
+      "phoneNumber": "Numéro"
+    },
+    "select": "Choisir",
+    "loadMore": "Charger plus",
+    "empty": "Aucun numéro ne correspond.",
+    "skipLater": "Ajouter un numéro plus tard",
+    "skipping": "Ignorer...",
+    "loadFailed": "Impossible de charger les numéros maintenant.",
+    "searchFailed": "Impossible de rechercher maintenant.",
+    "claimFailed": "Impossible de provisionner ce numéro. Réessayez.",
+    "claimRateLimited": "Vous avez essayé plusieurs numéros. Attendez un peu avant de réessayer.",
+    "offerExpired": "Cette offre a expiré. Relancez la recherche et choisissez un numéro.",
+    "trialAccountPurchaseLimit": "Ce compte Twilio ne peut pas encore acheter ce numéro. Les comptes d'essai ne peuvent acheter que des numéros admissibles; libérez un numéro existant ou mettez le compte à niveau, puis réessayez.",
+    "skipFailed": "Impossible d'ignorer cette étape maintenant. Réessayez.",
+    "tooManySearches": "Trop de recherches. Attendez un peu, puis réessayez.",
+    "unavailable": "Ce numéro vient d'être pris. Choisissez-en un autre.",
+    "selectedTitle": "Le numéro de votre IA",
+    "selectedNumberLabel": "Numéro sélectionné",
+    "continue": "Continuer"
+  },
+  "attribution": {
+    "title": "Comment avez-vous connu LobbyStack ?",
+    "description": "Cela nous aide à savoir ce qui fonctionne.",
+    "options": {
+      "ai_assistant": "ChatGPT, Claude, etc.",
+      "newsletter": "Newsletter ou blog",
+      "podcast": "Podcast",
+      "news": "Dans les médias",
+      "work": "Au travail",
+      "school": "Amis ou école",
+      "x": "X",
+      "reddit": "Reddit",
+      "facebook": "Facebook",
+      "youtube": "YouTube",
+      "instagram": "Instagram",
+      "linkedin": "LinkedIn",
+      "google": "Google",
+      "tiktok": "TikTok",
+      "other": "Autre"
+    },
+    "skip": "Ignorer",
+    "label": "Source",
+    "preferNot": "Je préfère ne pas répondre",
+    "search": "Moteur de recherche",
+    "referral": "Ami ou collègue",
+    "social": "Réseaux sociaux",
+    "event": "Événement ou communauté",
+    "other": "Autre",
+    "finish": "Terminer",
+    "finishing": "Finalisation...",
+    "failed": "Impossible de terminer la configuration.",
+    "submitFailed": "Impossible d'enregistrer maintenant. Réessayez."
+  },
+  "plan": {
+    "title": "Choisissez votre forfait",
+    "checkoutSuccess": "Paiement effectué avec succès.",
+    "popular": "Populaire",
+    "enterpriseSubject": "Forfait Entreprise",
+    "compareTitle": "Comparer les forfaits en détail",
+    "compareDescription": "Free vous donne 30 minutes vocales et un numéro américain ou canadien pendant 14 jours. Starter et Pro comprennent un numéro dédié et des volumes mensuels.",
+    "featureHeader": "Fonctionnalité",
+    "billingInterval": {
+      "label": "Intervalle de facturation",
+      "monthly": "Mensuel",
+      "annual": "Annuel",
+      "save": "Économisez 20 %"
+    },
+    "comparison": {
+      "included": "Inclus",
+      "notIncluded": "Non inclus"
+    },
+    "continue": "Continuer",
+    "continuing": "Continuer...",
+    "continueFailed": "Impossible de continuer maintenant. Réessayez."
+  }
+}

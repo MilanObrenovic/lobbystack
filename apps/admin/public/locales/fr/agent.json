@@ -1,0 +1,469 @@
+{
+  "page": {
+    "eyebrow": "Espace agent",
+    "title": "Agent",
+    "description": "Configurez le comportement de votre réceptionniste IA, ses connaissances et sa gestion des appels et messages."
+  },
+  "sections": {
+    "basicSettings": {
+      "title": "Paramètres IA",
+      "description": "Message d'accueil et paramètres de transfert de votre réceptionniste."
+    },
+    "knowledge": {
+      "title": "Connaissances",
+      "description": "Informations et directives que votre réceptionniste utilise pour répondre aux questions.",
+      "listTitle": "Base de connaissances",
+      "addKnowledge": "Ajouter",
+      "addKnowledgeOptions": {
+        "upload": "Téléverser",
+        "website": "Site web",
+        "text": "Texte"
+      },
+      "editKnowledge": "Modifier les connaissances",
+      "deleteWebsite": { "action": "Tout supprimer", "title": "Supprimer toutes les pages de ce site ?", "description": "Toutes les pages importées depuis {{host}} seront définitivement supprimées.", "deleted": "Toutes les pages de {{host}} ont été supprimées." },
+      "toast": { "added": "Connaissance ajoutée.", "updated": "Connaissance mise à jour.", "uploaded": "Document importé. Il sera bientôt prêt.", "deleted": "Connaissance supprimée.", "enabled": "Connaissance activée.", "disabled": "Connaissance désactivée." },
+      "uploadDocument": "Téléverser un document",
+      "websiteImport": {
+        "badge": "Site web",
+        "title": "Importer un site web",
+        "description": "Explorez les pages publiques de votre site web pour que votre réceptionniste puisse les utiliser comme connaissances.",
+        "submit": "Importer",
+        "submitting": "Importation…",
+        "success": "L'import du site web a démarré. Les pages apparaîtront ici au fur et à mesure du traitement.",
+        "submitFailed": "Nous n'avons pas pu démarrer l'import du site web. Réessayez.",
+        "previewPending": "Nous explorons ce site web. Les pages importées apparaîtront ici automatiquement.",
+        "previewFailed": "L'importation a echoue. Veuillez reessayer.",
+        "status": {
+          "inProgress": "En cours",
+          "failed": "Échec"
+        },
+        "validation": {
+          "urlRequired": "Entrez l'URL du site web à importer."
+        }
+      },
+      "addKnowledgeDescription": "Ajoutez des heures d'ouverture, des tarifs, des politiques ou toute autre information que votre réceptionniste devrait connaître.",
+      "editKnowledgeDescription": "Mettez a jour les informations que votre receptionniste doit utiliser pour repondre aux questions des clients.",
+      "uploadDocumentDescription": "Téléversez un fichier que votre réceptionniste pourra utiliser.",
+      "documentBadge": "Document",
+      "textBadge": "Texte",
+      "emptyState": "Aucune connaissance ajoutée pour le moment.",
+      "previewPending": "Ce document est en cours de traitement.",
+      "previewError": "Ce document n'a pas pu être traité.",
+      "status": {
+        "analyzing": "Analyse en cours...",
+        "inProgress": "En cours",
+        "queued": "En attente",
+        "indexing": "Indexation",
+        "indexed": "Prêt",
+        "error": "Erreur",
+        "cancelled": "Annulé"
+      },
+      "uploadValidation": {
+        "fileRequired": "Choisissez un fichier à téléverser.",
+        "unsupportedFile": "Les formats pris en charge sont PDF, DOCX, TXT et Markdown.",
+        "maxSize": "Les documents doivent faire 10 Mo ou moins.",
+        "uploadFailed": "Nous n'avons pas pu téléverser ce document. Réessayez."
+      },
+      "fields": {
+        "file": {
+          "label": "Fichier",
+          "hint": "Prend en charge PDF, DOCX, TXT et Markdown.",
+          "dropzonePrefix": "Glissez-déposez un fichier ici, ou",
+          "chooseFile": "Choisir un fichier"
+        },
+        "websiteUrl": {
+          "label": "URL du site web",
+          "placeholder": "example.com",
+          "hint": "Utilisez la page d'accueil publique ou la section que vous voulez importer."
+        },
+        "title": {
+          "label": "Titre",
+          "placeholder": "Heures d'ouverture",
+          "hint": "Un titre court et descriptif pour cette information.",
+          "required": "Saisissez un titre pour cette information."
+        },
+        "content": {
+          "label": "Contenu",
+          "placeholder": "Nous sommes ouverts du lundi au vendredi de 9h à 17h.",
+          "hint": "L'information réelle que le réceptionniste doit utiliser.",
+          "required": "Saisissez l'information que le réceptionniste doit utiliser."
+        },
+        "tags": {
+          "label": "Mots-clés",
+          "placeholder": "Horaires, adresse",
+          "hint": "Facultatif. Mots-clés séparés par des virgules pour catégoriser cette information."
+        }
+      }
+    },
+    "services": {
+      "title": "Services",
+      "description": "Détails des services que votre réceptionniste peut utiliser pour expliquer vos offres et aider à réserver le bon rendez-vous.",
+      "listTitle": "Services",
+      "addKnowledge": "Ajouter un service",
+      "editKnowledge": "Modifier le service",
+      "edit": "Modifier",
+      "duplicate": "Dupliquer",
+      "price": {
+        "column": "Prix",
+        "from": "à partir de {{amount}}",
+        "range": "{{min}} – {{max}}",
+        "inPerson": "Fixé sur place",
+        "none": "Non défini",
+        "discounted": "{{price}} (−{{percent}} %)"
+      },
+      "duplicated": "Service dupliqué.",
+      "duplicateFailed": "Impossible de dupliquer le service.",
+      "copyName": "{{name}} (copie)",
+      "copyNameNumbered": "{{name}} (copie {{number}})",
+      "uploadDocument": "Téléverser un document",
+      "addKnowledgeDescription": "Ajoutez vos services, ce qu'ils incluent, à qui ils s'adressent et tout ce que votre réceptionniste devrait mentionner.",
+      "editKnowledgeDescription": "Mettez a jour les details du service que votre receptionniste doit expliquer et utiliser pendant la reservation.",
+      "uploadDocumentDescription": "Téléversez un fichier que votre réceptionniste pourra utiliser.",
+      "documentBadge": "Document",
+      "textBadge": "Texte",
+      "emptyState": "Aucun service ajouté pour le moment.",
+      "unavailable": "Le catalogue de services est indisponible.",
+      "durationValue": "Rendez-vous de {{duration}}",
+      "previewPending": "Ce document est en cours de traitement.",
+      "previewError": "Ce document n'a pas pu être traité.",
+      "status": {
+        "analyzing": "Analyse en cours...",
+        "inProgress": "En cours",
+        "queued": "En attente",
+        "indexing": "Indexation",
+        "indexed": "Prêt",
+        "error": "Erreur"
+      },
+      "uploadValidation": {
+        "fileRequired": "Choisissez un fichier à téléverser.",
+        "unsupportedFile": "Les formats pris en charge sont PDF, DOCX, TXT et Markdown.",
+        "maxSize": "Les documents doivent faire 10 Mo ou moins.",
+        "uploadFailed": "Nous n'avons pas pu téléverser ce document. Réessayez."
+      },
+      "fields": {
+        "file": {
+          "label": "Fichier",
+          "hint": "Prend en charge PDF, DOCX, TXT et Markdown.",
+          "dropzonePrefix": "Glissez-déposez un fichier ici, ou",
+          "chooseFile": "Choisir un fichier"
+        },
+        "title": {
+          "label": "Titre",
+          "placeholder": "Consultation initiale",
+          "hint": "Un titre court et descriptif pour ce service.",
+          "required": "Saisissez un nom pour ce service."
+        },
+        "content": {
+          "label": "Contenu",
+          "placeholder": "Une consultation de 30 minutes pour comprendre les besoins de l'appelant et recommander la bonne suite.",
+          "hint": "Décrivez le service pour que le réceptionniste puisse l'expliquer clairement."
+        },
+        "duration": {
+          "label": "Durée",
+          "placeholder": "30",
+          "hint": "Durée du rendez-vous, pour vérifier les disponibilités.",
+          "required": "Choisissez une durée d'au moins 1 minute.",
+          "hours": "Heures",
+          "minutes": "Minutes",
+          "hoursTitle": "h",
+          "minutesTitle": "min"
+        },
+        "price": {
+          "label": "Prix",
+          "hint": "Facultatif. Le réceptionniste annonce ce prix tel quel ; laissez le montant vide et il n'en inventera pas.",
+          "placeholder": "0",
+          "amount": "Prix",
+          "lowest": "Prix minimum",
+          "highest": "Prix maximum",
+          "inPersonHint": "Le réceptionniste indique aux appelants que le prix est fixé une fois que l'entreprise connaît leurs besoins.",
+          "types": {
+            "fixed": "Fixe",
+            "from": "À partir de",
+            "range": "Entre",
+            "in_person": "Sur place"
+          },
+          "errors": {
+            "invalid": "Saisissez un prix, par exemple 3 500 ou 12,50.",
+            "rangeIncomplete": "Saisissez le prix minimum et le prix maximum.",
+            "rangeOrder": "Le prix maximum doit être supérieur au prix minimum.",
+            "discountInvalid": "Saisissez une remise de 0 à 100 %."
+          },
+          "discount": "Remise",
+          "discountPercent": "Pourcentage de remise",
+          "discountPreview": "Les clients paient {{price}} au lieu de {{regular}}."
+        },
+        "active": {
+          "label": "Réservable",
+          "hint": "Seuls les services réservables sont proposés pendant les appels."
+        },
+        "tags": {
+          "label": "Mots-clés",
+          "placeholder": "Consultation, nouveaux clients",
+          "hint": "Facultatif. Mots-clés séparés par des virgules pour catégoriser ces services."
+        }
+      },
+      "deleteTitle": "Supprimer le service ?",
+      "deleteDescription": "Votre réceptionniste ne le proposera plus. Les rendez-vous passés l'affichent toujours."
+    },
+    "employees": {
+      "title": "Employés",
+      "description": "Personnes avec qui votre réceptionniste peut prendre des rendez-vous et vers qui transférer les appels."
+    },
+    "rules": {
+      "title": "Règles",
+      "description": "Instructions qui guident la manière dont votre réceptionniste doit gérer les appels et les messages.",
+      "listTitle": "Règles",
+      "addKnowledge": "Ajouter une règle",
+      "editKnowledge": "Modifier la regle",
+      "uploadDocument": "Téléverser un document",
+      "addKnowledgeDescription": "Ce que votre réceptionniste doit faire, comme transférer des appels, poser des questions et envoyer des textos.",
+      "editKnowledgeDescription": "Mettez a jour l instruction que votre receptionniste doit suivre pendant les appels et les suivis.",
+      "uploadDocumentDescription": "Téléversez un fichier que votre réceptionniste pourra utiliser.",
+      "documentBadge": "Document",
+      "textBadge": "Texte",
+      "emptyState": "Aucune règle ajoutée pour le moment.",
+      "previewPending": "Ce document est en cours de traitement.",
+      "previewError": "Ce document n'a pas pu être traité.",
+      "status": {
+        "analyzing": "Analyse en cours...",
+        "inProgress": "En cours",
+        "queued": "En attente",
+        "indexing": "Indexation",
+        "indexed": "Prêt",
+        "error": "Erreur"
+      },
+      "uploadValidation": {
+        "fileRequired": "Choisissez un fichier à téléverser.",
+        "unsupportedFile": "Les formats pris en charge sont PDF, DOCX, TXT et Markdown.",
+        "maxSize": "Les documents doivent faire 10 Mo ou moins.",
+        "uploadFailed": "Nous n'avons pas pu téléverser ce document. Réessayez."
+      },
+      "fields": {
+        "file": {
+          "label": "Fichier",
+          "hint": "Prend en charge PDF, DOCX, TXT et Markdown.",
+          "dropzonePrefix": "Glissez-déposez un fichier ici, ou",
+          "chooseFile": "Choisir un fichier"
+        },
+        "title": {
+          "label": "Titre",
+          "placeholder": "Transfert des appels",
+          "hint": "Un titre court et descriptif pour cette règle.",
+          "required": "Saisissez un titre pour cette règle."
+        },
+        "content": {
+          "label": "Contenu",
+          "placeholder": "Transférez les appels urgents de facturation à l'accueil et envoyez un texto au gestionnaire après les heures d'ouverture.",
+          "hint": "Décrivez ce que le réceptionniste doit faire.",
+          "required": "Décrivez ce que le réceptionniste doit faire."
+        },
+        "tags": {
+          "label": "Mots-clés",
+          "placeholder": "Transferts, escalade",
+          "hint": "Facultatif. Mots-clés séparés par des virgules pour catégoriser ces règles."
+        }
+      }
+    }
+  },
+  "table": {
+    "searchPlaceholder": "Rechercher des elements",
+    "title": "Titre",
+    "preview": "Apercu",
+    "status": "Statut",
+    "disabled": "Desactive",
+    "added": "Ajoute",
+    "empty": "Aucun element correspondant.",
+    "documentPreviewHint": "Cliquez pour previsualiser ce document.",
+    "documentPreviewUnavailable": "La previsualisation des documents est disponible sur la page Connaissances."
+  },
+  "pagination": {
+    "rowsPerPage": "Lignes par page",
+    "pageOf": "Page {{page}} sur {{total}}",
+    "firstPage": "Premiere page",
+    "previousPage": "Page precedente",
+    "nextPage": "Page suivante",
+    "lastPage": "Derniere page",
+    "goToPage": "Aller a la page {{page}}"
+  },
+  "fields": {
+    "defaults": {
+      "title": "Valeurs par défaut"
+    },
+    "instructions": {
+      "title": "Instructions"
+    },
+    "summary": {
+      "label": "Résumé de l'entreprise",
+      "hint": "Ce que votre réceptionniste dit aux appelants au sujet de l'entreprise.",
+      "placeholder": "Par exemple : La Clinique familiale Maple est une clinique de Toronto qui offre des examens, des vaccins et de la physiothérapie.",
+      "regenerate": "Réécrire avec l'IA",
+      "regenerating": "L'IA le réécrit à partir de vos connaissances. Cela prend un instant.",
+      "rewriteCompleted": "Résumé de l'entreprise réécrit.",
+      "rewriteEmpty": "Vos connaissances ne disent pas encore ce que fait l'entreprise, le résumé n'a donc pas changé.",
+      "rewriteFailed": "Nous n'avons pas pu réécrire le résumé. Veuillez réessayer.",
+      "rewriteNeedsKnowledge": "Ajoutez d'abord des connaissances, pour que l'IA ait de quoi écrire."
+    },
+    "bookingPolicy": {
+      "label": "Politique de réservation",
+      "hint": "Instructions pour proposer et confirmer les rendez-vous."
+    },
+    "voiceInstructions": {
+      "label": "Instructions vocales"
+    },
+    "smsInstructions": {
+      "label": "Instructions SMS"
+    },
+    "greeting": {
+      "label": "Message d'accueil",
+      "placeholder": "Bonjour, merci d'avoir appelé…",
+      "hint": "La phrase d'ouverture utilisée par votre réceptionniste lorsqu'il répond à un appel ou démarre une conversation."
+    },
+    "defaultLocale": {
+      "label": "Langue client par défaut",
+      "placeholder": "Choisir une langue par défaut",
+      "hint": "Choisissez la langue de repli que votre réceptionniste doit utiliser quand la préférence du client est inconnue."
+    },
+    "timezone": {
+      "label": "Fuseau horaire de l’entreprise",
+      "hint": "Votre réceptionniste utilise ce fuseau horaire pour vos heures d’ouverture et les créneaux qu’il propose aux clients.",
+      "search": "Rechercher un fuseau horaire...",
+      "noResults": "Aucun fuseau horaire trouvé.",
+      "regions": {
+        "africa": "Afrique",
+        "america": "Amériques",
+        "antarctica": "Antarctique",
+        "arctic": "Arctique",
+        "asia": "Asie",
+        "atlantic": "Atlantique",
+        "australia": "Australie",
+        "europe": "Europe",
+        "indian": "Océan Indien",
+        "pacific": "Pacifique"
+      }
+    },
+    "currency": {
+      "label": "Devise",
+      "hint": "La devise des prix de vos services.",
+      "search": "Rechercher une devise",
+      "noResults": "Aucune devise trouvée."
+    },
+    "transferNumber": {
+      "label": "Numéro de transfert par défaut",
+      "placeholder": "+1 555-123-4567",
+      "hint": "Le numéro que votre réceptionniste doit utiliser lorsqu'il transfère un appel à une personne.",
+      "errors": {
+        "invalid": "Entrez un numéro de transfert complet et valide avant d'enregistrer."
+      }
+    }
+  },
+  "booking": {
+    "title": "Rendez-vous",
+    "mode": {
+      "label": "Prise de rendez-vous",
+      "options": {
+        "instant": "Réserve les rendez-vous",
+        "request": "Prend les demandes",
+        "off": "Ne réserve pas"
+      },
+      "descriptions": {
+        "instant": "L'agent vérifie vos disponibilités et réserve le rendez-vous.",
+        "request": "L'agent note le service et l'heure souhaitée. Vous confirmez depuis la boîte de réception.",
+        "off": "L'agent prend un message au lieu de réserver."
+      }
+    }
+  },
+  "appointmentChanges": {
+    "title": "Modifications de rendez-vous",
+    "allowCancel": {
+      "label": "Autoriser les annulations IA",
+      "hint": "Permettre a la receptionniste d'annuler un rendez-vous a venir verifie."
+    },
+    "allowReschedule": {
+      "label": "Autoriser les deplacements IA",
+      "hint": "Permettre a la receptionniste de deplacer un rendez-vous verifie apres verification des disponibilites."
+    },
+    "requireOtp": {
+      "label": "Exiger un code unique",
+      "hint": "Envoyer un code avant toute annulation ou modification."
+    }
+  },
+  "actions": {
+    "add": "Ajouter",
+    "save": "Enregistrer",
+    "saveChanges": "Enregistrer les modifications",
+    "saving": "Enregistrement…",
+    "saved": "Modifications enregistrées.",
+    "deleted": "Supprimé",
+    "importCancelled": "Import annulé.",
+    "moreOptions": "Plus d options",
+    "delete": "Supprimer",
+    "confirmDelete": "Confirmer ?",
+    "deleteTitle": "Supprimer l'entrée ?",
+    "deleteDescription": "Cela supprimera définitivement cette entrée de l'espace agent.",
+    "deleteCancel": "Annuler",
+    "cancelImport": "Annuler l'import",
+    "cancelImportTitle": "Annuler l'import du site web ?",
+    "cancelImportDescription": "Cela arrêtera l'import du site web et retirera l'entrée en cours du tableau.",
+    "enable": "Activer",
+    "disable": "Désactiver",
+    "retry": "Réessayer",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "dragToReorder": "Faites glisser pour réorganiser",
+    "activateEntry": "Activer l'entrée",
+    "deactivateEntry": "Désactiver l'entrée",
+    "upload": "Téléverser",
+    "uploading": "Téléversement…",
+    "saveFailed": "Nous n’avons pas pu enregistrer vos paramètres. Veuillez réessayer.",
+    "edit": "Modifier",
+    "cancel": "Annuler",
+    "editField": "Modifier : {{field}}"
+  },
+  "loading": {
+    "workspace": "Chargement de l’espace de travail…",
+    "rules": "Chargement des règles…",
+    "knowledge": "Chargement des connaissances…"
+  },
+  "readOnly": "L’accès lecteur est en lecture seule.",
+  "empty": {
+    "description": "Créez d'abord une entreprise, puis revenez ici pour configurer votre réceptionniste IA."
+  },
+  "hours": {
+    "title": "Heures d'ouverture",
+    "description": "L'agent propose des rendez-vous seulement pendant ces heures.",
+    "generated": "Nous avons rempli ces heures à partir de votre site web et de vos documents. Vérifiez-les.",
+    "empty": "Ajoutez vos heures pour que l'agent puisse réserver des rendez-vous.",
+    "closed": "Fermé",
+    "openOn": "Ouvert le {{day}}",
+    "opensAt": "Heure d'ouverture du {{day}}",
+    "closesAt": "Heure de fermeture du {{day}}",
+    "addWindow": "Ajouter des heures",
+    "removeWindow": "Retirer ces heures",
+    "picker": { "hours": "Heures", "minutes": "Minutes", "period": "AM ou PM", "hoursTitle": "HH", "minutesTitle": "MM" },
+    "save": "Enregistrer les heures",
+    "invalid": "Vérifiez le {{day}} : chaque fermeture doit suivre son ouverture, sans chevauchement.",
+    "noHoursAlert": {
+      "title": "Ajoutez vos heures d'ouverture pour réserver des rendez-vous",
+      "description": "L'agent propose des créneaux seulement pendant vos heures d'ouverture. En attendant, il prend un message.",
+      "action": "Ajouter les heures d'ouverture"
+    },
+    "edit": "Modifier",
+    "cancel": "Annuler",
+    "notSet": "Non définies",
+    "closures": {
+      "title": "Fermetures",
+      "description": "Ajoutez les jours fériés et les autres périodes où vous êtes fermé. L'agent ne réserve pas de rendez-vous pendant ces périodes. Les heures suivent le fuseau {{timezone}}.",
+      "startsAt": "Fermeture {{number}} : fermé à partir du",
+      "endsAt": "Fermeture {{number}} : fermé jusqu'au",
+      "reason": "Fermeture {{number}} : motif",
+      "reasonPlaceholder": "Motif (facultatif)",
+      "add": "Ajouter une fermeture",
+      "remove": "Retirer la fermeture {{number}}",
+      "summary": "Fermetures : {{list}}",
+      "order": "Indiquez un début et une fin plus tardive pour la fermeture en surbrillance.",
+      "ended": "La fermeture en surbrillance se termine dans le passé. Modifiez ses dates ou retirez-la.",
+      "far": "La fermeture en surbrillance se termine dans plus de deux ans. Modifiez ses dates.",
+      "overlap": "La fermeture en surbrillance chevauche une autre fermeture. Modifiez ses dates."
+    }
+  }
+}

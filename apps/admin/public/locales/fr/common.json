@@ -1,0 +1,215 @@
+{
+  "appName": "LobbyStack",
+  "accessibility": {
+    "close": "Fermer",
+    "toggleSidebar": "Afficher ou masquer la barre latérale",
+    "skipToContent": "Aller au contenu principal"
+  },
+  "errors": {
+    "unexpected": "Une erreur est survenue. Veuillez réessayer."
+  },
+  "loading": {
+    "title": "Chargement...",
+    "retry": "Réessayer le chargement",
+    "failed": "Certaines traductions n'ont pas pu être chargées.",
+    "description": "Synchronisation de votre espace et des réglages de la réceptionniste."
+  },
+  "language": {
+    "label": "Langue",
+    "ariaLabel": "Choisir la langue du tableau de bord",
+    "english": "English",
+    "french": "Français",
+    "spanish": "Español",
+    "serbian": "Srpski"
+  },
+  "callerLanguage": {
+    "en": "Anglais",
+    "fr": "Français",
+    "es": "Espagnol",
+    "sr": "Serbe",
+    "de": "Allemand",
+    "pt": "Portugais (Brésil)",
+    "it": "Italien",
+    "nl": "Néerlandais"
+  },
+  "badges": {
+    "live": "Actif",
+    "configured": "Configuré",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "voice": "Voix",
+    "sms": "SMS"
+  },
+  "channels": {
+    "phoneCall": "Appel téléphonique",
+    "webCall": "Appel web",
+    "sms": "SMS",
+    "webChat": "Clavardage du site",
+    "dashboard": "Tableau de bord",
+    "api": "API"
+  },
+  "contactFallback": {
+    "phoneCaller": "Appelant par téléphone",
+    "webCaller": "Appelant web",
+    "websiteVisitor": "Visiteur du site",
+    "unknown": "Contact inconnu"
+  },
+  "labels": {
+    "customer": "Client",
+    "receptionist": "Réceptionniste",
+    "prompt": "Demande"
+  },
+  "aiPhoneNumber": {
+    "copy": "Copier le numéro de téléphone IA",
+    "copied": "Numéro de téléphone IA copié"
+  },
+  "errorBoundary": {
+    "title": "Une erreur est survenue",
+    "description": "Rechargez le tableau de bord et réessayez. L’erreur a été signalée.",
+    "reload": "Recharger"
+  },
+  "feedback": {
+    "trigger": "Feedback",
+    "title": "Envoyer un commentaire",
+    "description": "Dites-nous ce qui améliorerait ce tableau de bord.",
+    "label": "Message de feedback",
+    "placeholder": "Une idée pour améliorer LobbyStack ? Dites-le à l’équipe.",
+    "characterCount": "{{count}} / {{max}} caractères",
+    "helpText": "Besoin d’aide ?",
+    "helpCenter": "Centre d’aide",
+    "contactLink": "Contactez-nous",
+    "helpTextSeparator": "ou",
+    "docsLink": "consultez la doc.",
+    "submit": "Envoyer",
+    "toast": {
+      "sent": "Feedback envoyé.",
+      "failed": "Nous n’avons pas pu enregistrer ce feedback."
+    }
+  },
+  "numberTrial": {
+    "daysLeft_one": "Le {{number}} est à vous encore {{count}} jour. Choisissez un forfait pour le garder.",
+    "daysLeft_many": "Le {{number}} est à vous encore {{count}} jours. Choisissez un forfait pour le garder.",
+    "daysLeft_other": "Le {{number}} est à vous encore {{count}} jours. Choisissez un forfait pour le garder.",
+    "outOfMinutes": "Vos minutes sont épuisées. Les appels vont maintenant au {{forwardTo}}.",
+    "stillAvailable": "Le {{number}} est encore disponible. Abonnez-vous pour le récupérer.",
+    "keepNumber": "Garder mon numéro",
+    "getReceptionistBack": "Retrouver ma réceptionniste",
+    "getNumberBack": "Récupérer mon numéro"
+  },
+  "testCall": {
+    "trigger": "Appel test",
+    "title": "Tester votre réceptionniste IA",
+    "description": "Démarrez un appel en direct dans le navigateur avec votre réceptionniste configurée.",
+    "start": "Lancer l’appel",
+    "connecting": "Connexion...",
+    "hangUp": "Raccrocher",
+    "upgrade": "Changer de forfait",
+    "status": {
+      "idle": "Prêt quand vous l’êtes",
+      "requesting_microphone": "Demande d’accès au microphone",
+      "connecting": "Connexion à votre réceptionniste IA",
+      "connected": "En direct avec votre réceptionniste IA",
+      "ending": "Fin de l’appel",
+      "ended": "Appel terminé",
+      "error": "Impossible de démarrer l’appel"
+    },
+    "aria": {
+      "start": "Démarrer l’appel test",
+      "connecting": "Connexion de l’appel test",
+      "waitingForMicrophone": "En attente de l’autorisation du microphone",
+      "end": "Terminer l’appel test",
+      "endMuted": "Terminer l’appel test en mode muet",
+      "ending": "Fin de l’appel test",
+      "retry": "Réessayer l’appel test"
+    },
+    "errors": {
+      "microphoneBlocked": "L’accès au microphone a été refusé.",
+      "microphoneNotFound": "Aucun microphone n’a été trouvé sur cet appareil.",
+      "microphoneInUse": "Le microphone est déjà utilisé par une autre application.",
+      "gatewayTimeout": "L’appel a mis trop de temps à se connecter.",
+      "gatewayUnreachable": "Cette page ne peut pas joindre LobbyStack pour lancer l’appel.",
+      "connectionDropped": "La connexion vocale a été interrompue.",
+      "browserNoMicrophone": "Ce navigateur ne prend pas en charge les appels avec microphone.",
+      "browserNoWebRtc": "Ce navigateur ne prend pas en charge les appels vocaux en direct.",
+      "businessNotFound": "Nous ne trouvons pas cet espace de travail. Passez à un espace actif et réessayez.",
+      "rateLimited": "Trop d’appels test ont été lancés. Veuillez réessayer bientôt.",
+      "voiceLimitReached": "Cet espace de travail a utilisé ses minutes vocales de ce mois-ci.",
+      "unavailable": "Votre réceptionniste IA est indisponible pour le moment.",
+      "generic": "Une erreur est survenue au démarrage de l’appel."
+    }
+  },
+  "appointments": {
+    "title": "Rendez-vous",
+    "summary_one": "{{name}} · {{count}} rendez-vous à venir",
+    "summary_many": "{{name}} · {{count}} rendez-vous à venir",
+    "summary_other": "{{name}} · {{count}} rendez-vous à venir",
+    "chooseWorkspace": "Choisissez un espace pour consulter les rendez-vous.",
+    "refresh": "Actualiser",
+    "time": "Heure",
+    "customer": "Client",
+    "service": "Service",
+    "staff": "Personnel",
+    "status": "Statut",
+    "calendar": "Calendrier",
+    "loading": "Chargement des rendez-vous…",
+    "unavailable": "Les rendez-vous sont indisponibles.",
+    "empty": "Aucun rendez-vous à venir.",
+    "statuses": {
+      "confirmed": "Confirmé",
+      "cancelled": "Annulé",
+      "completed": "Terminé",
+      "no_show": "Absent",
+      "pending": "En attente"
+    },
+    "calendarStates": {
+      "not_required": "Non requis",
+      "pending": "En attente",
+      "synced": "Synchronisé",
+      "failed": "Échec",
+      "error": "Erreur",
+      "cancelled": "Annulé"
+    },
+    "actions": "Actions",
+    "cancel": {
+      "action": "Annuler",
+      "actionLabel": "Annuler le rendez-vous : {{time}}",
+      "approve": "Approuver l’annulation",
+      "title": "Annuler ce rendez-vous ?",
+      "description": "{{appointment}}. Nous le retirerons de votre calendrier connecté et n’enverrons pas son rappel.",
+      "requestDescription": "{{appointment}}. Nous le retirerons de votre calendrier connecté, n’enverrons pas son rappel et fermerons la demande.",
+      "confirm": "Annuler le rendez-vous",
+      "keep": "Garder le rendez-vous",
+      "done": "Rendez-vous annulé",
+      "failed": "Nous n’avons pas pu annuler le rendez-vous. Réessayez.",
+      "summary": "{{service}} pour {{name}} le {{time}}",
+      "summaryNoService": "Rendez-vous pour {{name}} le {{time}}"
+    }
+  },
+  "abandonIntent": {
+    "title": "Avant de partir",
+    "description": "Deux questions rapides. Une seule suffit.",
+    "issue": {
+      "label": "Un problème ?",
+      "placeholder": "Décrivez ce qui s'est passé pour qu'on le corrige."
+    },
+    "missing": {
+      "label": "Il manque quelque chose ?",
+      "placeholder": "Dites-nous ce que vous aimeriez voir ensuite."
+    },
+    "notNow": "Pas maintenant",
+    "submit": "Envoyer",
+    "sentTitle": "Merci",
+    "sentDescription": "Nous lisons chacun de ces messages.",
+    "close": "Fermer"
+  },
+  "websiteImport": {
+    "runningTitle": "Lecture de {{host}}",
+    "runningHint": "{{imported}} pages lues jusqu'ici, {{indexed}} prêtes à répondre.",
+    "doneTitle": "Votre agent a lu {{host}}",
+    "doneHint_one": "{{count}} page est prête à répondre.",
+    "doneHint_many": "{{count}} pages sont prêtes à répondre.",
+    "doneHint_other": "{{count}} pages sont prêtes à répondre.",
+    "failedTitle": "Nous n'avons pas pu lire {{host}}",
+    "failedHint": "Ajoutez vos informations à la main, ou relancez l'import depuis votre tableau de bord."
+  }
+}
