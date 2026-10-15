@@ -29,7 +29,7 @@ LobbyStack es una recepcionista con IA de código abierto para pequeñas empresa
 - Programa de afiliados: ${absoluteUrl("/es/affiliate-program/")}
 - Calculadora: ${absoluteUrl("/es/missed-call-revenue-calculator/")}
 - Blog: ${absoluteUrl("/es/blog/")}
-- GitHub: https://github.com/lobbystack/lobbystack
+- GitLab: https://gitlab.com/lobbystack-group/lobbystack
 `
 
 export const GET: APIRoute = () =>

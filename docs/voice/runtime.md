@@ -14,9 +14,11 @@ The agent core (`packages/agent-core`) is an AI SDK `ToolLoopAgent`. Its tools c
 - taking a message for the team
 - transferring the call (phone only) and ending it
 
+`packages/agent-core/src/capabilities.ts` decides which of these tools a call or chat gets. The agent's instructions and GPT-Live's list of backend tools both read that decision, so GPT-Live only offers what the agent can do.
+
 The caller hears silence while the agent works, so calls keep it short:
 
-- GPT-Live's instructions follow the structure in OpenAI's GPT-Live prompting guide: personality, backchannel and interruption policies, then a delegation policy that lists the backend's capabilities for this business.
+- GPT-Live's instructions follow the structure in OpenAI's GPT-Live prompting guide: personality, backchannel and interruption policies, then a delegation policy that lists what the backend can do for this business on a phone or browser call.
 - GPT-Live gets the business summary, opening hours, upcoming closures, services, the answers the business wrote for common questions, its rules, and the titles of its knowledge sources when the call starts. It answers from those facts and doesn't delegate them. The worker writes the business summary with AI from the knowledge sources (`business.generateSummary`) a few minutes after they change, unless an operator wrote it. A sibling job (`business.extractHours`) fills the opening hours from the passages that state them, unless an operator set the hours. `businesses.hours_source` records who set them: `none`, `generated` or `operator`.
 - Booking tools say why a time isn't bookable: no opening hours, closed that day, outside opening hours, a planned closure, no staff for the service, a calendar that hasn't synced, or taken. Only a taken time is reported as booked. With instant booking and no opening hours, the agent and GPT-Live take the caller's request as a message instead of offering times.
 - The agent runs on the `AI_CHAT_*` endpoint and model, with `low` reasoning and OpenAI's `priority` processing tier. Set `AI_DELEGATION_MODEL`, `AI_DELEGATION_REASONING_EFFORT` and `AI_DELEGATION_SERVICE_TIER` to change that.
@@ -119,6 +121,8 @@ To test a change to this flow against GPT-Live, see [Test a voice change before 
 
 A call that ends this way, or that the caller hangs up while the worker waits, gets the disposition `caller_finished`, and `live.closed` logs `end: "caller_finished"`. The worker ends a spam or abusive call the way it ends a timeout, described below: once GPT-Live has finished speaking, or after 4 seconds of silence, whatever the caller says. If GPT-Live answers a goodbye without handing it over, the call still ends at the 75-second silence timeout, with a goodbye.
 
+The worker records the first reason the call started ending. If a caller says goodbye during a deploy's wrap-up and the agent calls `endCall`, the call keeps `service_restart`. A `caller_finished` end no longer counts once the caller keeps the call going, so a later timeout records its own reason. A REFER that went out outranks every other reason until the transfer fails. When nothing ended the call on purpose, OpenAI's close reason decides: `remote_hangup` becomes `caller_hung_up`, and a dropped connection becomes `connection_lost`.
+
 Before a timeout ends the call, the worker tells GPT-Live why and asks it for a short goodbye, then hangs up once the goodbye has played. It listens for the goodbye from the moment OpenAI acknowledges the command, so a sentence GPT-Live was already saying doesn't pass for it. Without an acknowledgment within 2 seconds, it listens from the request. GPT-Live can ignore a command appended mid-call, so the worker hangs up anyway after 4 seconds of silence, or 15 seconds in all. The duration limit's goodbye starts 30 seconds early, so it fits inside the reserved minutes. A call that reserved less than a minute gets half its length to talk instead, so a 30-second reservation still gets 15 seconds of conversation.
 
 A phone call on a plan with a minute limit asks for more minutes 60 seconds before the duration limit's goodbye would start. Each top-up adds 5 minutes, or what the plan has left when that's less, and no call goes past 30 minutes. The worker moves the goodbye back by what it got, then asks again a minute before the new goodbye.
@@ -186,6 +190,8 @@ Sessions run with `store: true` (see `packages/agent-core/src/live/session.ts`),
 
 OpenAI finishes the recording after the session closes and answers 404 or 409 until it's ready. The job first runs 5 seconds after the call ends. After each 404 or 409 it queues another attempt with twice the delay: 10, 20, 40, 80 and 160 seconds, about 5 minutes over 6 attempts. Any other error from OpenAI ends the copy. A storage or database error fails the job, and the queue retries it.
 
+The calls list shows "Recording pending" while a call runs and for 10 minutes after it ends. After that, a call without a copy shows "No recording", as it does after a failed setup or under Zero Data Retention.
+
 OpenAI's copy follows OpenAI's rules, not the plan's retention. Its [GPT-Live data controls](https://developers.openai.com/api/docs/guides/your-data) say:
 
 - OpenAI keeps a stored session's recording for 30 days: "Stored sessions and their index expire after 30 days."
@@ -195,7 +201,7 @@ OpenAI's copy follows OpenAI's rules, not the plan's retention. Its [GPT-Live da
 
 The [Live conversations guide](https://developers.openai.com/api/docs/guides/live-conversations) adds that storage must be enabled for the OpenAI project and needs a data policy that permits persistence.
 
-When a business deletes a recording, or its plan's retention runs out, OpenAI's copy stays until its 30 days are up. Tell businesses that OpenAI keeps each call's recording for 30 days and that we can't delete it sooner. OpenAI doesn't say whether the 30 days start when the session starts or when it ends.
+After a recording's retention runs out, OpenAI keeps its copy until its 30 days are up. Tell businesses that OpenAI keeps each call's recording for 30 days and that we can't delete it sooner. OpenAI doesn't say whether the 30 days start when the session starts or when it ends.
 
 ## Interruptions and background noise
 
@@ -215,6 +221,13 @@ The admin and worker read these variables:
 | `INTERNAL_SERVICE_TOKEN` | admin, worker | Authenticates the admin's attach request to the worker. |
 | `WORKER_INTERNAL_URL` | admin | Private URL of the worker's HTTP port, for example `http://worker:3002`. |
 | `TWILIO_SIP_TRUNK_SID` | worker | Adds new phone numbers to the SIP trunk. The worker refuses to provision a number without it. |
+| `TWILIO_GB_BUNDLE_SID` | worker | The approved Twilio regulatory bundle for UK mobile numbers. The worker won't buy a UK number without it. |
+| `TWILIO_AU_BUNDLE_SID` | worker | The approved Twilio regulatory bundle for Australian mobile numbers. The worker won't buy an Australian number without it. |
+| `TWILIO_AU_ADDRESS_SID` | worker | The address in the Australian bundle. Twilio needs an address on every Australian mobile number. |
+| `TWILIO_NZ_BUNDLE_SID`, `TWILIO_NZ_ADDRESS_SID` | admin, worker | The approved Twilio regulatory bundle for New Zealand local numbers, and the address in it. |
+| `TWILIO_VERIFY_SERVICE_SID` | admin | The Twilio Verify service that texts the onboarding phone code. Onboarding can't verify a phone without it. |
+
+The admin also reads the bundle variables: it offers numbers only in the countries whose bundle is set. Set `TWILIO_GB_BUNDLE_SID`, `TWILIO_AU_BUNDLE_SID` and `TWILIO_AU_ADDRESS_SID` on the admin too.
 | `WEB_CALL_MAX_DURATION_MS` | admin | Optional cap on browser call length. |
 | `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | worker | Railway's time between SIGTERM and SIGKILL. Set it to `1860` so calls can finish during a deploy. See [Deploy the worker during calls](#deploy-the-worker-during-calls). |
 | `LIVE_DRAIN_TIMEOUT_MS` | worker | Optional. How long a shutdown lets calls finish on their own before it ends them with a goodbye. Overrides the timeout derived from `RAILWAY_DEPLOYMENT_DRAINING_SECONDS`. |
@@ -242,3 +255,19 @@ pnpm exec tsx scripts/operations/move-number-to-gpt-live.ts \
 ```
 
 A number off the trunk has nothing to answer its calls, so keep every number on it.
+
+### Sell numbers in the UK, Australia and New Zealand
+
+Twilio sells numbers in these countries only under a regulatory bundle it has approved. Create one bundle per country with LobbyStack as the business, and the worker buys every number in that country under it. UK and Australian businesses get mobile numbers, because local numbers there need a local address. New Zealand businesses get local numbers, which take calls but not texts. That's fine, because hosted businesses text from the shared sender.
+
+To set up a country:
+
+1. In the Twilio Console, open **Phone Numbers > Regulatory Compliance > Bundles**. Create a business bundle for mobile numbers in that country.
+2. Fill in what that country asks for:
+   - United Kingdom: set **Business Classification** to `INDEPENDENT_SOFTWARE_VENDOR`, and answer `YES` when Twilio asks whether you assign numbers to end customers. The address can be anywhere except a PO box. The representative's phone must be a mobile number they answer, and their email must use the company's domain.
+   - Australia: upload a commercial registry extract that shows the company's name, address and registration number.
+   - New Zealand: upload a registry extract with the company's name, and a document that proves its address, such as a recent utility bill or tax notice.
+3. Submit the bundle and wait for Twilio to approve it.
+4. On the admin and the worker, set the bundle's SID as `TWILIO_GB_BUNDLE_SID`, `TWILIO_AU_BUNDLE_SID` or `TWILIO_NZ_BUNDLE_SID`. For Australia and New Zealand, also set the SID of the bundle's address as `TWILIO_AU_ADDRESS_SID` or `TWILIO_NZ_ADDRESS_SID`.
+
+Until you set a country's bundle, number claims there fail with an error that includes the missing variable's name.

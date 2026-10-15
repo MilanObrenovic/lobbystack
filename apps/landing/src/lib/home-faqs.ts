@@ -20,7 +20,7 @@ export const homeFaqs: FaqItem[] = [
   {
     question: "Can the AI receptionist send a call summary to my phone?",
     answer:
-      "Yes. LobbyStack emails you after each call with the caller's details, reason for calling, outcome, and next step. On paid plans, you can also turn on SMS alerts.",
+      "Not after every call. LobbyStack saves a summary of each call in your dashboard. When it takes a message, it sends your team an email alert, and on paid plans you can also turn on SMS alerts.",
   },
   {
     question: "What types of calls should still go to a human?",
@@ -35,12 +35,12 @@ export const homeFaqs: FaqItem[] = [
   {
     question: "How much does an AI receptionist cost?",
     answer:
-      "LobbyStack starts free with 30 voice minutes per month for browser test calls. Paid plans begin at $30 per month for Starter and $100 per month for Pro, with usage-based overages. Enterprise pricing is available for higher volume and self-hosted support.",
+      "LobbyStack starts free with 30 voice minutes per month and a US or Canadian number free for 14 days. Paid plans begin at $30 per month for Starter and $100 per month for Pro, with usage-based overages. Enterprise pricing is available for higher volume and self-hosted support.",
   },
   {
     question: "How is LobbyStack different from a call tree or voicemail?",
     answer:
-      "A call tree pushes callers through rigid menus, and voicemail asks them to wait for a callback. LobbyStack answers naturally, uses your business knowledge, can book appointments during the call, and sends your team a summary with context instead of a raw message.",
+      "A call tree pushes callers through rigid menus, and voicemail asks them to wait for a callback. LobbyStack answers naturally, uses your business knowledge, can book appointments during the call, and saves a summary of each call for your team instead of a raw message.",
   },
 ]
 
@@ -65,7 +65,7 @@ export const homeFaqsFr: FaqItem[] = [
   {
     question: "Le réceptionniste IA peut-il m'envoyer un résumé d'appel ?",
     answer:
-      "Oui. LobbyStack vous envoie un courriel après chaque appel avec les coordonnées de l'appelant, le motif, le résultat et la prochaine étape. Sur les forfaits payants, vous pouvez aussi activer les alertes SMS.",
+      "Pas après chaque appel. LobbyStack enregistre un résumé de chaque appel dans le tableau de bord. Quand il prend un message, il envoie une alerte par courriel à votre équipe, et sur les forfaits payants, vous pouvez aussi activer les alertes SMS.",
   },
   {
     question: "Quels appels doivent encore revenir à une personne ?",
@@ -80,13 +80,13 @@ export const homeFaqsFr: FaqItem[] = [
   {
     question: "Combien coûte un réceptionniste IA ?",
     answer:
-      "LobbyStack commence gratuitement avec 30 minutes vocales par mois pour des appels de test dans le navigateur. Les forfaits payants démarrent à 30 $/mois pour Starter et 100 $/mois pour Pro, avec des dépassements à l'usage. Enterprise est disponible pour les volumes plus élevés et l'accompagnement à l'auto-hébergement.",
+      "LobbyStack commence gratuitement avec 30 minutes vocales par mois et un numéro américain ou canadien gratuit pendant 14 jours. Les forfaits payants démarrent à 30 $/mois pour Starter et 100 $/mois pour Pro, avec des dépassements à l'usage. Enterprise est disponible pour les volumes plus élevés et l'accompagnement à l'auto-hébergement.",
   },
   {
     question:
       "En quoi LobbyStack diffère-t-il d'un menu téléphonique ou d'une messagerie vocale ?",
     answer:
-      "Un menu téléphonique impose des choix rigides, et la messagerie vocale demande à l'appelant d'attendre un rappel. LobbyStack répond naturellement, utilise vos connaissances d'entreprise, peut réserver pendant l'appel et envoie à votre équipe un résumé avec contexte au lieu d'un simple message brut.",
+      "Un menu téléphonique impose des choix rigides, et la messagerie vocale demande à l'appelant d'attendre un rappel. LobbyStack répond naturellement, utilise vos connaissances d'entreprise, peut réserver pendant l'appel et enregistre pour votre équipe un résumé de chaque appel au lieu d'un simple message brut.",
   },
 ]
 
@@ -111,7 +111,7 @@ export const homeFaqsEs: FaqItem[] = [
     question:
       "¿Puede la recepcionista con IA enviar un resumen de la llamada a mi teléfono?",
     answer:
-      "Sí. LobbyStack le envía un correo electrónico después de cada llamada con los datos de quien llamó, el motivo, el resultado y el siguiente paso. En los planes de pago, también puede activar alertas por SMS.",
+      "No después de cada llamada. LobbyStack guarda un resumen de cada llamada en el panel. Cuando toma un mensaje, le envía a su equipo una alerta por correo electrónico, y en los planes de pago también puede activar alertas por SMS.",
   },
   {
     question: "¿Qué llamadas debería seguir atendiendo una persona?",
@@ -126,13 +126,13 @@ export const homeFaqsEs: FaqItem[] = [
   {
     question: "¿Cuánto cuesta una recepcionista con IA?",
     answer:
-      "LobbyStack empieza gratis con 30 minutos de voz al mes para llamadas de prueba en el navegador. Los planes de pago empiezan en $30 al mes para Starter y $100 al mes para Pro, con cargos adicionales según el uso. Enterprise ofrece precios para mayor volumen y soporte de autoalojamiento.",
+      "LobbyStack empieza gratis con 30 minutos de voz al mes y un número de EE. UU. o Canadá gratis durante 14 días. Los planes de pago empiezan en $30 al mes para Starter y $100 al mes para Pro, con cargos adicionales según el uso. Enterprise ofrece precios para mayor volumen y soporte de autoalojamiento.",
   },
   {
     question:
       "¿En qué se diferencia LobbyStack de un menú telefónico o un buzón de voz?",
     answer:
-      "Un menú telefónico obliga a quien llama a pasar por opciones rígidas, y el buzón de voz le pide esperar a que le devuelvan la llamada. LobbyStack responde con naturalidad, usa el conocimiento de su negocio, puede reservar citas durante la llamada y envía a su equipo un resumen con contexto en lugar de un simple mensaje.",
+      "Un menú telefónico obliga a quien llama a pasar por opciones rígidas, y el buzón de voz le pide esperar a que le devuelvan la llamada. LobbyStack responde con naturalidad, usa el conocimiento de su negocio, puede reservar citas durante la llamada y guarda para su equipo un resumen de cada llamada en lugar de un simple mensaje.",
   },
 ]
 
@@ -155,7 +155,7 @@ export const homeFaqsSr: FaqItem[] = [
   {
     question: "Može li AI recepcioner da mi pošalje rezime poziva na telefon?",
     answer:
-      "Da. LobbyStack Vam posle svakog poziva šalje imejl sa podacima pozivaoca, razlogom poziva, ishodom i sledećim korakom. Na plaćenim paketima možete uključiti i SMS obaveštenja.",
+      "Ne posle svakog poziva. LobbyStack čuva rezime svakog poziva na kontrolnoj tabli. Kada primi poruku, Vašem timu šalje obaveštenje imejlom, a na plaćenim paketima možete uključiti i SMS obaveštenja.",
   },
   {
     question: "Koji pozivi i dalje treba da idu čoveku?",
@@ -170,13 +170,13 @@ export const homeFaqsSr: FaqItem[] = [
   {
     question: "Koliko košta AI recepcioner?",
     answer:
-      "LobbyStack možete početi da koristite besplatno, sa 30 minuta razgovora mesečno za probne pozive u pregledaču. Plaćeni paketi počinju od $30 mesečno za Starter i $100 mesečno za Pro, uz dodatnu naplatu prema potrošnji. Enterprise cene su dostupne za veći obim poziva i podršku za samostalno hostovanje.",
+      "LobbyStack možete početi da koristite besplatno, sa 30 minuta razgovora mesečno i brojem iz SAD ili Kanade besplatno 14 dana. Plaćeni paketi počinju od $30 mesečno za Starter i $100 mesečno za Pro, uz dodatnu naplatu prema potrošnji. Enterprise cene su dostupne za veći obim poziva i podršku za samostalno hostovanje.",
   },
   {
     question:
       "Po čemu se LobbyStack razlikuje od glasovnog menija ili govorne pošte?",
     answer:
-      "Glasovni meni vodi pozivaoce kroz krute opcije, a govorna pošta traži od njih da čekaju povratni poziv. LobbyStack odgovara prirodno, koristi znanje o Vašoj firmi, može da zakaže termin tokom poziva i šalje Vašem timu rezime sa kontekstom umesto obične poruke.",
+      "Glasovni meni vodi pozivaoce kroz krute opcije, a govorna pošta traži od njih da čekaju povratni poziv. LobbyStack odgovara prirodno, koristi znanje o Vašoj firmi, može da zakaže termin tokom poziva i za Vaš tim čuva rezime svakog poziva umesto obične poruke.",
   },
 ]
 

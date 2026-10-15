@@ -75,7 +75,8 @@
         "required": "Choisissez le premier et le dernier jour des vacances."
       }
     },
-    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "save": "Ajouter",
     "saving": "Enregistrement...",
     "created": "Employé ajouté.",
     "failed": "Impossible d'ajouter l'employé."
@@ -83,7 +84,7 @@
   "edit": {
     "title": "Modifier l'employé",
     "description": "Mettez à jour le nom, le numéro de téléphone et les services de cet employé.",
-    "save": "Enregistrer les modifications",
+    "save": "Enregistrer",
     "updated": "Employé mis à jour.",
     "failed": "Impossible de mettre à jour l'employé."
   },

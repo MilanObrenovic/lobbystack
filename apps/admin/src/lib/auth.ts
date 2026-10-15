@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins/email-otp";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getOAuthState } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { runWithAdapter } from "@better-auth/core/context";
 import { z } from "zod";
@@ -56,6 +56,17 @@ export function isDisabledAuthEmailEndpoint(path?: string): boolean {
   if (!path) return false;
   if (path === "/send-verification-email") return true;
   return (path.startsWith("/email-otp/") || path.endsWith("/email-otp")) && !enabledEmailOtpPaths.has(path);
+}
+
+/** Google sign-in reuses the Google Calendar OAuth client, so it is on wherever that client is configured. */
+function googleOAuthClient() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+}
+
+export function googleSignInEnabled(): boolean {
+  return googleOAuthClient() !== null;
 }
 
 export function getAuthDatabase() {
@@ -178,18 +189,9 @@ async function rehashLegacyPassword(userId: string, password: string): Promise<v
   }
 
   const replacementHash = await hashReplacementPassword(password);
-  await database.db.transaction(async (tx) => {
-    const updated = await tx.update(accounts)
-      .set({ password: replacementHash, updatedAt: new Date() })
-      .where(and(eq(accounts.id, account.id), eq(accounts.password, legacyHash)))
-      .returning({ id: accounts.id });
-    if (!updated[0]) {
-      return;
-    }
-    await tx.update(users)
-      .set({ passwordHash: replacementHash, passwordAlgorithm: "lobbystack-scrypt-v1", updatedAt: new Date() })
-      .where(eq(users.id, userId));
-  });
+  await database.db.update(accounts)
+    .set({ password: replacementHash, updatedAt: new Date() })
+    .where(and(eq(accounts.id, account.id), eq(accounts.password, legacyHash)));
 }
 
 export function getAuth() {
@@ -210,6 +212,7 @@ function createAuth(adapterDatabase?: Parameters<typeof drizzleAdapter>[0]) {
   const database = getAuthDatabase();
   const secondaryStorage = getAuthSecondaryStorage();
   const trustedOrigins = configuredAppOrigins(process.env, [], true);
+  const google = googleOAuthClient();
   return betterAuth({
     database: drizzleAdapter(adapterDatabase ?? database.db, {
       provider: "pg",
@@ -244,6 +247,22 @@ function createAuth(adapterDatabase?: Parameters<typeof drizzleAdapter>[0]) {
         });
       },
     })],
+    ...(google ? { socialProviders: { google: {
+      ...google,
+      // Better Auth asks Google for openid, email and profile only. This stops Google from adding
+      // the Calendar scopes the shared client may already hold to the sign-in token.
+      includeGrantedScopes: false,
+      disableIdTokenSignIn: true,
+      requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION === "true",
+      // The sign-in page sends its language as additionalData; that is client input, so clamp it.
+      mapProfileToUser: async () => {
+        const locale = (await getOAuthState())?.preferredLocale;
+        return { preferredLocale: resolveLocale(typeof locale === "string" ? locale : undefined) };
+      },
+    } } } : {}),
+    // A Google sign-in joins the existing account with the same email only when Google verified
+    // that email and the account verified it too (Better Auth's default): an unverified Google
+    // identity can't take over an account, and a squatter's unverified signup can't capture one.
     emailAndPassword: {
       enabled: true,
       autoSignIn: false,
@@ -276,11 +295,6 @@ function createAuth(adapterDatabase?: Parameters<typeof drizzleAdapter>[0]) {
         verify: async ({ hash, password }: { hash: string; password: string }) => await verifyLegacyPassword(hash, password),
       },
       revokeSessionsOnPasswordReset: true,
-      onPasswordReset: async ({ user }: { user: { id: string } }) => {
-        const account = (await database.db.select({ password: accounts.password }).from(accounts)
-          .where(and(eq(accounts.userId, user.id), eq(accounts.providerId, "credential"))).limit(1))[0];
-        if (account?.password) await database.db.update(users).set({ passwordHash: account.password, passwordAlgorithm: "lobbystack-scrypt-v1", updatedAt: new Date() }).where(eq(users.id, user.id));
-      },
       sendResetPassword: async ({ user, url }: { user: { id: string; email: string }; url: string }) => {
         await enqueueAuthEmail({ purpose: "password_reset", userId: user.id, email: user.email, url });
       },
@@ -288,9 +302,6 @@ function createAuth(adapterDatabase?: Parameters<typeof drizzleAdapter>[0]) {
     emailVerification: {
       sendOnSignUp: true,
       sendOnSignIn: true,
-      afterEmailVerification: async (user: { id: string; email: string }) => {
-        await database.db.update(users).set({ normalizedEmail: user.email.trim().toLowerCase(), updatedAt: new Date() }).where(eq(users.id, user.id));
-      },
       sendVerificationEmail: async ({ user, url }: { user: { id: string; email: string }; url: string }, request?: Request) => {
         const storedUser = (await database.db.select({ email: users.email, preferredLocale: users.preferredLocale }).from(users).where(eq(users.id, user.id)).limit(1))[0];
         if (!storedUser) return;

@@ -3,7 +3,7 @@ import { DateTime } from "luxon";
 type AppointmentFact = { startsAt: string; timezone: string };
 type ServiceFact = { name: string; slug: string; localizedNames?: Record<string, string> | null };
 function getServiceNameCandidates(service: ServiceFact): string[] {
-  return [...new Set([service.name, service.slug, service.localizedNames?.en, service.localizedNames?.fr].map(value => value?.trim()).filter((value): value is string => Boolean(value)))];
+  return [...new Set([service.name, service.slug, ...Object.values(service.localizedNames ?? {})].map(value => value?.trim()).filter((value): value is string => Boolean(value)))];
 }
 
 // Lowercase ASCII without accents, so "Émilie" compares as "emilie". NFD leaves đ alone.
@@ -79,6 +79,21 @@ export function serviceNamesMatch(service: ServiceFact, providedServiceName: str
         candidate.includes(provided) ||
         provided.includes(candidate),
     );
+}
+
+/**
+ * The one service a caller's words name: a service whose name, slug or
+ * localized name is those words, otherwise the only one serviceNamesMatch
+ * accepts. Several partial matches name none.
+ */
+export function matchServiceName<T extends ServiceFact>(services: T[], providedServiceName: string): T | undefined {
+  const provided = normalizeComparable(providedServiceName);
+  if (!provided) {
+    return undefined;
+  }
+  const exact = services.filter((service) => getServiceNameCandidates(service).some((candidate) => normalizeComparable(candidate) === provided));
+  const matches = exact.length ? exact : services.filter((service) => serviceNamesMatch(service, providedServiceName));
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 export function substantiveServiceNameFactMatches(

@@ -20,12 +20,12 @@ export const pricingFaqs: FaqItem[] = [
   {
     question: "Can I use LobbyStack for free?",
     answer:
-      "Yes. You can test 30 browser voice minutes on Free without a credit card. Free has no telephone number. Choose Starter or Pro for a dedicated number.",
+      "Yes. Free includes 30 voice minutes, with no credit card. You can test your receptionist in your browser and, where a free trial is available, get a phone number free for 14 days. Choose Starter or Pro to keep your number after the trial.",
   },
   {
     question: "What AI receptionist features are available today?",
     answer:
-      "LobbyStack can answer calls, capture caller details, answer business questions from your knowledge base, qualify leads, book appointments, route urgent callers, send summaries by email, and support recordings, transcripts, Google Calendar, and conversations in the caller's language.",
+      "LobbyStack can answer calls, capture caller details, answer business questions from your knowledge base, qualify leads, book appointments, route urgent callers, send email alerts when it takes a message, and support recordings, transcripts, Google Calendar, and conversations in the caller's language.",
   },
 ]
 
@@ -49,13 +49,13 @@ export const pricingFaqsFr: FaqItem[] = [
   {
     question: "Puis-je utiliser LobbyStack gratuitement ?",
     answer:
-      "Oui. Vous pouvez tester 30 minutes vocales dans le navigateur sur Free, sans carte bancaire. Free ne comprend aucun numéro de téléphone. Choisissez Starter ou Pro pour obtenir un numéro dédié.",
+      "Oui. Free inclut 30 minutes vocales, sans carte bancaire. Vous pouvez tester votre réceptionniste dans le navigateur et, là où l’essai gratuit est proposé, obtenir un numéro de téléphone gratuit pendant 14 jours. Choisissez Starter ou Pro pour garder votre numéro après l’essai.",
   },
   {
     question:
       "Quelles fonctionnalités de réceptionniste IA sont disponibles aujourd’hui ?",
     answer:
-      "LobbyStack peut répondre aux appels, collecter les détails de l’appelant, répondre aux questions depuis votre base de connaissances, qualifier les prospects, planifier des rendez‑vous, transférer les urgences, envoyer des résumés par courriel et prendre en charge les enregistrements, transcriptions, Google Calendar et conversations dans la langue de l’appelant.",
+      "LobbyStack peut répondre aux appels, collecter les détails de l’appelant, répondre aux questions depuis votre base de connaissances, qualifier les prospects, planifier des rendez‑vous, transférer les urgences, envoyer une alerte par courriel quand il prend un message et prendre en charge les enregistrements, transcriptions, Google Calendar et conversations dans la langue de l’appelant.",
   },
 ]
 
@@ -78,12 +78,12 @@ export const pricingFaqsEs: FaqItem[] = [
   {
     question: "¿Puedo usar LobbyStack gratis?",
     answer:
-      "Sí. Puede probar 30 minutos de voz en el navegador con Free, sin tarjeta de crédito. Free no incluye número de teléfono. Elija Starter o Pro para tener un número dedicado.",
+      "Sí. Free incluye 30 minutos de voz, sin tarjeta de crédito. Puede probar a su recepcionista en el navegador y, donde haya prueba gratuita, obtener un número de teléfono gratis durante 14 días. Elija Starter o Pro para conservar su número después de la prueba.",
   },
   {
     question: "¿Qué funciones de recepcionista con IA están disponibles hoy?",
     answer:
-      "LobbyStack puede contestar llamadas, tomar los datos de quien llama, responder preguntas sobre su negocio con su base de conocimiento, calificar clientes potenciales, reservar citas, derivar llamadas urgentes, enviar resúmenes por correo electrónico y ofrecer grabaciones, transcripciones, Google Calendar y conversaciones en el idioma de quien llama.",
+      "LobbyStack puede contestar llamadas, tomar los datos de quien llama, responder preguntas sobre su negocio con su base de conocimiento, calificar clientes potenciales, reservar citas, derivar llamadas urgentes, enviar una alerta por correo electrónico cuando toma un mensaje y ofrecer grabaciones, transcripciones, Google Calendar y conversaciones en el idioma de quien llama.",
   },
 ]
 
@@ -106,12 +106,12 @@ export const pricingFaqsSr: FaqItem[] = [
   {
     question: "Mogu li da koristim LobbyStack besplatno?",
     answer:
-      "Da. Na paketu Free možete da isprobate 30 minuta razgovora u pregledaču, bez platne kartice. Free nema broj telefona. Izaberite Starter ili Pro za namenski broj.",
+      "Da. Free uključuje 30 minuta razgovora, bez platne kartice. Možete da isprobate Vašeg AI recepcionera u pregledaču, a gde je dostupna besplatna proba, dobijate i broj telefona besplatno na 14 dana. Izaberite Starter ili Pro da biste zadržali broj posle probnog perioda.",
   },
   {
     question: "Koje funkcije AI recepcionera su dostupne danas?",
     answer:
-      "LobbyStack može da odgovara na pozive, beleži podatke pozivalaca, odgovara na pitanja o firmi iz Vaše baze znanja, kvalifikuje potencijalne klijente, zakazuje termine, preusmerava hitne pozive, šalje rezimee e-poštom i podržava snimke, transkripte, Google Calendar i razgovore na jeziku pozivaoca.",
+      "LobbyStack može da odgovara na pozive, beleži podatke pozivalaca, odgovara na pitanja o firmi iz Vaše baze znanja, kvalifikuje potencijalne klijente, zakazuje termine, preusmerava hitne pozive, šalje obaveštenje e-poštom kada primi poruku i podržava snimke, transkripte, Google Calendar i razgovore na jeziku pozivaoca.",
   },
 ]
 

@@ -143,7 +143,8 @@
       "openingCheckout": "Opening checkout...",
       "openingPortal": "Opening portal...",
       "viewInvoice": "View invoice",
-      "retry": "Try again"
+      "retry": "Try again",
+      "cancelPlan": "Cancel plan"
     },
     "currentPlan": {
       "title": "Your plan",
@@ -187,63 +188,7 @@
         "annual": "Annual"
       },
       "actions": {
-        "currentPlan": "Current plan",
-        "starter": "Start Starter",
-        "pro": "Upgrade to Pro",
-        "enterprise": "Contact us"
-      },
-      "plans": {
-        "free_cloud": {
-          "name": "Free",
-          "description": {
-            "monthly": "Test voice in your browser",
-            "annual": "Test voice in your browser"
-          },
-          "highlights": {
-            "voiceMinutes": "30 browser voice minutes included",
-            "allFeatures": "No telephone number",
-            "support": "Community support"
-          }
-        },
-        "starter": {
-          "name": "Starter",
-          "description": {
-            "monthly": "Per month, billed monthly",
-            "annual": "Per month, billed annually"
-          },
-          "highlights": {
-            "voiceMinutes": "150 voice minutes included\nThen $0.20/min",
-            "dedicatedNumber": "1 dedicated business number",
-            "phoneNumber": "50 alert SMS segments",
-            "overages": "$0.20/min voice overages",
-            "support": "Email support"
-          }
-        },
-        "pro": {
-          "name": "Pro",
-          "description": {
-            "monthly": "Per month, billed monthly",
-            "annual": "Per month, billed annually"
-          },
-          "highlights": {
-            "voiceMinutes": "500 voice minutes included\nThen $0.18/min",
-            "dedicatedNumber": "1 dedicated business number",
-            "alertSms": "200 alert SMS segments",
-            "support": "Priority email support"
-          }
-        },
-        "enterprise": {
-          "name": "Enterprise",
-          "description": {
-            "monthly": "For higher volume",
-            "annual": "For higher volume"
-          },
-          "highlights": {
-            "phoneNumbers": "Multiple dedicated numbers",
-            "selfHosted": "Self-hosted deployment option",
-            "support": "Dedicated implementation support"
-          }
-        }
+        "currentPlan": "Current plan"
       }
     },
     "usage": {
@@ -329,6 +274,76 @@
         "order": "Order",
         "refund": "Refund"
       }
+    },
+    "checkoutErrors": {
+      "inProgress": "A checkout is already open for this workspace. Finish it, or start a new one after 30 minutes.",
+      "subscriptionActive": "This workspace already has a paid plan. To change it, use Manage subscription on the Plan page."
+    },
+    "cancel": {
+      "title": "Cancel your {{plan}} plan?",
+      "description": "Your plan stays active until {{date}}. After that, you're on the Free plan.",
+      "descriptionNoDate": "Your plan stays active until the end of the current billing period. After that, you're on the Free plan.",
+      "reasonLabel": "Why are you canceling? (optional)",
+      "reasons": {
+        "setup": "Setup was confusing or slow",
+        "quality": "The voice or call quality",
+        "price": "The price",
+        "missing_feature": "A missing feature",
+        "other": "Something else"
+      },
+      "commentLabel": "Tell us more (optional)",
+      "keep": "Keep my plan",
+      "confirm": "Cancel plan",
+      "canceling": "Canceling plan...",
+      "failed": "We couldn't cancel your plan. Try again, or use Manage subscription.",
+      "endsOn": "Your {{plan}} plan ends on {{date}}. It stays active until then."
+    },
+    "success": {
+      "received": {
+        "title": "Payment received",
+        "description": "This page updates when your plan is ready.",
+        "status": "Setting up your plan..."
+      },
+      "missing": {
+        "title": "We couldn't find this checkout",
+        "description": "Open your plan page to see the plan you're on.",
+        "action": "Go to your plan"
+      },
+      "title": "Your {{plan}} plan is ready",
+      "unlocks": {
+        "voiceMinutes_one": "{{count}} voice minute each month",
+        "voiceMinutes_other": "{{count}} voice minutes each month",
+        "numbers_one": "{{count}} dedicated business number",
+        "numbers_other": "{{count}} dedicated business numbers",
+        "alertSms_one": "{{count}} alert SMS segment each month",
+        "alertSms_other": "{{count}} alert SMS segments each month",
+        "transfers_one": "{{count}} transfer attempt each month",
+        "transfers_other": "{{count}} transfer attempts each month"
+      },
+      "number": {
+        "label": "Your number",
+        "keep": "It's yours to keep.",
+        "choose": "Choose your number"
+      },
+      "steps": {
+        "title": "Next steps",
+        "call": {
+          "title": "Call it now",
+          "description": "Hear your receptionist answer a real call."
+        },
+        "forward": {
+          "title": "Forward your business line to it",
+          "description": "Callers keep dialing the number they know. Your phone carrier forwards those calls to your LobbyStack number.",
+          "action": "Call forwarding guide"
+        },
+        "transfer": {
+          "title": "Choose where urgent calls go",
+          "description": "Add a transfer number in AI settings so your receptionist can pass urgent callers to a person.",
+          "action": "Open AI settings"
+        }
+      },
+      "continue": "Continue setup",
+      "dashboard": "Go to your dashboard"
     }
   },
   "phoneNumber": {
@@ -341,6 +356,10 @@
       "title": "This number will be released on {{date}}",
       "description": "Free plans do not include a dedicated business number. Upgrade to Starter or Pro before then to keep {{number}}.",
       "upgradeCta": "Upgrade to keep this number"
+    },
+    "freeTrial": {
+      "description": "You don't have a number yet. Try one free for 14 days.",
+      "cta": "Choose my number"
     },
     "requiresPaidPlan": {
       "title": "Dedicated numbers are on paid plans",
@@ -415,7 +434,8 @@
       "connect": "Connect",
       "connected": "Connected",
       "settings": "Open integration settings",
-      "manage": "Manage"
+      "manage": "Manage",
+      "setUp": "Set up"
     },
     "providers": {
       "google": "Sync bookings with Google Calendar."
@@ -473,6 +493,10 @@
       "webhooks": {
         "title": "Webhooks",
         "description": "Send calls, bookings and messages to your own tools."
+      },
+      "zapier": {
+        "title": "Zapier",
+        "description": "Connect calls, bookings and contacts to thousands of apps."
       }
     },
     "status": {
@@ -844,7 +868,7 @@
   },
   "apiKeys": {
     "title": "API keys",
-    "description": "Connect tools like Zapier or your own scripts to LobbyStack. Each key works for this business only.",
+    "description": "Use a key to connect your own code or another app to the LobbyStack API.",
     "empty": "No API keys yet.",
     "neverUsed": "Never",
     "createdBy": "{{date}} by {{name}}",
@@ -866,7 +890,7 @@
       "title": "Create an API key",
       "description": "Give the key a name you'll recognize and allow only the access it needs.",
       "nameLabel": "Name",
-      "namePlaceholder": "Zapier",
+      "namePlaceholder": "CRM sync",
       "scopesLabel": "Access",
       "cancel": "Cancel",
       "submit": "Create key",
@@ -881,7 +905,7 @@
     "revoke": {
       "action": "Revoke",
       "title": "Revoke this API key?",
-      "description": "Anything that uses {{name}} stops working right away. You can't undo this.",
+      "description": "Anything that uses {{name}} stops working right away. You can't undo this. LobbyStack also turns off the webhooks this key created.",
       "confirm": "Revoke key",
       "cancel": "Cancel",
       "done": "API key revoked",

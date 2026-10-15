@@ -19,9 +19,22 @@ export function getSafeOnboardingErrorMessage(
   fallbackKey: string,
 ): string {
   const message = getErrorText(error);
+  const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
 
-  if (typeof error === "object" && error !== null && (error as { code?: unknown }).code === "website_url_invalid") {
+  if (code === "website_url_invalid") {
     return t("website.invalidUrl");
+  }
+
+  const phoneErrors: Record<string, string> = {
+    phone_voip_refused: "verifyPhone.errors.voip",
+    phone_not_mobile: "verifyPhone.errors.notMobile",
+    phone_country_mismatch: "verifyPhone.errors.countryMismatch",
+    phone_number_invalid: "verifyPhone.errors.invalidNumber",
+    verification_rate_limited: "verifyPhone.errors.rateLimited",
+    verification_cooldown: "verifyPhone.errors.rateLimited",
+  };
+  if (typeof code === "string" && phoneErrors[code]) {
+    return t(phoneErrors[code]);
   }
 
   if (includesAny(message, ["Too many workspaces"])) {
@@ -36,7 +49,11 @@ export function getSafeOnboardingErrorMessage(
     return t("number.unavailable");
   }
 
-  if (includesAny(message, ["Number provisioning limit reached"])) {
+  if (code === "number_offer_expired") {
+    return t("number.offerExpired");
+  }
+
+  if (code === "number_claim_rate_limited" || code === "daily_claim_quota_reached" || code === "monthly_claim_quota_reached") {
     return t("number.claimRateLimited");
   }
 

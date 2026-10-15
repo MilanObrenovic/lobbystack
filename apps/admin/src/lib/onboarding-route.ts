@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { canVisitOnboardingStage, getActiveOnboardingState, resolveOnboardingRoute, type OnboardingStage } from "@lobbystack/domain";
+import { canVisitOnboardingStage, getActiveOnboardingState, numberStepRedirect, resolveOnboardingRoute, type OnboardingStage } from "@lobbystack/domain";
 
 import { getAppDatabase } from "./api-helpers";
 import { getSession } from "./auth";
@@ -11,7 +11,8 @@ const routeStages: Record<string, OnboardingStage> = {
   "/onboarding/website": "website",
   "/onboarding/knowledge": "knowledge",
   "/onboarding/greeting": "greeting",
-  "/onboarding/plan": "plan",
+  "/onboarding/test-call": "test_call",
+  "/onboarding/verify-phone": "verify_phone",
   "/onboarding/number": "phone_number",
   "/onboarding/attribution": "attribution",
 };
@@ -24,4 +25,8 @@ export async function requireOnboardingStage(pathname: string, options: { allowC
   if (!expected) redirect(resolveOnboardingRoute(state.stage));
   if (options.allowCreate && expected === "create_business" && state.businessId === null) return;
   if (!canVisitOnboardingStage(state.stage, expected)) redirect(resolveOnboardingRoute(state.stage));
+  if (expected === "phone_number" && state.businessId) {
+    const elsewhere = await numberStepRedirect({ db: getAppDatabase().db }, { userId: session.user.id, businessId: state.businessId, finished: state.stage === "complete" });
+    if (elsewhere) redirect(elsewhere);
+  }
 }

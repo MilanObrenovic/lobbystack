@@ -11,7 +11,9 @@ import { createRecordedBrowserTelemetry } from "@/lib/telemetry-testing";
 
 const telemetryRef = vi.hoisted(() => ({ current: null as ReturnType<typeof createRecordedBrowserTelemetry> | null }));
 vi.mock("@/components/product-analytics", () => ({ useTelemetry: () => telemetryRef.current!.telemetry }));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string, values?: { number?: string }) => values?.number ? `${key}:${values.number}` : key, i18n: { language: "en" } }) }));
 
 const clients: QueryClient[] = [];
 let store: Record<string, string>;
@@ -49,9 +51,9 @@ function activationBody(activation: Partial<Activation>): Activation {
   };
 }
 
-function setup(activation: Partial<Activation>) {
+function setup(activation: Partial<Activation>, trial: Record<string, unknown> = { status: "none" }) {
   const body = activationBody(activation);
-  vi.stubGlobal("fetch", vi.fn(async () => Response.json(body)));
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => Response.json(String(url).startsWith("/api/number-trial") ? { trial } : body)));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   clients.push(client);
   const onOpen = vi.fn();
@@ -76,6 +78,25 @@ async function activationLoaded() {
 }
 
 describe("dashboard activation card", () => {
+  it("offers the free trial number to a free workspace that can still start one", async () => {
+    setup({ completedWebCalls: 1 }, { status: "available" });
+    expect(await screen.findByText("activation.freeTrial.title")).toBeTruthy();
+    // The number step opens on the workspace the offer was shown in, even if another tab switched away.
+    await userEvent.click(screen.getByRole("button", { name: "activation.freeTrial.cta" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/onboarding/number"));
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => url === "/api/businesses/switch" && JSON.parse(String(init?.body)).businessId === "business")).toBe(true);
+    expect(telemetryRef.current!.events.filter(event => event.name === "web.activation.upgrade_prompt_shown")).toHaveLength(0);
+  });
+
+  it("asks a trial owner to forward missed calls to the trial number, not to buy one", async () => {
+    setup({ completedWebCalls: 1 }, { status: "active", e164: "+15818927672", daysLeft: 12, minutesExhausted: false, forwardTo: null });
+    expect(await screen.findByText("activation.forwardTrial.title:(581) 892-7672")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "activation.forwardTrial.cta" }));
+    expect(await screen.findByText("forwarding.title:(581) 892-7672")).toBeTruthy();
+    expect(screen.queryByText("activation.upgrade.title")).toBeNull();
+    expect(telemetryRef.current!.events.filter(event => event.name === "web.activation.upgrade_prompt_shown")).toHaveLength(0);
+  });
+
   it("shows crawl progress while the website import is still running", async () => {
     setup({ websiteImport: { status: "crawling", websiteUrl: "https://example.com", importedCount: 4, indexedCount: 0 } });
     expect(await screen.findByText("websiteImport.runningTitle")).toBeTruthy();

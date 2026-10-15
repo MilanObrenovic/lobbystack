@@ -12,6 +12,7 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle }
 import { Skeleton } from "@/components/ui/skeleton";
 import { PhoneNumberChooser, phoneNumberChooserApi, type ClaimResult } from "./phone-number-chooser";
 import { useOpenUpgradePlanDialog } from "./upgrade-plan-dialog-context";
+import { useOpenNumberStep } from "@/lib/number-step";
 import { formatPhoneNumberDisplay } from "@/lib/phone";
 import { requestJson } from "@/lib/request-json";
 import type { BillingUsageViewModel, PhoneNumberViewModel } from "@/lib/page-view-models";
@@ -41,6 +42,7 @@ export function LivePhoneNumberSettingsSurface() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { business } = useActiveBusiness();
   const businessId = business?.businessId ?? "";
+  const openNumberStep = useOpenNumberStep();
   const canManageTenant = Boolean(business && ["business_owner", "business_admin"].includes(business.role));
   const numbers = useQuery({ queryKey: ["phone-numbers", businessId], refetchInterval: query => query.state.data?.activeClaim || query.state.data?.replacement.activeClaim ? 1000 : false, enabled: Boolean(businessId), queryFn: () => requestJson<NumbersResponse>(`/api/phone-numbers?businessId=${encodeURIComponent(businessId)}`) });
   const billing = useQuery({ queryKey: ["billing", businessId], enabled: Boolean(businessId), queryFn: () => requestJson<BillingUsageViewModel>(`/api/billing?businessId=${encodeURIComponent(businessId)}`) });
@@ -57,12 +59,18 @@ export function LivePhoneNumberSettingsSurface() {
   const canClaimDedicatedNumber =
     billingStatus != null &&
     (billingStatus.includedBusinessNumbers === null || billingStatus.includedBusinessNumbers > 0);
-  const reclaimScheduledAt =
+  // A trial number's release date isn't the owner's deadline: the trial banner says when it ends,
+  // and keeping or changing the number takes a paid plan.
+  const isTrialNumber = primaryPhoneNumber?.reclaimReason === "trial";
+  const reclaimScheduledAt = isTrialNumber ? null :
     (primaryPhoneNumber?.reclaimScheduledAt ? new Date(primaryPhoneNumber.reclaimScheduledAt).getTime() : null) ??
     billingStatus?.phoneNumberReclaimScheduledAt ??
     null;
   const showReclaimBanner = Boolean(hasPhoneNumber && reclaimScheduledAt);
-  const showPaidPlanRequired = !hasPhoneNumber && billingStatus != null && !canClaimDedicatedNumber;
+  const showPaidPlanRequired = (!hasPhoneNumber || isTrialNumber) && billingStatus != null && !canClaimDedicatedNumber;
+  // Only a free workspace without a number can start a trial. The number step runs the claim, and offers the plans if the claim refuses.
+  const trial = useQuery({ queryKey: ["number-trial", businessId], enabled: Boolean(businessId) && showPaidPlanRequired && !hasPhoneNumber, queryFn: () => requestJson<{ trial: { status: string } }>(`/api/number-trial?businessId=${encodeURIComponent(businessId)}`) });
+  const offersFreeTrial = showPaidPlanRequired && !hasPhoneNumber && trial.data?.trial?.status === "available";
 
   function handleClaimed(result: Extract<ClaimResult, { status: "claimed" }>): void {
     toast.success(t(hasPhoneNumber ? "phoneNumber.toast.changed" : "phoneNumber.toast.added"));
@@ -111,7 +119,9 @@ export function LivePhoneNumberSettingsSurface() {
                 <p className="text-[15px] leading-6 text-foreground">{displayPhoneNumber}</p>
               ) : (
                 <p className="text-[15px] leading-6 text-muted-foreground">
-                  {showPaidPlanRequired
+                  {offersFreeTrial
+                    ? t("phoneNumber.freeTrial.description")
+                    : showPaidPlanRequired
                     ? t("phoneNumber.requiresPaidPlan.description")
                     : t("phoneNumber.current.empty")}
                 </p>
@@ -119,7 +129,11 @@ export function LivePhoneNumberSettingsSurface() {
             </ItemContent>
             {canManageTenant ? (
               <ItemActions>
-                {showPaidPlanRequired ? (
+                {offersFreeTrial ? (
+                  <Button onClick={() => void openNumberStep(businessId)} size="sm" type="button">
+                    {t("phoneNumber.freeTrial.cta")}
+                  </Button>
+                ) : showPaidPlanRequired ? (
                   <Button onClick={openUpgradePlanDialog} size="sm" variant="outline">
                     {t("phoneNumber.requiresPaidPlan.upgradeCta")}
                   </Button>

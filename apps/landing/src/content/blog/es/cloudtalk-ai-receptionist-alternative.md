@@ -15,13 +15,13 @@ canonicalSlug: "cloudtalk-ai-receptionist-alternative"
 
 Una **alternativa a CloudTalk AI Receptionist** no debería exigir una suscripción a un centro de contacto para responder y reservar llamadas. CloudTalk ofrece 200 minutos de IA por $99 y 500 por $199, además de su plataforma de telefonía empresarial. LobbyStack incluye 150 minutos por $30 y 500 por $100, sin necesidad de licencias de usuario de CloudTalk.
 
-Puede probar LobbyStack con 30 minutos de voz en el navegador en el plan Free, sin número de teléfono. Starter y Pro incluyen un número dedicado para llamadas telefónicas.
+Puede probar LobbyStack en el plan Free con 30 minutos de voz y un número de EE. UU. o Canadá gratis durante 14 días. Starter y Pro incluyen un número dedicado para llamadas telefónicas.
 
 ## CloudTalk frente a LobbyStack de un vistazo
 
 | Aspecto | CloudTalk AI Receptionist | LobbyStack |
 | --- | --- | --- |
-| Plan gratuito permanente | No; prueba de 50 minutos el primer mes | 30 minutos de voz en el navegador, sin tarjeta ni número de teléfono |
+| Plan gratuito permanente | No; prueba de 50 minutos el primer mes | 30 minutos de voz, sin tarjeta, número de EE. UU. o Canadá gratis durante 14 días |
 | Entrada con IA | $99 por 200 minutos | $30 por 150 minutos |
 | Nivel de 500 minutos | $199 | $100 |
 | Plataforma base | Requiere suscripción de usuario de CloudTalk | No requiere suscripción a un centro de contacto |
@@ -57,7 +57,7 @@ Las páginas de CloudTalk revisadas indican estos niveles de recepcionista con I
 - $299 por 1,000 minutos
 - $699 por 2,500 minutos
 
-La plataforma general de CloudTalk empieza en torno a $19 a $25 por usuario en la página de precios pública. Una empresa que ya paga CloudTalk debería tratar esas licencias como un costo existente. Un comprador nuevo debería sumarlas a la estimación de la recepcionista.
+La plataforma general de CloudTalk empieza en torno a $19 a $25 por usuario en la página de precios pública. Una empresa que ya paga CloudTalk debería tratar esas licencias como un costo existente. Un comprador nuevo debería sumarlas a la estimación de la recepcionista. Haga la misma cuenta con el [precio de RingCentral AI Receptionist como complemento más una licencia de RingEX](/es/blog/ringcentral-ai-receptionist-alternative/).
 
 LobbyStack cobra $30 por 150 minutos y $100 por 500. En el nivel publicado de 500 minutos, LobbyStack cuesta menos antes de excedentes. CloudTalk incluye acceso a una plataforma de comunicaciones más amplia.
 

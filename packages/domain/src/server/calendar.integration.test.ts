@@ -100,7 +100,7 @@ describe.skipIf(!testUrl)("calendar backfill against dedicated PostgreSQL roles"
       await tx.insert(calendarBusyBlocks).values({ businessId, connectionId: connection!.id, startsAt, endsAt, externalEventId: "lobbystack-event" });
 
       await asWorker(tx, async (db) => {
-        const { slots } = await checkAvailability({ db }, { businessId, serviceId, startsAt: startsAt.toISOString(), timezone: "UTC" });
+        const { slots } = await checkAvailability({ db }, { businessId, serviceId, startsAt: startsAt.toISOString() });
         expect(slots.map((slot) => slot.staffId)).toEqual([secondStaffId]);
         const moved = await withBusinessTransaction(db, { businessId, actorType: "worker" }, (workerTx) => rescheduleAppointmentInTransaction(workerTx, { businessId, appointmentId: booked.id, startsAt: new Date(startsAt.getTime() + 15 * 60_000).toISOString(), change: { source: "caller" } }));
         expect(moved?.appointmentId).toBe(booked.id);
@@ -119,7 +119,7 @@ describe.skipIf(!testUrl)("calendar backfill against dedicated PostgreSQL roles"
       const movedTo = new Date(startsAt.getTime() + 4 * 3_600_000);
       await tx.insert(calendarBusyBlocks).values({ businessId, connectionId: connection!.id, startsAt: movedTo, endsAt: new Date(movedTo.getTime() + 30 * 60_000), externalEventId: "lobbystack-event" });
 
-      const { slots } = await asWorker(tx, (db) => checkAvailability({ db }, { businessId, serviceId, startsAt: movedTo.toISOString(), timezone: "UTC" }));
+      const { slots } = await asWorker(tx, (db) => checkAvailability({ db }, { businessId, serviceId, startsAt: movedTo.toISOString() }));
       expect(slots).toEqual([]);
     });
   });
@@ -142,6 +142,26 @@ describe.skipIf(!testUrl)("calendar backfill against dedicated PostgreSQL roles"
       expect(await tx.select().from(calendarBusyBlocks).where(eq(calendarBusyBlocks.connectionId, oldId))).toEqual([]);
       const entries = await tx.select().from(auditLogs).where(and(eq(auditLogs.businessId, businessId), eq(auditLogs.eventType, "calendar_connection.disconnected")));
       expect(entries).toEqual([expect.objectContaining({ actorUserId: userId, entityId: oldId, payload: { provider: "google", replacedBy: newId } })]);
+    });
+  });
+
+  it("clears the old calendar's event ids from upcoming bookings it covered when the owner reconnects", async () => {
+    await rollbackTest(async (tx) => {
+      const { businessId, userId, secondStaffId, book } = await workspace(tx);
+      const covered = await book({ calendarSyncState: "synced", calendarExternalId: "business-event" });
+      const past = await book({ startsAt: new Date("2020-01-01T12:00:00Z"), endsAt: new Date("2020-01-01T12:30:00Z"), calendarSyncState: "synced", calendarExternalId: "past-event" });
+      const ownCalendar = await book({ staffId: secondStaffId, calendarSyncState: "synced", calendarExternalId: "staff-event" });
+      await tx.insert(calendarConnections).values({ businessId, ownerUserId: userId, provider: "google", externalAccountId: "staff@example.invalid", staffId: secondStaffId, selectedCalendarId: "staff@group.calendar.google.com" });
+      await tx.execute(sql`set local role lobbystack_app`);
+      const db = tx as unknown as Database;
+      await connectCalendar({ db }, { userId, businessId, provider: "google", externalAccountId: "acct_1" });
+      await connectCalendar({ db }, { userId, businessId, provider: "google", externalAccountId: "acct_2" });
+      await tx.execute(sql`reset role`);
+
+      const rows = await tx.select().from(appointments).where(eq(appointments.businessId, businessId));
+      expect(rows.find((row) => row.id === covered.id)).toMatchObject({ calendarSyncState: "not_required", calendarExternalId: null });
+      expect(rows.find((row) => row.id === past.id)).toMatchObject({ calendarSyncState: "synced", calendarExternalId: "past-event" });
+      expect(rows.find((row) => row.id === ownCalendar.id)).toMatchObject({ calendarSyncState: "synced", calendarExternalId: "staff-event" });
     });
   });
 

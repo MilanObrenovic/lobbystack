@@ -3401,7 +3401,7 @@
           },
           "locale": {
             "type": "string",
-            "description": "Default language for callers: en or fr."
+            "description": "Default language for callers: en, fr, es, de, pt (Brazilian Portuguese), it or nl."
           },
           "website_url": {
             "type": [
@@ -3496,7 +3496,13 @@
             "type": "string",
             "enum": [
               "en",
-              "fr"
+              "fr",
+              "es",
+              "sr",
+              "de",
+              "pt",
+              "it",
+              "nl"
             ]
           },
           "website_url": {

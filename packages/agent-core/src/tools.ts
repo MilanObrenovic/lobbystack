@@ -1,9 +1,6 @@
 import {
   bookForCaller,
   cancelForCaller,
-  checkOpening,
-  findCallBooking,
-  findCallerBooking,
   countKnowledgeTokens,
   employeeDoesService,
   findOpenings,
@@ -24,12 +21,13 @@ import {
   type SmsConsentOnFile,
   type UnavailableReason,
 } from "@lobbystack/domain";
-import { canTextNumber, isTransferPermitted, normalizeAppointmentChangePolicy, normalizeBookingMode, type BusinessContextSnapshot } from "@lobbystack/shared";
+import { isTransferPermitted, type BusinessContextSnapshot } from "@lobbystack/shared";
 import { tool, type ToolSet } from "ai";
 import { DateTime } from "luxon";
 import { z } from "zod";
 
 import { serviceFacts, upcomingClosures, weeklyHours } from "./businessFacts";
+import { receptionistCapabilities, type ToolName } from "./capabilities";
 
 /** Where the conversation happens. Phone calls know the caller's number. */
 export type AgentChannel = "voice" | "web_voice" | "web_chat";
@@ -102,6 +100,7 @@ const phone = z.string().describe("Phone number in E.164 format, for example +14
 type NoOpeningsReason = UnavailableReason | "no_times_left";
 
 const TAKE_REQUEST = "Offer to take a message with the caller's name, number and preferred time so the team can book it.";
+const UNKNOWN_SERVICE = "Service is not available. Check the service name with getBusinessServices.";
 
 /**
  * Why a time or a day can't be booked, in plain facts, then the next step.
@@ -129,29 +128,14 @@ const isReason = (value: unknown): value is NoOpeningsReason => typeof value ===
 
 const OFFERINGS_QUERY = "What does the business do and offer: services, products and prices";
 
-/**
- * Whether the agent can cancel on this conversation itself. Cancelling
- * identifies the caller by a trusted phone number, which browser calls and
- * website chats don't have, and the business can turn it off. Otherwise, and
- * when it can't find or verify the appointment, the agent passes the request
- * to the team with requestAppointmentCancellation.
- */
-export function cancelsDirectly(snapshot: BusinessContextSnapshot, context: { callerPhone?: string; intakeOnly?: boolean }): boolean {
-  if (context.intakeOnly || normalizeBookingMode(snapshot.bookingMode) === "off") return false;
-  const policy = normalizeAppointmentChangePolicy(snapshot.appointmentChangePolicy);
-  return Boolean(context.callerPhone && policy.enabled && policy.allowCancel && policy.verificationMode !== "operator_only");
-}
-
 export function createReceptionistTools(context: AgentToolContext): ToolSet {
   const { domain, snapshot } = context;
   const businessId = snapshot.businessId;
   const timezone = snapshot.timezone;
-  const bookingMode = context.intakeOnly ? "off" : normalizeBookingMode(snapshot.bookingMode);
   const channel = context.channel;
-  // Texts about the caller's appointments are offered only on phone calls the
-  // business can text back. Their answer on file belongs to the call's own
-  // number, never to one someone typed or said.
-  const callerTextable = channel === "voice" && canTextNumber(snapshot.contactChannels?.smsNumber, context.callerPhone);
+  // capabilities.ts decides which tools this conversation gets.
+  const { tools: offeredTools, callerTextable } = receptionistCapabilities(snapshot, context);
+  const offered = (name: ToolName) => offeredTools.includes(name);
   const withConsentOnFile = <T extends object>(result: T & { smsConsentOnFile?: SmsConsentOnFile }) => {
     const { smsConsentOnFile, ...rest } = result;
     return callerTextable && smsConsentOnFile ? { ...rest, smsConsentOnFile } : rest;
@@ -194,7 +178,12 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
           openNow,
           configured: snapshot.hours.length > 0,
           weekly: weeklyHours(snapshot),
-          upcomingClosures: upcomingClosures(snapshot, now),
+          // Local times with an offset, like `now` and `weekly`; the snapshot stores UTC.
+          upcomingClosures: upcomingClosures(snapshot, now).map((closure) => ({
+            ...closure,
+            from: DateTime.fromISO(closure.from, { zone: timezone }).toISO()!,
+            to: DateTime.fromISO(closure.to, { zone: timezone }).toISO()!,
+          })),
         };
       },
     }),
@@ -242,7 +231,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
     }),
   };
 
-  if (bookingMode === "instant") {
+  if (offered("findAvailability")) {
     const employeeName = z.string().optional().describe("Only when the caller asked for a specific employee: that employee's name. Leave it out to book whoever is available first.");
     // The staff member a requested employee books under, or why they can't take this booking.
     const employeeFor = async (name: string | undefined, serviceName: string, day: string | undefined) => {
@@ -291,8 +280,6 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
             businessId,
             serviceName,
             date,
-            timezone,
-            hours: snapshot.hours,
             ...(Number.isFinite(hour) ? { preferredHour24: hour, preferredMinute: Number.isFinite(minute) ? minute : 0 } : {}),
             ...(context.callId ? { callId: context.callId } : {}),
             ...(employee.staffId ? { staffId: employee.staffId } : {}),
@@ -300,10 +287,11 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
           // The caller's answer on file, so the agent asks about texts only once.
           callerPhone ? getSmsConsentOnFile(domain, { businessId, phone: callerPhone }).catch(() => undefined) : undefined,
         ]);
-        const withEmployee = employee.employeeName && result.ok ? { ...result, employeeName: employee.employeeName } : result;
-        const answer = withEmployee.ok && smsConsentOnFile ? { ...withEmployee, smsConsentOnFile } : withEmployee;
+        if (!result.ok) return { ok: false, reason: UNKNOWN_SERVICE };
+        const withEmployee = employee.employeeName ? { ...result, employeeName: employee.employeeName } : result;
+        const answer = smsConsentOnFile ? { ...withEmployee, smsConsentOnFile } : withEmployee;
         // An empty day says why, so the agent doesn't call it fully booked when it isn't.
-        if (!answer.ok || answer.openings.length || !isReason(answer.reason)) return answer;
+        if (answer.openings.length || !answer.reason) return answer;
         return { ...answer, reason: DAY_UNAVAILABLE[answer.reason] ?? UNAVAILABLE_TOOL_MESSAGES[answer.reason] };
       },
     });
@@ -318,39 +306,33 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
       }),
       execute: async (input) => {
         const contactPhone = input.contactPhone?.trim() || context.callerPhone;
-        if (!input.contactName?.trim()) return { ok: false, reason: "Ask for the caller's name before booking." };
+        const contactName = input.contactName?.trim();
+        if (!contactName) return { ok: false, reason: "Ask for the caller's name before booking." };
         if (!contactPhone) return { ok: false, reason: "Ask for a phone number before booking." };
         const employee = await employeeFor(input.employeeName, input.serviceName, DateTime.fromISO(input.startsAt, { zone: timezone }).toISODate() ?? undefined);
         if (!employee.ok) return employee;
-        const staff = employee.staffId ? { staffId: employee.staffId } : {};
         const start = startTime(input.startsAt);
         if (!start.ok) return start;
-        const { startsAt } = start;
-        // Already booked for this caller, by an earlier or repeated request:
-        // report that booking rather than call the caller's own slot taken.
-        // Only the call's own number counts: a typed or spoken one would let
-        // anyone learn whose appointment a time holds. Without it, only this
-        // call's own booking counts.
-        const existing = context.callerPhone && contactPhone === context.callerPhone
-          ? await findCallerBooking(domain, { businessId, serviceName: input.serviceName, startsAt, contactPhone })
-          : context.callId ? await findCallBooking(domain, { businessId, callId: context.callId, serviceName: input.serviceName, startsAt }) : undefined;
-        if (existing) return existing;
-        const opening = await checkOpening(domain, { businessId, serviceName: input.serviceName, startsAt, timezone, ...(context.callId ? { callId: context.callId } : {}), ...staff });
-        if (!opening.ok) return { ok: false, reason: `${opening.reason} Check the service name with getBusinessServices.` };
-        if (!opening.available) return { ok: false, reason: UNAVAILABLE_TOOL_MESSAGES[isReason(opening.reason) ? opening.reason : "taken"] };
-        const booked = await bookForCaller(domain, {
-          businessId,
-          serviceName: input.serviceName,
-          startsAt,
-          timezone,
-          contactPhone,
-          channel,
-          ...(input.contactName ? { contactName: input.contactName } : {}),
-          ...(context.callId ? { callId: context.callId } : {}),
-          ...staff,
-        });
-        // Another booking can take the time between the check and the booking.
-        if (!booked.ok) return "unavailableReason" in booked && isReason(booked.unavailableReason) ? { ok: false, reason: UNAVAILABLE_TOOL_MESSAGES[booked.unavailableReason] } : booked;
+        // A repeated request returns the booking it already made, found only
+        // by the call's own number or the call itself.
+        let booked: Awaited<ReturnType<typeof bookForCaller>>;
+        try {
+          booked = await bookForCaller(domain, {
+            businessId,
+            service: { name: input.serviceName },
+            startsAt: start.startsAt,
+            timezone,
+            contactPhone,
+            contactName,
+            channel,
+            ...(context.callerPhone ? { callerPhone: context.callerPhone } : {}),
+            ...(context.callId ? { callId: context.callId } : {}),
+            ...(employee.staffId ? { preferredStaffId: employee.staffId } : {}),
+          });
+        } catch {
+          return { ok: false, reason: "The booking could not be completed." };
+        }
+        if (!booked.ok) return { ok: false, reason: booked.reason === "unknown_service" ? UNKNOWN_SERVICE : UNAVAILABLE_TOOL_MESSAGES[booked.reason] };
         // An answer about texts on this call covers only the number calling.
         return callerTextable && contactPhone !== context.callerPhone
           ? { ...booked, textConfirmation: "This booking is under another number than the one calling. The caller's answer about texts doesn't cover it, so don't say texts will come for it." }
@@ -362,7 +344,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
   // Its own tool, so the answer counts whenever the caller gives it: GPT-Live
   // often asks about texts only after the booking or cancellation is done.
   const callId = context.callId;
-  if (callerTextable && callId && bookingMode !== "off") {
+  if (offered("recordTextPreference") && callId) {
     tools.recordTextPreference = tool({
       description: "Save the caller's answer as soon as they say whether they want texts about their appointments, before or after booking or cancelling. A yes to a time or to booking isn't a yes to texts.",
       inputSchema: z.object({ answer: z.enum(["agreed", "declined"]) }),
@@ -375,7 +357,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
     });
   }
 
-  if (bookingMode === "request") {
+  if (offered("requestAppointment")) {
     tools.requestAppointment = tool({
       description: "Pass an appointment request to the team, who will confirm the time with the caller. Collect the service, preferred day and time, name, and callback number first.",
       inputSchema: z.object({
@@ -402,11 +384,9 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
     });
   }
 
-  // Changing an appointment identifies the caller by their phone number, so it
-  // is only offered when the call itself carries a trusted number.
-  const changePolicy = normalizeAppointmentChangePolicy(snapshot.appointmentChangePolicy);
+  // Changing an appointment identifies the caller by the call's own number.
   const callerPhone = context.callerPhone;
-  if (callerPhone && changePolicy.enabled && changePolicy.verificationMode !== "operator_only" && bookingMode !== "off") {
+  if (offered("lookupAppointmentForChange") && callerPhone) {
     tools.lookupAppointmentForChange = tool({
       description: "Check whether this caller's number has upcoming appointments before cancelling or rescheduling. It does not reveal appointment details.",
       inputSchema: z.object({}),
@@ -437,7 +417,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
       inputSchema: z.object({ verificationId: z.string(), code: z.string() }),
       execute: async ({ verificationId, code }) => withConsentOnFile(await verifyCallerChangeCode(domain, { businessId, verificationId, code })),
     });
-    if (changePolicy.allowCancel) {
+    if (offered("cancelAppointment")) {
       tools.cancelAppointment = tool({
         description: "Cancel the verified appointment. Only after the caller explicitly confirms they want it cancelled now.",
         inputSchema: z.object({
@@ -451,7 +431,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
         },
       });
     }
-    if (changePolicy.allowReschedule && bookingMode === "instant") {
+    if (offered("rescheduleAppointment")) {
       tools.rescheduleAppointment = tool({
         description: "Move the verified appointment to a new time that findAvailability returned. Only after the caller explicitly confirms the new time.",
         inputSchema: z.object({ appointmentId: z.string(), verificationId: z.string(), startsAt: z.string(), finalConfirmation: z.boolean() }),
@@ -465,9 +445,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
     }
   }
 
-  // Offered next to cancelAppointment too, for an appointment the caller's
-  // number doesn't find or verify.
-  if (bookingMode !== "off") {
+  if (offered("requestAppointmentCancellation")) {
     tools.requestAppointmentCancellation = tool({
       description: "Pass the caller's request to cancel an appointment to the team, when you can't cancel it yourself. It doesn't cancel anything: the team does. Get the caller's name and what they know of the appointment (date, time, service) first.",
       inputSchema: z.object({
@@ -498,8 +476,8 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
   }
 
   const callControl = context.callControl;
-  const transfer = context.intakeOnly ? undefined : callControl?.transfer?.bind(callControl);
-  if (transfer) {
+  const transfer = callControl?.transfer?.bind(callControl);
+  if (offered("transferCall") && transfer) {
     tools.transferCall = tool({
       description: "Transfer the call to a person at the business when the transfer rules allow it and the caller asks for a person or has an urgent problem.",
       inputSchema: z.object({
@@ -538,7 +516,7 @@ export function createReceptionistTools(context: AgentToolContext): ToolSet {
       },
     });
   }
-  if (callControl) {
+  if (offered("endCall") && callControl) {
     tools.endCall = tool({
       description: "End the call. Use the reason caller_finished when the caller is done or is saying goodbye: the voice model says goodbye when it hears the call is ending, so don't write a reply. Use spam or abuse for a spam or abusive call.",
       inputSchema: z.object({ reason: z.enum(["caller_finished", "spam", "abuse"]) }),

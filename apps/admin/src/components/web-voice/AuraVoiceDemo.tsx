@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { PhoneOff } from "lucide-react";
+import { Phone, PhoneOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,8 @@ type AuraVoiceDemoProps = {
     startCall: () => Promise<void>;
   }) => void;
   onCallEnded?: () => void;
+  /** Offered when the workspace has used its voice minutes, for a workspace that can buy more. */
+  onUpgrade?: () => void;
 };
 
 function getButtonLabelKey(
@@ -76,6 +78,7 @@ export function AuraVoiceDemo({
   onEvent,
   onRegisterControls,
   onCallEnded,
+  onUpgrade,
 }: AuraVoiceDemoProps) {
   const { t } = useTranslation("common");
   const call = useWebVoiceCall({
@@ -126,7 +129,20 @@ export function AuraVoiceDemo({
         buttonLabel={t(getButtonLabelKey(status, muted))}
         auraTone={auraTone}
       >
-        {status === "connecting" ? (
+        {status === "idle" || status === "error" || status === "ended" ? (
+          <div className="absolute inset-x-0 top-1/2 z-20 mt-32 flex items-center justify-center">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={startCall}
+              className="cursor-pointer rounded-full border-border bg-background text-foreground shadow-sm hover:bg-muted"
+            >
+              <Phone className="size-4" aria-hidden="true" />
+              {t("testCall.start")}
+            </Button>
+          </div>
+        ) : status === "connecting" ? (
           <div className="absolute inset-x-0 top-1/2 z-20 mt-32 flex items-center justify-center">
             <Button
               type="button"
@@ -163,6 +179,11 @@ export function AuraVoiceDemo({
         >
           {statusMessage}
         </p>
+      ) : null}
+      {errorKey === "voiceLimitReached" && onUpgrade ? (
+        <Button className="mt-3 cursor-pointer rounded-full" onClick={onUpgrade} size="sm" type="button" variant="secondary">
+          {t("testCall.upgrade")}
+        </Button>
       ) : null}
     </div>
   );
