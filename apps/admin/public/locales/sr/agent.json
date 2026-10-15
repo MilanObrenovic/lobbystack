@@ -186,7 +186,7 @@
             "in_person": "Na licu mesta"
           },
           "errors": {
-            "invalid": "Unesite cenu, na primer 3500 ili 12,50.",
+            "invalid": "Unesite cenu, na primer 3,500 ili 12.50.",
             "rangeIncomplete": "Unesite i najnižu i najvišu cenu.",
             "rangeOrder": "Najviša cena mora biti veća od najniže.",
             "discountInvalid": "Unesite popust od 0 do 100%."

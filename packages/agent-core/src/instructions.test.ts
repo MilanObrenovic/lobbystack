@@ -40,7 +40,7 @@ describe("buildLiveInstructions", () => {
   });
 
   it("keeps every price when the list is too long for descriptions, and tells GPT-Live not to guess a missing one", () => {
-    const services = Array.from({ length: 30 }, (_, index) => ({ id: `svc-${index}`, name: `Feniranje ${index + 1}`, durationMinutes: 45, description: "Duga kosa, feniranje na ravno ili lokne. ".repeat(3), ...(index ? { price: { type: "fixed" as const, amountMinor: 700 + index * 100, currency: "RSD" } } : {}) }));
+    const services = Array.from({ length: 30 }, (_, index) => ({ id: `svc-${index}`, name: `Feniranje ${index + 1}`, durationMinutes: 45, description: "Duga kosa, feniranje na ravno ili lokne. ".repeat(3), ...(index ? { price: { type: "fixed" as const, amountMinor: (700 + index * 100) * 100, currency: "RSD" } } : {}) }));
     const instructions = buildLiveInstructions({ ...demoSnapshot, services }, "voice", callStart);
     expect(instructions).not.toContain("Duga kosa");
     expect(instructions).toContain("- Feniranje 1 (45 min)\n");
@@ -57,8 +57,8 @@ describe("buildLiveInstructions", () => {
 
   it("marks a starting price, a range and a price set in person", () => {
     const services = [
-      { id: "svc-1", name: "Farbanje", durationMinutes: 120, price: { type: "from" as const, amountMinor: 4000, currency: "RSD" } },
-      { id: "svc-2", name: "Pramenovi", durationMinutes: 90, price: { type: "range" as const, amountMinor: 3000, maxAmountMinor: 5000, currency: "RSD" } },
+      { id: "svc-1", name: "Farbanje", durationMinutes: 120, price: { type: "from" as const, amountMinor: 400000, currency: "RSD" } },
+      { id: "svc-2", name: "Pramenovi", durationMinutes: 90, price: { type: "range" as const, amountMinor: 300000, maxAmountMinor: 500000, currency: "RSD" } },
       { id: "svc-3", name: "Nadogradnja", durationMinutes: 180, price: { type: "in_person" as const } },
     ];
     const instructions = buildLiveInstructions({ ...demoSnapshot, services }, "voice", callStart);

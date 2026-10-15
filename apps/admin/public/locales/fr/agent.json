@@ -186,7 +186,7 @@
             "in_person": "Sur place"
           },
           "errors": {
-            "invalid": "Saisissez un prix, par exemple 3500 ou 12,50.",
+            "invalid": "Saisissez un prix, par exemple 3,500 ou 12.50.",
             "rangeIncomplete": "Saisissez le prix minimum et le prix maximum.",
             "rangeOrder": "Le prix maximum doit être supérieur au prix minimum.",
             "discountInvalid": "Saisissez une remise de 0 à 100 %."

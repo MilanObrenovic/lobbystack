@@ -140,13 +140,15 @@ export function isCurrencyCode(value: unknown): value is string {
   }
 }
 
-// Intl gives these two decimals, but prices in them are quoted in whole units.
-const WHOLE_UNIT_CURRENCIES = new Set(["RSD", "HUF"]);
+// ISO 4217 minor units. Not read from Intl: browsers and Node disagree (Chrome gives RSD 0 decimals, Node 2),
+// and the server and dashboard must agree on what a stored amount means.
+const ZERO_DECIMAL_CURRENCIES = new Set(["BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "PYG", "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF"]);
+const THREE_DECIMAL_CURRENCIES = new Set(["BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"]);
 
-/** The digits after the decimal point prices in this currency use: 2 for EUR, 0 for RSD and JPY. */
+/** The digits after the decimal point prices in this currency use: 2 for EUR and RSD, 0 for JPY, 3 for KWD. */
 export function currencyFractionDigits(currency: string): number {
-  if (WHOLE_UNIT_CURRENCIES.has(currency)) return 0;
-  return new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
+  if (ZERO_DECIMAL_CURRENCIES.has(currency)) return 0;
+  return THREE_DECIMAL_CURRENCIES.has(currency) ? 3 : 2;
 }
 
 export type ServicePriceLabels = { from: (amount: string) => string; range: (min: string, max: string) => string; inPerson: string; discounted: (regular: string, percent: number, discounted: string) => string };

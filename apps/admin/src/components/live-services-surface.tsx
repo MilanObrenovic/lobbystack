@@ -53,21 +53,30 @@ export function readPrice(values: ServiceValues, currency: string): { priceType:
 }
 
 /**
- * The typed price in the currency's smallest unit: null when empty, undefined
- * when it isn't a price. Accepts "3500", "3.500", "3,500", "12,50" and "12.50":
- * a final "." or "," followed by one or two digits is the decimal point, when
- * the currency has decimals; any other ".", ",", space or apostrophe groups.
+ * Typed price text as the price input shows it: whole units grouped with
+ * commas ("3,500"), then one "." and at most the currency's decimals. A
+ * currency without decimals, such as RSD, takes no ".".
  */
-export function parsePriceInput(text: string, currency: string): number | null | undefined {
-  const value = text.trim();
-  if (!value) return null;
-  if (!/^\d[\d.,\s'\u00a0\u202f]*$/u.test(value)) return undefined;
+export function formatPriceTyping(text: string, currency: string): string {
   const digits = currencyFractionDigits(currency);
-  const decimal = digits > 0 ? /[.,](\d{1,2})$/u.exec(value) : null;
-  if (decimal && decimal[1]!.length > digits) return undefined;
-  const whole = (decimal ? value.slice(0, decimal.index) : value).replace(/[.,\s'\u00a0\u202f]/gu, "");
-  if (!/^\d+$/u.test(whole)) return undefined;
-  const minor = Number(whole) * 10 ** digits + (decimal ? Number(decimal[1]!.padEnd(digits, "0")) : 0);
+  const cleaned = text.replace(/[^\d.]/gu, "");
+  const dot = digits > 0 ? cleaned.indexOf(".") : -1;
+  const whole = (dot === -1 ? cleaned : cleaned.slice(0, dot)).replace(/\./gu, "").replace(/^0+(?=\d)/u, "");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/gu, ",");
+  if (dot === -1) return grouped;
+  return `${grouped || "0"}.${cleaned.slice(dot + 1).replace(/\./gu, "").slice(0, digits)}`;
+}
+
+/** The typed price in the currency's smallest unit: null when empty, undefined when it isn't a price. Commas group; "." is the decimal point. */
+export function parsePriceInput(text: string, currency: string): number | null | undefined {
+  const value = text.replace(/,/gu, "").trim();
+  if (!value) return null;
+  const match = /^(\d+)(?:\.(\d*))?$/u.exec(value);
+  if (!match) return undefined;
+  const digits = currencyFractionDigits(currency);
+  const decimals = match[2] ?? "";
+  if (decimals.length > digits) return undefined;
+  const minor = Number(match[1]) * 10 ** digits + Number(decimals.padEnd(digits, "0") || "0");
   return Number.isSafeInteger(minor) ? minor : undefined;
 }
 
@@ -76,11 +85,22 @@ function formatPercent(value: number, locale: string, useGrouping = true): strin
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 2, useGrouping }).format(value);
 }
 
-/** A stored price as the editor shows it, without grouping: "3500" or "12,50" in the locale. */
-function priceInputValue(priceMinor: number | null, currency: string, locale: string): string {
+/** A stored price as the price input shows it: "3,500" or "12.50". */
+function priceInputValue(priceMinor: number | null, currency: string): string {
   if (priceMinor === null) return "";
   const digits = currencyFractionDigits(currency);
-  return new Intl.NumberFormat(locale, { useGrouping: false, minimumFractionDigits: priceMinor % 10 ** digits ? digits : 0, maximumFractionDigits: digits }).format(priceMinor / 10 ** digits);
+  return formatPriceTyping((priceMinor / 10 ** digits).toFixed(priceMinor % 10 ** digits ? digits : 0), currency);
+}
+
+/** Where the caret goes after reformatting: just past the `count`th digit or ".". */
+function caretAfter(text: string, count: number): number {
+  let seen = 0;
+  let position = 0;
+  while (position < text.length && seen < count) {
+    if (/[\d.]/u.test(text[position]!)) seen += 1;
+    position += 1;
+  }
+  return position;
 }
 
 function serviceSlug(name: string): string {
@@ -169,13 +189,24 @@ function ServiceEditor({ currency, editing, onOpenChange, open, pending, save }:
   const discountInputRef = useRef<HTMLInputElement>(null);
   const [values, setValues] = useState<ServiceValues>(emptyValues);
   const [submitted, setSubmitted] = useState(false);
-  useEffect(() => { if (open) { setValues(editing ? { name: editing.name, description: editing.description ?? "", durationMinutes: String(editing.durationMinutes), priceType: editing.priceType, price: priceInputValue(editing.priceMinor, currency, intlLocale(i18n.language)), priceMax: priceInputValue(editing.priceMaxMinor, currency, intlLocale(i18n.language)), discountEnabled: editing.discountPercent > 0, discount: editing.discountPercent > 0 ? formatPercent(editing.discountPercent, intlLocale(i18n.language), false) : "", active: editing.active } : emptyValues); setSubmitted(false); } }, [currency, editing, i18n.language, open]);
+  useEffect(() => { if (open) { setValues(editing ? { name: editing.name, description: editing.description ?? "", durationMinutes: String(editing.durationMinutes), priceType: editing.priceType, price: priceInputValue(editing.priceMinor, currency), priceMax: priceInputValue(editing.priceMaxMinor, currency), discountEnabled: editing.discountPercent > 0, discount: editing.discountPercent > 0 ? formatPercent(editing.discountPercent, intlLocale(i18n.language), false) : "", active: editing.active } : emptyValues); setSubmitted(false); } }, [currency, editing, i18n.language, open]);
   const price = readPrice(values, currency);
   const priceValid = !("error" in price);
   const discountedPrice = values.discountEnabled && !("error" in price) && price.discountPercent > 0 ? servicePriceFromColumns(price, currency) : undefined;
   const discountPreview = discountedPrice ? formatServicePrice(discountedPrice, intlLocale(i18n.language), { from: (amount) => t("sections.services.price.from", { amount }), range: (min, max) => t("sections.services.price.range", { min, max }), inPerson: "", discounted: (regular, _percent, discounted) => t("sections.services.fields.price.discountPreview", { price: discounted, regular }) }) : null;
   const priceInvalid = submitted && !priceValid;
-  const amountInput = (field: "price" | "priceMax", label: string) => <InputGroup className="w-full min-w-0"><InputGroupInput aria-describedby={priceInvalid ? `${priceId}-error` : undefined} aria-invalid={priceInvalid || undefined} aria-label={label} className="tabular-nums" inputMode="decimal" onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value.replace(/[^\d.,\s']/gu, "") }))} placeholder={t("sections.services.fields.price.placeholder")} type="text" value={values[field]} /><InputGroupAddon align="inline-end"><InputGroupText>{currency}</InputGroupText></InputGroupAddon></InputGroup>;
+  const amountInput = (field: "price" | "priceMax", label: string) => <InputGroup className="w-full min-w-0"><InputGroupInput aria-describedby={priceInvalid ? `${priceId}-error` : undefined} aria-invalid={priceInvalid || undefined} aria-label={label} className="tabular-nums" inputMode="decimal" onChange={(event) => {
+    const input = event.target;
+    const caretAt = input.selectionStart ?? input.value.length;
+    // Grouping commas are added for the user, so a comma they type is a decimal point: Serbian keypads have no ".".
+    const typedComma = (event.nativeEvent as InputEvent).data === "," && input.value[caretAt - 1] === ",";
+    const raw = typedComma ? `${input.value.slice(0, caretAt - 1)}.${input.value.slice(caretAt)}` : input.value;
+    // Keep the caret after the same digit once commas are added or removed.
+    const typedBefore = raw.slice(0, caretAt).replace(/[^\d.]/gu, "").length;
+    const next = formatPriceTyping(raw, currency);
+    setValues((current) => ({ ...current, [field]: next }));
+    requestAnimationFrame(() => { const caret = caretAfter(next, typedBefore); input.setSelectionRange(caret, caret); });
+  }} placeholder={t("sections.services.fields.price.placeholder")} type="text" value={values[field]} /><InputGroupAddon align="inline-end"><InputGroupText>{currency}</InputGroupText></InputGroupAddon></InputGroup>;
   const nameMissing = submitted && !values.name.trim();
   const durationInvalid = submitted && !(Number.isInteger(Number(values.durationMinutes)) && Number(values.durationMinutes) > 0);
   return <Dialog onOpenChange={onOpenChange} open={open}><DialogContent className="max-h-[calc(100svh-2rem)] grid-rows-[auto_minmax(0,1fr)] sm:max-w-md"><DialogHeader><DialogTitle>{t(editing ? "sections.services.editKnowledge" : "sections.services.addKnowledge")}</DialogTitle><DialogDescription>{t(editing ? "sections.services.editKnowledgeDescription" : "sections.services.addKnowledgeDescription")}</DialogDescription></DialogHeader><form className="flex min-h-0 flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (!pending && values.name.trim() && Number.isInteger(Number(values.durationMinutes)) && Number(values.durationMinutes) > 0 && priceValid) void save(values); }}><div className="-m-1 min-h-0 overflow-x-hidden overflow-y-auto p-1"><FieldGroup><Field data-invalid={nameMissing || undefined}><FieldContent><FieldLabel htmlFor={titleId}>{t("sections.services.fields.title.label")}</FieldLabel><FieldDescription>{t("sections.services.fields.title.hint")}</FieldDescription></FieldContent><Input aria-describedby={nameMissing ? `${titleId}-error` : undefined} aria-invalid={nameMissing || undefined} id={titleId} onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))} placeholder={t("sections.services.fields.title.placeholder")} value={values.name} />{nameMissing ? <FieldError id={`${titleId}-error`}>{t("sections.services.fields.title.required")}</FieldError> : null}</Field><Field data-invalid={durationInvalid || undefined}><FieldContent><FieldLabel htmlFor={durationId}>{t("sections.services.fields.duration.label")}</FieldLabel><FieldDescription>{t("sections.services.fields.duration.hint")}</FieldDescription></FieldContent><DurationPicker aria-describedby={durationInvalid ? `${durationId}-error` : undefined} className="w-40" columnLabels={{ hours: t("sections.services.fields.duration.hours"), minutes: t("sections.services.fields.duration.minutes") }} columnTitles={{ hours: t("sections.services.fields.duration.hoursTitle"), minutes: t("sections.services.fields.duration.minutesTitle") }} id={durationId} invalid={durationInvalid} locale={intlLocale(i18n.language)} onChange={(minutes) => setValues((current) => ({ ...current, durationMinutes: String(minutes) }))} value={Number(values.durationMinutes) || 0} />{durationInvalid ? <FieldError id={`${durationId}-error`}>{t("sections.services.fields.duration.required")}</FieldError> : null}</Field><Field data-invalid={priceInvalid || undefined}><FieldContent><FieldLabel htmlFor={priceId}>{t("sections.services.fields.price.label")}</FieldLabel><FieldDescription>{t("sections.services.fields.price.hint")}</FieldDescription></FieldContent><div className="flex flex-col gap-2"><Select items={servicePriceTypes.map((type) => ({ value: type, label: t(`sections.services.fields.price.types.${type}`) }))} onValueChange={(value) => setValues((current) => ({ ...current, priceType: value as ServicePriceType }))} value={values.priceType}><SelectTrigger className="w-full" id={priceId}><SelectValue /></SelectTrigger><SelectContent><SelectGroup>{servicePriceTypes.map((type) => <SelectItem key={type} value={type}>{t(`sections.services.fields.price.types.${type}`)}</SelectItem>)}</SelectGroup></SelectContent></Select>{values.priceType === "range" ? <div className="flex items-center gap-2">{amountInput("price", t("sections.services.fields.price.lowest"))}<span aria-hidden="true" className="text-muted-foreground">–</span>{amountInput("priceMax", t("sections.services.fields.price.highest"))}</div> : values.priceType === "in_person" ? null : amountInput("price", t("sections.services.fields.price.amount"))}</div>{values.priceType === "in_person" ? null : <div className="flex min-h-9 items-center gap-3"><Switch checked={values.discountEnabled} id={discountId} onCheckedChange={(discountEnabled) => { setValues((current) => ({ ...current, discountEnabled })); if (discountEnabled) requestAnimationFrame(() => discountInputRef.current?.select()); }} /><FieldLabel className="font-normal" htmlFor={discountId}>{t("sections.services.fields.price.discount")}</FieldLabel>{values.discountEnabled ? <InputGroup className="ml-auto w-28"><InputGroupInput aria-invalid={priceInvalid && "error" in price && price.error === "discountInvalid" || undefined} aria-label={t("sections.services.fields.price.discountPercent")} className="tabular-nums" inputMode="decimal" maxLength={6} onChange={(event) => setValues((current) => ({ ...current, discount: event.target.value.replace(/[^\d.]/gu, "").replace(/(?<=\..*)\./gu, "") }))} placeholder="10" ref={discountInputRef} type="text" value={values.discount} /><InputGroupAddon align="inline-end"><InputGroupText>%</InputGroupText></InputGroupAddon></InputGroup> : null}</div>}{discountPreview ? <FieldDescription aria-live="polite" className="tabular-nums">{discountPreview}</FieldDescription> : null}{values.priceType === "in_person" ? <FieldDescription>{t("sections.services.fields.price.inPersonHint")}</FieldDescription> : null}{priceInvalid && "error" in price ? <FieldError id={`${priceId}-error`}>{t(`sections.services.fields.price.errors.${price.error}`)}</FieldError> : null}</Field><Field><FieldContent><FieldLabel htmlFor={descriptionId}>{t("sections.services.fields.content.label")}</FieldLabel><FieldDescription>{t("sections.services.fields.content.hint")}</FieldDescription></FieldContent><Textarea className="min-h-40" id={descriptionId} onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))} placeholder={t("sections.services.fields.content.placeholder")} value={values.description} /></Field><Field orientation="horizontal"><FieldContent><FieldLabel htmlFor={activeId}>{t("sections.services.fields.active.label")}</FieldLabel><FieldDescription>{t("sections.services.fields.active.hint")}</FieldDescription></FieldContent><Switch checked={values.active} id={activeId} onCheckedChange={(active) => setValues((current) => ({ ...current, active }))} /></Field></FieldGroup></div><DialogFooter><Button disabled={pending} onClick={() => onOpenChange(false)} type="button" variant="outline">{t("actions.cancel")}</Button><Button disabled={pending} type="submit">{pending ? t("actions.saving") : t("actions.save")}</Button></DialogFooter></form></DialogContent></Dialog>;
