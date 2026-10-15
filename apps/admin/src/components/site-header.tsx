@@ -1,6 +1,10 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useState, useSyncExternalStore, type RefObject } from "react";
+import { Phone } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { getTestCallStarter, startTestCall, subscribeTestCallStarter } from "@/lib/test-call-launcher";
 import { cn } from "@/lib/utils";
 
 type SiteHeaderProps = React.HTMLAttributes<HTMLElement> & {
@@ -56,7 +60,21 @@ export function SiteHeader({
         )}
       >
         <SidebarTrigger className="md:hidden" size="icon" type="button" variant="outline" />
+        <MobileTestCallButton />
       </div>
     </header>
+  );
+}
+
+// The desktop utility bar's test call widget stays mounted on phones, so this starts its call.
+function MobileTestCallButton() {
+  const { t } = useTranslation("common");
+  const available = useSyncExternalStore(subscribeTestCallStarter, () => getTestCallStarter() !== null, () => false);
+  if (!available) return null;
+  return (
+    <Button className="ml-auto" onClick={() => startTestCall()} size="sm" type="button" variant="outline">
+      <Phone />
+      {t("testCall.trigger")}
+    </Button>
   );
 }
