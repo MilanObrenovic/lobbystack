@@ -108,6 +108,7 @@
         "from": "à partir de {{amount}}",
         "range": "{{min}} – {{max}}",
         "inPerson": "Fixé sur place",
+        "discounted": "{{price}} (−{{percent}} %)",
         "none": "Non défini"
       },
       "duplicated": "Service dupliqué.",
@@ -174,6 +175,9 @@
           "amount": "Prix",
           "lowest": "Prix minimum",
           "highest": "Prix maximum",
+          "discount": "Remise",
+          "discountPercent": "Pourcentage de remise",
+          "discountPreview": "Les clients paient {{price}} au lieu de {{regular}}.",
           "inPersonHint": "Le réceptionniste indique aux appelants que le prix est fixé une fois que l'entreprise connaît leurs besoins.",
           "types": {
             "fixed": "Fixe",
@@ -184,7 +188,8 @@
           "errors": {
             "invalid": "Saisissez un prix, par exemple 3500 ou 12,50.",
             "rangeIncomplete": "Saisissez le prix minimum et le prix maximum.",
-            "rangeOrder": "Le prix maximum doit être supérieur au prix minimum."
+            "rangeOrder": "Le prix maximum doit être supérieur au prix minimum.",
+            "discountInvalid": "Saisissez une remise de 0 à 100 %."
           }
         },
         "active": {

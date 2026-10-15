@@ -108,6 +108,7 @@
         "from": "od {{amount}}",
         "range": "{{min}} – {{max}}",
         "inPerson": "Određuje se na licu mesta",
+        "discounted": "{{price}} (−{{percent}}%)",
         "none": "Nije postavljena"
       },
       "duplicated": "Usluga je duplirana.",
@@ -174,6 +175,9 @@
           "amount": "Cena",
           "lowest": "Najniža cena",
           "highest": "Najviša cena",
+          "discount": "Popust",
+          "discountPercent": "Procenat popusta",
+          "discountPreview": "Klijenti plaćaju {{price}} umesto {{regular}}.",
           "inPersonHint": "Recepcioner kaže pozivaocima da se cena određuje kada firma sazna šta im je potrebno.",
           "types": {
             "fixed": "Fiksna",
@@ -184,7 +188,8 @@
           "errors": {
             "invalid": "Unesite cenu, na primer 3500 ili 12,50.",
             "rangeIncomplete": "Unesite i najnižu i najvišu cenu.",
-            "rangeOrder": "Najviša cena mora biti veća od najniže."
+            "rangeOrder": "Najviša cena mora biti veća od najniže.",
+            "discountInvalid": "Unesite popust od 0 do 100%."
           }
         },
         "active": {

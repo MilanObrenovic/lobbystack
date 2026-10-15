@@ -10,6 +10,8 @@ describe("service prices", () => {
     expect(formatServicePrice({ type: "from", amountMinor: 700, currency: "RSD" })).toBe("from RSD 700");
     expect(formatServicePrice({ type: "range", amountMinor: 700, maxAmountMinor: 1000, currency: "RSD" })).toBe("RSD 700 to RSD 1,000");
     expect(formatServicePrice({ type: "in_person" })).toBe("set in person");
+    expect(formatServicePrice({ type: "fixed", amountMinor: 700, currency: "RSD", discountPercent: 20 })).toBe("RSD 560 after a 20% discount (regular RSD 700)");
+    expect(formatServicePrice({ type: "range", amountMinor: 1000, maxAmountMinor: 2000, currency: "RSD", discountPercent: 10 })).toBe("RSD 900 to RSD 1,800 after a 10% discount (regular RSD 1,000 to RSD 2,000)");
   });
 
   it("reads each currency's decimals from Intl, except ones quoted in whole units", () => {

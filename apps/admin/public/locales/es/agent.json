@@ -108,6 +108,7 @@
         "from": "desde {{amount}}",
         "range": "{{min}} – {{max}}",
         "inPerson": "Se fija en persona",
+        "discounted": "{{price}} (−{{percent}} %)",
         "none": "Sin definir"
       },
       "duplicated": "Servicio duplicado.",
@@ -174,6 +175,9 @@
           "amount": "Precio",
           "lowest": "Precio mínimo",
           "highest": "Precio máximo",
+          "discount": "Descuento",
+          "discountPercent": "Porcentaje de descuento",
+          "discountPreview": "Los clientes pagan {{price}} en lugar de {{regular}}.",
           "inPersonHint": "La recepcionista dice a quien llama que el precio se fija cuando el negocio sabe lo que necesita.",
           "types": {
             "fixed": "Fijo",
@@ -184,7 +188,8 @@
           "errors": {
             "invalid": "Escriba un precio, por ejemplo 3500 o 12,50.",
             "rangeIncomplete": "Escriba el precio mínimo y el máximo.",
-            "rangeOrder": "El precio máximo debe ser mayor que el mínimo."
+            "rangeOrder": "El precio máximo debe ser mayor que el mínimo.",
+            "discountInvalid": "Escriba un descuento de 0 a 100 %."
           }
         },
         "active": {

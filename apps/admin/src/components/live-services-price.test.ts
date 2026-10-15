@@ -2,15 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { parsePriceInput, readPrice } from "./live-services-surface";
 
-const values = { name: "Haircut", description: "", durationMinutes: "30", price: "", priceMax: "", active: true };
+const values = { name: "Haircut", description: "", durationMinutes: "30", price: "", priceMax: "", discountEnabled: false, discount: "", active: true };
 
 describe("readPrice", () => {
   it("reads each price type from the editor's fields", () => {
-    expect(readPrice({ ...values, priceType: "fixed", price: "700" }, "RSD")).toEqual({ priceType: "fixed", priceMinor: 700, priceMaxMinor: null });
-    expect(readPrice({ ...values, priceType: "from", price: "1.000" }, "RSD")).toEqual({ priceType: "from", priceMinor: 1000, priceMaxMinor: null });
-    expect(readPrice({ ...values, priceType: "range", price: "700", priceMax: "1000" }, "RSD")).toEqual({ priceType: "range", priceMinor: 700, priceMaxMinor: 1000 });
-    expect(readPrice({ ...values, priceType: "in_person", price: "700" }, "RSD")).toEqual({ priceType: "in_person", priceMinor: null, priceMaxMinor: null });
-    expect(readPrice({ ...values, priceType: "fixed" }, "RSD")).toEqual({ priceType: "fixed", priceMinor: null, priceMaxMinor: null });
+    expect(readPrice({ ...values, priceType: "fixed", price: "700" }, "RSD")).toEqual({ priceType: "fixed", priceMinor: 700, priceMaxMinor: null, discountPercent: 0 });
+    expect(readPrice({ ...values, priceType: "from", price: "1.000" }, "RSD")).toEqual({ priceType: "from", priceMinor: 1000, priceMaxMinor: null, discountPercent: 0 });
+    expect(readPrice({ ...values, priceType: "range", price: "700", priceMax: "1000" }, "RSD")).toEqual({ priceType: "range", priceMinor: 700, priceMaxMinor: 1000, discountPercent: 0 });
+    expect(readPrice({ ...values, priceType: "in_person", price: "700" }, "RSD")).toEqual({ priceType: "in_person", priceMinor: null, priceMaxMinor: null, discountPercent: 0 });
+    expect(readPrice({ ...values, priceType: "fixed" }, "RSD")).toEqual({ priceType: "fixed", priceMinor: null, priceMaxMinor: null, discountPercent: 0 });
+  });
+
+  it("keeps a discount only while its switch is on, and only from 0 to 100", () => {
+    expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: true, discount: "20" }, "RSD")).toMatchObject({ discountPercent: 20 });
+    expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: false, discount: "20" }, "RSD")).toMatchObject({ discountPercent: 0 });
+    expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: true, discount: "150" }, "RSD")).toEqual({ error: "discountInvalid" });
+    expect(readPrice({ ...values, priceType: "in_person", discountEnabled: true, discount: "20" }, "RSD")).toMatchObject({ discountPercent: 0 });
   });
 
   it("refuses a range missing a bound or with its bounds the wrong way round", () => {
