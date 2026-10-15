@@ -123,7 +123,7 @@
       "textBadge": "Text",
       "emptyState": "No services added yet.",
       "unavailable": "Service catalog is unavailable.",
-      "durationValue": "{{count}} min appointment",
+      "durationValue": "{{duration}} appointment",
       "previewPending": "This document is being processed.",
       "previewError": "This document couldn't be processed.",
       "status": {

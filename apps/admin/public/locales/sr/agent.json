@@ -123,7 +123,7 @@
       "textBadge": "Tekst",
       "emptyState": "Još niste dodali usluge.",
       "unavailable": "Katalog usluga nije dostupan.",
-      "durationValue": "Termin od {{count}} min",
+      "durationValue": "Termin od {{duration}}",
       "previewPending": "Ovaj dokument se obrađuje.",
       "previewError": "Ovaj dokument nije mogao da se obradi.",
       "status": {

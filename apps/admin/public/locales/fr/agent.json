@@ -123,7 +123,7 @@
       "textBadge": "Texte",
       "emptyState": "Aucun service ajouté pour le moment.",
       "unavailable": "Le catalogue de services est indisponible.",
-      "durationValue": "Rendez-vous de {{count}} min",
+      "durationValue": "Rendez-vous de {{duration}}",
       "previewPending": "Ce document est en cours de traitement.",
       "previewError": "Ce document n'a pas pu être traité.",
       "status": {

@@ -123,7 +123,7 @@
       "textBadge": "Texto",
       "emptyState": "Aún no ha añadido servicios.",
       "unavailable": "El catálogo de servicios no está disponible.",
-      "durationValue": "Cita de {{count}} min",
+      "durationValue": "Cita de {{duration}}",
       "previewPending": "Este documento se está procesando.",
       "previewError": "No se pudo procesar este documento.",
       "status": {
