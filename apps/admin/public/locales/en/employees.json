@@ -75,7 +75,8 @@
         "required": "Pick the first and last day of the vacation."
       }
     },
-    "save": "Save",
+    "cancel": "Cancel",
+    "save": "Add",
     "saving": "Saving...",
     "created": "Employee added.",
     "failed": "Couldn't add the employee."
@@ -83,7 +84,7 @@
   "edit": {
     "title": "Edit employee",
     "description": "Update this employee's name, phone number and services.",
-    "save": "Save changes",
+    "save": "Save",
     "updated": "Employee updated.",
     "failed": "Couldn't update the employee."
   },

@@ -375,7 +375,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
             </Field> : null}
           </div>
         </FieldGroup>
-        <DialogFooter><Button className="w-full" disabled={save.isPending || !services.length} type="submit">{save.isPending ? t("add.saving") : t(employee ? "edit.save" : "add.save")}</Button></DialogFooter>
+        <DialogFooter><Button disabled={save.isPending} onClick={() => onOpenChange(false)} type="button" variant="outline">{t("add.cancel")}</Button><Button disabled={save.isPending || !services.length} type="submit">{save.isPending ? t("add.saving") : t(employee ? "edit.save" : "add.save")}</Button></DialogFooter>
       </form>
     </DialogContent>
   </Dialog>;

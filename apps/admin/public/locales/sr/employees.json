@@ -75,7 +75,8 @@
         "required": "Izaberite prvi i poslednji dan odmora."
       }
     },
-    "save": "Sačuvaj",
+    "cancel": "Otkaži",
+    "save": "Dodaj",
     "saving": "Čuvanje...",
     "created": "Zaposleni je dodat.",
     "failed": "Dodavanje zaposlenog nije uspelo."
@@ -83,7 +84,7 @@
   "edit": {
     "title": "Izmeni zaposlenog",
     "description": "Ažurirajte ime, broj telefona i usluge ovog zaposlenog.",
-    "save": "Sačuvaj izmene",
+    "save": "Sačuvaj",
     "updated": "Zaposleni je ažuriran.",
     "failed": "Ažuriranje zaposlenog nije uspelo."
   },
