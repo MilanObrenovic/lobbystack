@@ -17,6 +17,10 @@ describe("readPrice", () => {
     expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: true, discount: "20" }, "RSD")).toMatchObject({ discountPercent: 20 });
     expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: false, discount: "20" }, "RSD")).toMatchObject({ discountPercent: 0 });
     expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: true, discount: "150" }, "RSD")).toEqual({ error: "discountInvalid" });
+    expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: true, discount: "12.5" }, "RSD")).toMatchObject({ discountPercent: 12.5 });
+    expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: true, discount: "12,5" }, "RSD")).toEqual({ error: "discountInvalid" });
+    expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: true, discount: "7.25" }, "RSD")).toMatchObject({ discountPercent: 7.25 });
+    expect(readPrice({ ...values, priceType: "fixed", price: "700", discountEnabled: true, discount: "7.255" }, "RSD")).toEqual({ error: "discountInvalid" });
     expect(readPrice({ ...values, priceType: "in_person", discountEnabled: true, discount: "20" }, "RSD")).toMatchObject({ discountPercent: 0 });
   });
 

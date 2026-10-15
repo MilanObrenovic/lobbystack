@@ -124,6 +124,11 @@ export function discountedAmount(amountMinor: number, discountPercent: number): 
   return Math.round(amountMinor * (100 - discountPercent) / 100);
 }
 
+/** A discount from 0 to 100 percent, with at most two decimal places. */
+export function isDiscountPercent(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100 && Math.abs(Math.round(value * 100) - value * 100) < 1e-9;
+}
+
 /** Whether a value is an ISO 4217 code Intl can format. */
 export function isCurrencyCode(value: unknown): value is string {
   if (typeof value !== "string" || !/^[A-Z]{3}$/.test(value)) return false;

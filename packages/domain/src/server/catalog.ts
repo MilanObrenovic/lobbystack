@@ -4,7 +4,7 @@ import { enqueueOutbox, withBusinessTransaction, type DatabaseTransaction } from
 import { agentRules, businesses, businessHours, closures, phoneNumbers, receptionistProfiles, services, staff, staffServiceAssignments } from "@lobbystack/db";
 
 import { requireBusinessAdmin, requireBusinessMembership } from "../authz";
-import { servicePriceTypes, type ServicePriceType } from "@lobbystack/shared";
+import { isDiscountPercent, servicePriceTypes, type ServicePriceType } from "@lobbystack/shared";
 import { normalizeClosures, normalizeHoursWindows, sameHoursWindows } from "../hours";
 import { writeBusinessHoursInTransaction } from "./businessHours";
 import type { DomainContext } from "./context";
@@ -55,7 +55,7 @@ function assertServiceFields(input: { name?: string | undefined; slug?: string |
   if (input.priceType !== undefined && !(servicePriceTypes as readonly unknown[]).includes(input.priceType)) throw invalid("priceType");
   if (input.priceMinor != null && !amount(input.priceMinor)) throw invalid("priceMinor");
   if (input.priceMaxMinor != null && !(amount(input.priceMaxMinor) && (input.priceMinor == null || input.priceMaxMinor > input.priceMinor))) throw invalid("priceMaxMinor");
-  if (input.discountPercent !== undefined && !(Number.isInteger(input.discountPercent) && input.discountPercent >= 0 && input.discountPercent <= 100)) throw invalid("discountPercent");
+  if (input.discountPercent !== undefined && !isDiscountPercent(input.discountPercent)) throw invalid("discountPercent");
 }
 
 // Only a range keeps an upper bound, and a price set in person keeps no amount or discount.
