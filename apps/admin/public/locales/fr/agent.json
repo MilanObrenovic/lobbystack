@@ -153,8 +153,12 @@
         "duration": {
           "label": "Durée",
           "placeholder": "30",
-          "hint": "Durée du rendez-vous en minutes pour vérifier les disponibilités.",
-          "required": "Saisissez un nombre entier de minutes, au moins 1."
+          "hint": "Durée du rendez-vous, pour vérifier les disponibilités.",
+          "required": "Choisissez une durée d'au moins 1 minute.",
+          "hours": "Heures",
+          "minutes": "Minutes",
+          "hoursTitle": "h",
+          "minutesTitle": "min"
         },
         "active": {
           "label": "Réservable",

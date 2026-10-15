@@ -153,8 +153,12 @@
         "duration": {
           "label": "Duración",
           "placeholder": "30",
-          "hint": "Duración de la cita en minutos, para comprobar la disponibilidad.",
-          "required": "Escriba un número entero de minutos, al menos 1."
+          "hint": "Duración de la cita, para comprobar la disponibilidad.",
+          "required": "Elija una duración de al menos 1 minuto.",
+          "hours": "Horas",
+          "minutes": "Minutos",
+          "hoursTitle": "h",
+          "minutesTitle": "min"
         },
         "active": {
           "label": "Reservable",

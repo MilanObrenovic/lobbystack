@@ -153,8 +153,12 @@
         "duration": {
           "label": "Trajanje",
           "placeholder": "30",
-          "hint": "Trajanje termina u minutima, za proveru slobodnih termina.",
-          "required": "Unesite ceo broj minuta, najmanje 1."
+          "hint": "Trajanje termina, za proveru slobodnih termina.",
+          "required": "Izaberite trajanje od najmanje 1 minuta.",
+          "hours": "Sati",
+          "minutes": "Minuti",
+          "hoursTitle": "h",
+          "minutesTitle": "min"
         },
         "active": {
           "label": "Može se zakazati",

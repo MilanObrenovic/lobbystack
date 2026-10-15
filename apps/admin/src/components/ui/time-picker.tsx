@@ -116,4 +116,4 @@ function TimeColumn({ label, onSelect, open, options, render, selected, title }:
   );
 }
 
-export { TimePicker };
+export { TimeColumn, TimePicker };

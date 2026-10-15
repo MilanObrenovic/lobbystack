@@ -153,8 +153,12 @@
         "duration": {
           "label": "Duration",
           "placeholder": "30",
-          "hint": "Appointment length in minutes for availability checks.",
-          "required": "Enter a whole number of minutes, at least 1."
+          "hint": "Appointment length, used for availability checks.",
+          "required": "Choose a duration of at least 1 minute.",
+          "hours": "Hours",
+          "minutes": "Minutes",
+          "hoursTitle": "h",
+          "minutesTitle": "min"
         },
         "active": {
           "label": "Bookable",
