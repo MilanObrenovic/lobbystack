@@ -166,7 +166,11 @@ export const snapshotSchema = z.object({
     localizedNames: z.object({ en: z.string().optional(), fr: z.string().optional() }).optional(),
     durationMinutes: z.number().int().positive(),
     description: z.string().optional(),
-    price: z.object({ amountMinor: z.number().int().nonnegative(), currency: z.string().regex(/^[A-Z]{3}$/), from: z.boolean().optional() }).optional(),
+    price: z.discriminatedUnion("type", [
+      z.object({ type: z.enum(["fixed", "from"]), amountMinor: z.number().int().nonnegative(), currency: z.string().regex(/^[A-Z]{3}$/) }),
+      z.object({ type: z.literal("range"), amountMinor: z.number().int().nonnegative(), maxAmountMinor: z.number().int().nonnegative(), currency: z.string().regex(/^[A-Z]{3}$/) }),
+      z.object({ type: z.literal("in_person") }),
+    ]).optional(),
   })),
   contactChannels: z.object({
     phoneNumber: z.string().optional(),

@@ -106,6 +106,8 @@
       "price": {
         "column": "Precio",
         "from": "desde {{amount}}",
+        "range": "{{min}} – {{max}}",
+        "inPerson": "Se fija en persona",
         "none": "Sin definir"
       },
       "duplicated": "Servicio duplicado.",
@@ -167,10 +169,23 @@
         },
         "price": {
           "label": "Precio",
-          "hint": "Opcional. La recepcionista dice este precio tal cual; si lo deja vacío, no se inventará uno.",
+          "hint": "Opcional. La recepcionista dice este precio tal cual; si deja el importe vacío, no se inventará uno.",
           "placeholder": "0",
-          "invalid": "Escriba un precio, por ejemplo 3500 o 12,50.",
-          "from": "Precio inicial («desde»)"
+          "amount": "Precio",
+          "lowest": "Precio mínimo",
+          "highest": "Precio máximo",
+          "inPersonHint": "La recepcionista dice a quien llama que el precio se fija cuando el negocio sabe lo que necesita.",
+          "types": {
+            "fixed": "Fijo",
+            "from": "Desde",
+            "range": "Entre",
+            "in_person": "En persona"
+          },
+          "errors": {
+            "invalid": "Escriba un precio, por ejemplo 3500 o 12,50.",
+            "rangeIncomplete": "Escriba el precio mínimo y el máximo.",
+            "rangeOrder": "El precio máximo debe ser mayor que el mínimo."
+          }
         },
         "active": {
           "label": "Reservable",

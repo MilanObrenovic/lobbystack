@@ -106,6 +106,8 @@
       "price": {
         "column": "Cena",
         "from": "od {{amount}}",
+        "range": "{{min}} – {{max}}",
+        "inPerson": "Određuje se na licu mesta",
         "none": "Nije postavljena"
       },
       "duplicated": "Usluga je duplirana.",
@@ -167,10 +169,23 @@
         },
         "price": {
           "label": "Cena",
-          "hint": "Opciono. Recepcioner navodi tačno ovu cenu; ako je ostavite praznu, neće je izmišljati.",
+          "hint": "Opciono. Recepcioner navodi tačno ovu cenu; ako iznos ostavite prazan, neće ga izmišljati.",
           "placeholder": "0",
-          "invalid": "Unesite cenu, na primer 3500 ili 12,50.",
-          "from": "Početna cena („od“)"
+          "amount": "Cena",
+          "lowest": "Najniža cena",
+          "highest": "Najviša cena",
+          "inPersonHint": "Recepcioner kaže pozivaocima da se cena određuje kada firma sazna šta im je potrebno.",
+          "types": {
+            "fixed": "Fiksna",
+            "from": "Od",
+            "range": "Između",
+            "in_person": "Na licu mesta"
+          },
+          "errors": {
+            "invalid": "Unesite cenu, na primer 3500 ili 12,50.",
+            "rangeIncomplete": "Unesite i najnižu i najvišu cenu.",
+            "rangeOrder": "Najviša cena mora biti veća od najniže."
+          }
         },
         "active": {
           "label": "Može se zakazati",

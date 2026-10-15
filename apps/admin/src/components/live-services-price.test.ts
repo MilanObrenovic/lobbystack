@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import { parsePriceInput } from "./live-services-surface";
+import { parsePriceInput, readPrice } from "./live-services-surface";
+
+const values = { name: "Haircut", description: "", durationMinutes: "30", price: "", priceMax: "", active: true };
+
+describe("readPrice", () => {
+  it("reads each price type from the editor's fields", () => {
+    expect(readPrice({ ...values, priceType: "fixed", price: "700" }, "RSD")).toEqual({ priceType: "fixed", priceMinor: 700, priceMaxMinor: null });
+    expect(readPrice({ ...values, priceType: "from", price: "1.000" }, "RSD")).toEqual({ priceType: "from", priceMinor: 1000, priceMaxMinor: null });
+    expect(readPrice({ ...values, priceType: "range", price: "700", priceMax: "1000" }, "RSD")).toEqual({ priceType: "range", priceMinor: 700, priceMaxMinor: 1000 });
+    expect(readPrice({ ...values, priceType: "in_person", price: "700" }, "RSD")).toEqual({ priceType: "in_person", priceMinor: null, priceMaxMinor: null });
+    expect(readPrice({ ...values, priceType: "fixed" }, "RSD")).toEqual({ priceType: "fixed", priceMinor: null, priceMaxMinor: null });
+  });
+
+  it("refuses a range missing a bound or with its bounds the wrong way round", () => {
+    expect(readPrice({ ...values, priceType: "range", price: "700" }, "RSD")).toEqual({ error: "rangeIncomplete" });
+    expect(readPrice({ ...values, priceType: "range", price: "1000", priceMax: "700" }, "RSD")).toEqual({ error: "rangeOrder" });
+  });
+});
 
 describe("parsePriceInput", () => {
   it("reads whole-unit currencies with any grouping", () => {

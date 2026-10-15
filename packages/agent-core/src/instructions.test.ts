@@ -40,7 +40,7 @@ describe("buildLiveInstructions", () => {
   });
 
   it("keeps every price when the list is too long for descriptions, and tells GPT-Live not to guess a missing one", () => {
-    const services = Array.from({ length: 30 }, (_, index) => ({ id: `svc-${index}`, name: `Feniranje ${index + 1}`, durationMinutes: 45, description: "Duga kosa, feniranje na ravno ili lokne. ".repeat(3), ...(index ? { price: { amountMinor: 700 + index * 100, currency: "RSD" } } : {}) }));
+    const services = Array.from({ length: 30 }, (_, index) => ({ id: `svc-${index}`, name: `Feniranje ${index + 1}`, durationMinutes: 45, description: "Duga kosa, feniranje na ravno ili lokne. ".repeat(3), ...(index ? { price: { type: "fixed" as const, amountMinor: 700 + index * 100, currency: "RSD" } } : {}) }));
     const instructions = buildLiveInstructions({ ...demoSnapshot, services }, "voice", callStart);
     expect(instructions).not.toContain("Duga kosa");
     expect(instructions).toContain("- Feniranje 1 (45 min)\n");
@@ -55,9 +55,17 @@ describe("buildLiveInstructions", () => {
     expect(buildAgentInstructions(demoSnapshot, { channel: "web_chat" })).not.toContain("listed after its duration");
   });
 
-  it("marks a starting price", () => {
-    const services = [{ id: "svc-1", name: "Farbanje", durationMinutes: 120, price: { amountMinor: 4000, currency: "RSD", from: true } }];
-    expect(buildLiveInstructions({ ...demoSnapshot, services }, "voice", callStart)).toContain("- Farbanje (120 min, from RSD 4,000)");
+  it("marks a starting price, a range and a price set in person", () => {
+    const services = [
+      { id: "svc-1", name: "Farbanje", durationMinutes: 120, price: { type: "from" as const, amountMinor: 4000, currency: "RSD" } },
+      { id: "svc-2", name: "Pramenovi", durationMinutes: 90, price: { type: "range" as const, amountMinor: 3000, maxAmountMinor: 5000, currency: "RSD" } },
+      { id: "svc-3", name: "Nadogradnja", durationMinutes: 180, price: { type: "in_person" as const } },
+    ];
+    const instructions = buildLiveInstructions({ ...demoSnapshot, services }, "voice", callStart);
+    expect(instructions).toContain("- Farbanje (120 min, from RSD 4,000)");
+    expect(instructions).toContain("- Pramenovi (90 min, RSD 3,000 to RSD 5,000)");
+    expect(instructions).toContain("- Nadogradnja (180 min, set in person)");
+    expect(instructions).toContain("For one set in person, don't give or estimate an amount");
   });
 
   it("keeps GPT-Live's waiting line neutral until the backend confirms an action", () => {

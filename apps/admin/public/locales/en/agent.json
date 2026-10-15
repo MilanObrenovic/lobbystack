@@ -106,6 +106,8 @@
       "price": {
         "column": "Price",
         "from": "from {{amount}}",
+        "range": "{{min}} – {{max}}",
+        "inPerson": "Set in person",
         "none": "Not set"
       },
       "duplicated": "Service duplicated.",
@@ -167,10 +169,23 @@
         },
         "price": {
           "label": "Price",
-          "hint": "Optional. The receptionist quotes this price exactly; leave it empty and it won't guess one.",
+          "hint": "Optional. The receptionist quotes this price exactly; leave the amount empty and it won't guess one.",
           "placeholder": "0",
-          "invalid": "Enter a price, such as 3500 or 12.50.",
-          "from": "Starting price (\"from\")"
+          "amount": "Price",
+          "lowest": "Lowest price",
+          "highest": "Highest price",
+          "inPersonHint": "The receptionist tells callers the price is set once the business knows what they need.",
+          "types": {
+            "fixed": "Fixed",
+            "from": "From",
+            "range": "Between",
+            "in_person": "In person"
+          },
+          "errors": {
+            "invalid": "Enter a price, such as 3500 or 12.50.",
+            "rangeIncomplete": "Enter both the lowest and the highest price.",
+            "rangeOrder": "The highest price must be more than the lowest."
+          }
         },
         "active": {
           "label": "Bookable",

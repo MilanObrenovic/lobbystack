@@ -4,10 +4,12 @@ import { currencyFractionDigits, defaultCurrencyForTimezone, formatServicePrice,
 
 describe("service prices", () => {
   it("formats a price in the currency's smallest unit, without decimals it doesn't use", () => {
-    expect(formatServicePrice({ amountMinor: 3500, currency: "RSD" })).toBe("RSD 3,500");
-    expect(formatServicePrice({ amountMinor: 1250, currency: "EUR" })).toBe("EUR 12.50");
-    expect(formatServicePrice({ amountMinor: 4000, currency: "USD" })).toBe("USD 40");
-    expect(formatServicePrice({ amountMinor: 700, currency: "RSD", from: true })).toBe("from RSD 700");
+    expect(formatServicePrice({ type: "fixed", amountMinor: 3500, currency: "RSD" })).toBe("RSD 3,500");
+    expect(formatServicePrice({ type: "fixed", amountMinor: 1250, currency: "EUR" })).toBe("EUR 12.50");
+    expect(formatServicePrice({ type: "fixed", amountMinor: 4000, currency: "USD" })).toBe("USD 40");
+    expect(formatServicePrice({ type: "from", amountMinor: 700, currency: "RSD" })).toBe("from RSD 700");
+    expect(formatServicePrice({ type: "range", amountMinor: 700, maxAmountMinor: 1000, currency: "RSD" })).toBe("RSD 700 to RSD 1,000");
+    expect(formatServicePrice({ type: "in_person" })).toBe("set in person");
   });
 
   it("reads each currency's decimals from Intl, except ones quoted in whole units", () => {

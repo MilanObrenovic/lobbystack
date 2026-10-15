@@ -97,8 +97,26 @@ export type ServiceSummary = {
   price?: ServicePrice;
 };
 
-/** A service's price: a whole number of the currency's smallest unit. `from` marks a starting price. */
-export type ServicePrice = { amountMinor: number; currency: string; from?: boolean };
+export const servicePriceTypes = ["fixed", "from", "range", "in_person"] as const;
+export type ServicePriceType = (typeof servicePriceTypes)[number];
+
+/**
+ * A service's price, in whole numbers of the currency's smallest unit: a fixed
+ * price, a starting price, a range, or set in person once the business knows
+ * the customer (no amount).
+ */
+export type ServicePrice =
+  | { type: "fixed" | "from"; amountMinor: number; currency: string }
+  | { type: "range"; amountMinor: number; maxAmountMinor: number; currency: string }
+  | { type: "in_person" };
+
+/** A service's stored price columns as a price, or undefined when the business hasn't set one. */
+export function servicePriceFromColumns(row: { priceType: ServicePriceType; priceMinor: number | null; priceMaxMinor: number | null }, currency: string): ServicePrice | undefined {
+  if (row.priceType === "in_person") return { type: "in_person" };
+  if (row.priceMinor === null) return undefined;
+  if (row.priceType === "range") return row.priceMaxMinor === null ? undefined : { type: "range", amountMinor: row.priceMinor, maxAmountMinor: row.priceMaxMinor, currency };
+  return { type: row.priceType, amountMinor: row.priceMinor, currency };
+}
 
 /** Whether a value is an ISO 4217 code Intl can format. */
 export function isCurrencyCode(value: unknown): value is string {
@@ -120,11 +138,23 @@ export function currencyFractionDigits(currency: string): number {
   return new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
 }
 
-/** "700 RSD", or "from 700 RSD" for a starting price, in the given locale. */
-export function formatServicePrice(price: ServicePrice, locale = "en", labels: { from: (amount: string) => string } = { from: (amount) => `from ${amount}` }): string {
-  const digits = currencyFractionDigits(price.currency);
-  const amount = new Intl.NumberFormat(locale, { style: "currency", currency: price.currency, currencyDisplay: "code", minimumFractionDigits: price.amountMinor % 10 ** digits === 0 ? 0 : digits, maximumFractionDigits: digits }).format(price.amountMinor / 10 ** digits).replace(/[\u00a0\u202f]/gu, " ");
-  return price.from ? labels.from(amount) : amount;
+export type ServicePriceLabels = { from: (amount: string) => string; range: (min: string, max: string) => string; inPerson: string };
+
+const ENGLISH_PRICE_LABELS: ServicePriceLabels = { from: (amount) => `from ${amount}`, range: (min, max) => `${min} to ${max}`, inPerson: "set in person" };
+
+/** An amount in the currency's smallest unit, as "RSD 700" in the given locale. */
+export function formatPriceAmount(amountMinor: number, currency: string, locale = "en"): string {
+  const digits = currencyFractionDigits(currency);
+  return new Intl.NumberFormat(locale, { style: "currency", currency, currencyDisplay: "code", minimumFractionDigits: amountMinor % 10 ** digits === 0 ? 0 : digits, maximumFractionDigits: digits }).format(amountMinor / 10 ** digits).replace(/[\u00a0\u202f]/gu, " ");
+}
+
+/** "RSD 700", "from RSD 700", "RSD 700 to RSD 1,000" or "set in person", in the given locale. */
+export function formatServicePrice(price: ServicePrice, locale = "en", labels: ServicePriceLabels = ENGLISH_PRICE_LABELS): string {
+  if (price.type === "in_person") return labels.inPerson;
+  const amount = formatPriceAmount(price.amountMinor, price.currency, locale);
+  if (price.type === "from") return labels.from(amount);
+  if (price.type === "range") return labels.range(amount, formatPriceAmount(price.maxAmountMinor, price.currency, locale));
+  return amount;
 }
 
 const TIMEZONE_CURRENCIES: Record<string, string> = {

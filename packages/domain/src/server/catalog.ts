@@ -4,6 +4,7 @@ import { enqueueOutbox, withBusinessTransaction, type DatabaseTransaction } from
 import { agentRules, businesses, businessHours, closures, phoneNumbers, receptionistProfiles, services, staff, staffServiceAssignments } from "@lobbystack/db";
 
 import { requireBusinessAdmin, requireBusinessMembership } from "../authz";
+import { servicePriceTypes, type ServicePriceType } from "@lobbystack/shared";
 import { normalizeClosures, normalizeHoursWindows, sameHoursWindows } from "../hours";
 import { writeBusinessHoursInTransaction } from "./businessHours";
 import type { DomainContext } from "./context";
@@ -37,25 +38,38 @@ export async function listCatalog(
 /**
  * The rules a service's fields follow, on create and on update: a name and a
  * slug of up to 160 characters, a whole number of minutes up to a day, a
- * description of up to 2,000 characters, and a price that is a whole,
- * non-negative number of the currency's smallest unit (null clears it).
- * Fields left out aren't checked.
+ * description of up to 2,000 characters, and a price: its type, and amounts
+ * that are whole, non-negative numbers of the currency's smallest unit (null
+ * clears them). A range's upper bound must be above its lower one. Fields left
+ * out aren't checked.
  */
-function assertServiceFields(input: { name?: string | undefined; slug?: string | undefined; durationMinutes?: number | undefined; description?: string | null | undefined; active?: boolean | undefined; priceMinor?: number | null | undefined; priceIsFrom?: boolean | undefined }): void {
+function assertServiceFields(input: { name?: string | undefined; slug?: string | undefined; durationMinutes?: number | undefined; description?: string | null | undefined; active?: boolean | undefined; priceType?: ServicePriceType | undefined; priceMinor?: number | null | undefined; priceMaxMinor?: number | null | undefined }): void {
   const invalid = (field: string) => Object.assign(new Error(`${field} is invalid.`), { status: 400 });
   const text = (value: unknown, maxLength: number) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= maxLength;
+  const amount = (value: number) => Number.isSafeInteger(value) && value >= 0 && value <= 1_000_000_000_000;
   if (input.name !== undefined && !text(input.name, 160)) throw invalid("name");
   if (input.slug !== undefined && !text(input.slug, 160)) throw invalid("slug");
   if (input.durationMinutes !== undefined && !(Number.isInteger(input.durationMinutes) && input.durationMinutes >= 1 && input.durationMinutes <= 1_440)) throw invalid("durationMinutes");
   if (input.description != null && !text(input.description, 2_000)) throw invalid("description");
   if (input.active !== undefined && typeof input.active !== "boolean") throw invalid("active");
-  if (input.priceMinor != null && !(Number.isSafeInteger(input.priceMinor) && input.priceMinor >= 0 && input.priceMinor <= 1_000_000_000_000)) throw invalid("priceMinor");
-  if (input.priceIsFrom !== undefined && typeof input.priceIsFrom !== "boolean") throw invalid("priceIsFrom");
+  if (input.priceType !== undefined && !(servicePriceTypes as readonly unknown[]).includes(input.priceType)) throw invalid("priceType");
+  if (input.priceMinor != null && !amount(input.priceMinor)) throw invalid("priceMinor");
+  if (input.priceMaxMinor != null && !(amount(input.priceMaxMinor) && (input.priceMinor == null || input.priceMaxMinor > input.priceMinor))) throw invalid("priceMaxMinor");
+}
+
+// Only a range keeps an upper bound, and a price set in person keeps no amount.
+function priceColumns(input: { priceType?: ServicePriceType | undefined; priceMinor?: number | null | undefined; priceMaxMinor?: number | null | undefined }) {
+  if (input.priceType === undefined) return {};
+  return {
+    priceType: input.priceType,
+    priceMinor: input.priceType === "in_person" ? null : input.priceMinor ?? null,
+    priceMaxMinor: input.priceType === "range" ? input.priceMaxMinor ?? null : null,
+  };
 }
 
 export async function createService(
   context: DomainContext,
-  input: { userId: string; businessId: string; name: string; slug: string; durationMinutes: number; description?: string; active?: boolean; priceMinor?: number | null; priceIsFrom?: boolean },
+  input: { userId: string; businessId: string; name: string; slug: string; durationMinutes: number; description?: string; active?: boolean; priceType?: ServicePriceType; priceMinor?: number | null; priceMaxMinor?: number | null },
 ): Promise<string> {
   assertServiceFields(input);
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
@@ -66,8 +80,7 @@ export async function createService(
       slug: input.slug.trim().toLowerCase(),
       durationMinutes: input.durationMinutes,
       description: input.description?.trim(),
-      priceMinor: input.priceMinor ?? null,
-      priceIsFrom: input.priceIsFrom ?? false,
+      ...priceColumns({ ...input, priceType: input.priceType ?? "fixed" }),
       active: input.active ?? true,
     }).returning({ id: services.id });
     if (!service) {
@@ -87,7 +100,7 @@ export async function createService(
 
 export async function updateService(
   context: DomainContext,
-  input: { userId: string; businessId: string; serviceId: string; name?: string; slug?: string; durationMinutes?: number; description?: string | null; active?: boolean; priceMinor?: number | null; priceIsFrom?: boolean },
+  input: { userId: string; businessId: string; serviceId: string; name?: string; slug?: string; durationMinutes?: number; description?: string | null; active?: boolean; priceType?: ServicePriceType; priceMinor?: number | null; priceMaxMinor?: number | null },
 ): Promise<void> {
   assertServiceFields(input);
   await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
@@ -97,8 +110,7 @@ export async function updateService(
       ...(input.slug !== undefined ? { slug: input.slug.trim().toLowerCase() } : {}),
       durationMinutes: input.durationMinutes,
       description: typeof input.description === "string" ? input.description.trim() : input.description,
-      priceMinor: input.priceMinor,
-      priceIsFrom: input.priceIsFrom,
+      ...priceColumns(input),
       active: input.active,
       updatedAt: new Date(),
     }).where(and(eq(services.id, input.serviceId), eq(services.businessId, input.businessId), isNull(services.deletedAt))).returning({ id: services.id });

@@ -250,9 +250,10 @@ export const services = pgTable(
     localizedNames: jsonb("localized_names").$type<Record<string, string>>(),
     description: text("description"),
     durationMinutes: integer("duration_minutes").notNull(),
-    /** In the business currency's smallest unit; null when no price is set. */
+    /** In the business currency's smallest unit; null when no price is set. The lower bound for a range. */
     priceMinor: bigint("price_minor", { mode: "number" }),
-    priceIsFrom: boolean("price_is_from").default(false).notNull(),
+    priceMaxMinor: bigint("price_max_minor", { mode: "number" }),
+    priceType: varchar("price_type", { length: 16 }).$type<"fixed" | "from" | "range" | "in_person">().default("fixed").notNull(),
     active: boolean("active").default(true).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...legacyId,
