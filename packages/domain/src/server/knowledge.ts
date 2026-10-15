@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { and, asc, desc, eq, ilike, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, lt, ne, notInArray, sql } from "drizzle-orm";
 
 import { agentRules, businessContextSnapshots, businessHours, businesses, closures, enqueueOutbox, knowledgeChunks, knowledgeDocuments, knowledgeSnippets, phoneNumbers, receptionistProfiles, services, staffServiceAssignments, storageObjects, websiteIngestionJobs, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
 import { defaultGreeting, getKnowledgeStorageLimitBytes, normalizeAppointmentChangePolicy, normalizeBookingMode, normalizeRuntimeLocale, normalizeTransferMode, runtimeLocales, servicePriceFromColumns, type BusinessContextSnapshot } from "@lobbystack/shared";
@@ -15,7 +15,7 @@ import { getPostHogDistinctIdForBusinessSystem } from "@lobbystack/telemetry";
 import { advanceOnboardingStageInTransaction } from "./onboarding";
 import { recordProductEventBestEffort } from "./productEvents";
 import { enqueueKnowledgeDerivedRefresh } from "./businessHours";
-import { businessToday, currentVacation, listBookableEmployees } from "./employees";
+import { listBookableEmployees, loadStaffSchedules } from "./employees";
 import { resolveBusinessBillingPlan } from "./contentRetentionPolicy";
 import { resolveSmsSender } from "./smsSender";
 
@@ -216,11 +216,23 @@ export async function deleteWebsiteKnowledge(context: DomainContext, input: { us
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
     const [page] = await tx.select({ sourceType: knowledgeDocuments.sourceType, sourceUrl: knowledgeDocuments.sourceUrl }).from(knowledgeDocuments).where(and(eq(knowledgeDocuments.id, input.documentId), eq(knowledgeDocuments.businessId, input.businessId))).limit(1);
-    if (!page) throw new Error("Knowledge document not found.");
+    if (!page) throw Object.assign(new Error("Knowledge document not found."), { status: 404, code: "not_found" });
     const host = page.sourceType === "website" ? websiteHost(page.sourceUrl) : null;
-    if (!host) throw new Error("Only imported website pages can be deleted by website.");
+    if (!host) throw Object.assign(new Error("Only imported website pages can be deleted by website."), { status: 400 });
+    // A crawled page being saved finishes first, and later ones wait until this commits.
+    await lockKnowledgeStorage(tx, input.businessId);
     const pages = await tx.select({ id: knowledgeDocuments.id, sourceUrl: knowledgeDocuments.sourceUrl }).from(knowledgeDocuments).where(and(eq(knowledgeDocuments.businessId, input.businessId), eq(knowledgeDocuments.sourceType, "website")));
     const ids = pages.filter((candidate) => websiteHost(candidate.sourceUrl) === host).map((candidate) => candidate.id);
+    // A crawl of this website still running would bring the pages back. Cancelling its import, like
+    // cancelKnowledgeDocument does, stops it at the next page; a deleted import stops it too.
+    const crawls = (await tx.select({ id: websiteIngestionJobs.id, websiteUrl: websiteIngestionJobs.websiteUrl, rootDocumentId: websiteIngestionJobs.rootDocumentId }).from(websiteIngestionJobs)
+      .where(and(eq(websiteIngestionJobs.businessId, input.businessId), notInArray(websiteIngestionJobs.status, ["completed", "failed", "cancelled"]))))
+      .filter((crawl) => websiteHost(crawl.websiteUrl) === host || (crawl.rootDocumentId !== null && ids.includes(crawl.rootDocumentId)));
+    if (crawls.length) {
+      await tx.update(websiteIngestionJobs).set({ status: "cancelled", updatedAt: new Date() }).where(and(eq(websiteIngestionJobs.businessId, input.businessId), inArray(websiteIngestionJobs.id, crawls.map((crawl) => crawl.id))));
+      const imports = crawls.flatMap((crawl) => crawl.rootDocumentId && !ids.includes(crawl.rootDocumentId) ? [crawl.rootDocumentId] : []);
+      if (imports.length) await tx.update(knowledgeDocuments).set({ status: "cancelled", revision: sql`${knowledgeDocuments.revision} + 1`, error: "Cancelled by operator.", updatedAt: new Date() }).where(and(eq(knowledgeDocuments.businessId, input.businessId), inArray(knowledgeDocuments.id, imports), eq(knowledgeDocuments.status, "processing")));
+    }
     await tx.delete(knowledgeChunks).where(and(eq(knowledgeChunks.businessId, input.businessId), inArray(knowledgeChunks.documentId, ids)));
     await tx.delete(knowledgeDocuments).where(and(eq(knowledgeDocuments.businessId, input.businessId), inArray(knowledgeDocuments.id, ids)));
     await enqueueOutbox(tx, { topic: "snapshot.refresh", businessId: input.businessId, aggregateType: "knowledge_document", aggregateId: input.documentId, dedupeKey: `knowledge:website:${input.documentId}:deleted:${Date.now()}`, payload: { businessId: input.businessId, reason: "document_deleted" } });
@@ -557,8 +569,8 @@ export async function refreshBusinessSnapshot(
       throw new Error("Business not found.");
     }
     const [hours, closureRows, serviceRows, ruleRows, snippets, documents, numbers, employeeRows, assignments] = await Promise.all([
-      tx.select().from(businessHours).where(eq(businessHours.businessId, input.businessId)).orderBy(asc(businessHours.dayOfWeek), asc(businessHours.openMinutes)),
-      tx.select().from(closures).where(eq(closures.businessId, input.businessId)).orderBy(asc(closures.startsAt)),
+      tx.select().from(businessHours).where(and(eq(businessHours.businessId, input.businessId), isNull(businessHours.staffId))).orderBy(asc(businessHours.dayOfWeek), asc(businessHours.openMinutes)),
+      tx.select().from(closures).where(and(eq(closures.businessId, input.businessId), isNull(closures.staffId))).orderBy(asc(closures.startsAt)),
       tx.select().from(services).where(and(eq(services.businessId, input.businessId), eq(services.active, true))).orderBy(asc(services.name)),
       tx.select().from(agentRules).where(and(eq(agentRules.businessId, input.businessId), eq(agentRules.active, true))).orderBy(asc(agentRules.sortOrder)),
       tx.select().from(knowledgeSnippets).where(and(eq(knowledgeSnippets.businessId, input.businessId), eq(knowledgeSnippets.active, true))).orderBy(desc(knowledgeSnippets.priority)).limit(8),
@@ -567,6 +579,7 @@ export async function refreshBusinessSnapshot(
       listBookableEmployees(tx, input.businessId),
       tx.select({ staffId: staffServiceAssignments.staffId, serviceId: staffServiceAssignments.serviceId }).from(staffServiceAssignments).where(eq(staffServiceAssignments.businessId, input.businessId)),
     ]);
+    const schedules = await loadStaffSchedules(tx, { businessId: input.businessId, staffIds: employeeRows.map((row) => row.staffId), timezone: business[0].timezone });
     const currentProfile = profile[0];
     const phoneNumber = numbers.find((number) => number.status === "active" && number.voiceEnabled)?.e164;
     // The number customer texts come from, so the agent offers texts only to
@@ -608,8 +621,8 @@ export async function refreshBusinessSnapshot(
       employees: employeeRows.map((row) => {
         const assigned = new Set(assignments.filter((assignment) => assignment.staffId === row.staffId).map((assignment) => assignment.serviceId));
         const names = serviceRows.filter((service) => assigned.has(service.id)).map((service) => service.name);
-        const vacation = currentVacation(row, businessToday(business[0]!.timezone));
-        return { name: row.name, ...(names.length ? { services: names } : {}), ...(vacation ? { vacation } : {}) };
+        const { hours: ownHours, timeOff } = schedules.get(row.staffId)!;
+        return { name: row.name, ...(names.length ? { services: names } : {}), ...(ownHours ? { hours: ownHours } : {}), ...(timeOff.length ? { timeOff } : {}) };
       }),
       snippets: snippets.map((row) => ({ id: row.id, title: row.title, content: row.content, tags: row.tags, priority: row.priority })),
       appointmentChangePolicy: normalizeAppointmentChangePolicy(currentProfile?.appointmentChangePolicy),

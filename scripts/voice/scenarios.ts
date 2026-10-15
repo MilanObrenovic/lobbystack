@@ -61,14 +61,14 @@ const TRANSLATED_LINES: Record<Exclude<RuntimeLocale, "en">, Record<string, stri
     "Do you have parking?": "¿Tienen estacionamiento?",
   },
   sr: {
-    [OPENING]: "Zdravo, da li radite subotom?",
+    [OPENING]: "Dobar dan, da li radite u subotu?",
     "Okay, perfect. That is all I needed. Thanks, bye!": "Dobro, savršeno. To je sve što mi je trebalo. Hvala, prijatno!",
     "No, that's everything. Goodbye!": "Ne, to je sve. Doviđenja!",
-    "Great, thank you so much. Have a good day, bye bye.": "Super, hvala vam puno. Prijatan dan, doviđenja.",
-    "Nope, that's it. Thanks.": "Ne, to je to. Hvala.",
+    "Great, thank you so much. Have a good day, bye bye.": "Odlično, hvala vam puno. Prijatan dan, ćao, ćao.",
+    "Nope, that's it. Thanks.": "Ne, to bi bilo to. Hvala.",
     "No, that's everything.": "Ne, to je sve.",
     "Goodbye!": "Doviđenja!",
-    "Oh wait, one more thing.": "A da, čekajte, još nešto.",
+    "Oh wait, one more thing.": "A, čekajte, još nešto.",
     "Do you have parking?": "Da li imate parking?",
   },
   de: {
