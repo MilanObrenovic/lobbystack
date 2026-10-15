@@ -20,12 +20,12 @@ type DurationPickerProps = {
   columnLabels: { hours: string; minutes: string };
   /** Short visible titles above the hour and minute columns, such as "h" and "min". */
   columnTitles: { hours: string; minutes: string };
-  disabled?: boolean;
-  invalid?: boolean;
-  className?: string;
-  id?: string;
-  "aria-label"?: string;
-  "aria-describedby"?: string;
+  disabled?: boolean | undefined;
+  invalid?: boolean | undefined;
+  className?: string | undefined;
+  id?: string | undefined;
+  "aria-label"?: string | undefined;
+  "aria-describedby"?: string | undefined;
 };
 
 function formatDuration(minutes: number, locale: string | undefined): string {
