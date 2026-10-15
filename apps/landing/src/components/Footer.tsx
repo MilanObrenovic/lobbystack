@@ -1,4 +1,6 @@
-import { GitlabIcon } from "@/components/GitlabIcon"
+import discordIcon from "@iconify-icons/logos/discord-icon"
+import gitlab from "@iconify-icons/logos/gitlab-icon"
+import { Icon } from "@iconify/react/offline"
 import { Separator } from "@/components/ui/separator"
 import {
   languageSwitcherLinks,
@@ -127,6 +129,7 @@ const footerSections = (locale: Locale) => {
           href: "/affiliate-program/",
         },
         { label: "GitLab", href: "https://gitlab.com/lobbystack-group/lobbystack" },
+        { label: "Discord", href: "https://discord.gg/WKX4wCTTpJ" },
       ],
     },
     {
@@ -186,7 +189,17 @@ export function Footer({ locale = "en", path }: FooterProps) {
               data-ph-capture-attribute-action="view_github"
               data-ph-capture-attribute-destination="https://gitlab.com/lobbystack-group/lobbystack"
             >
-              <GitlabIcon className="size-5" />
+              <Icon icon={gitlab} className="size-5" id="footer-gitlab" ssr />
+            </a>
+            <a
+              href="https://discord.gg/WKX4wCTTpJ"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Discord"
+              data-ph-capture-attribute-section="footer_social"
+              data-ph-capture-attribute-action="join_discord"
+              data-ph-capture-attribute-destination="https://discord.gg/WKX4wCTTpJ"
+            >
+              <Icon icon={discordIcon} className="size-5" id="footer-discord" ssr />
             </a>
           </div>
         </div>

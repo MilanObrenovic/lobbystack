@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { and, asc, desc, eq, ilike, inArray, lt, ne, sql } from "drizzle-orm";
 
 import { agentRules, businessContextSnapshots, businessHours, businesses, closures, enqueueOutbox, knowledgeChunks, knowledgeDocuments, knowledgeSnippets, phoneNumbers, receptionistProfiles, services, staffServiceAssignments, storageObjects, websiteIngestionJobs, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
-import { getKnowledgeStorageLimitBytes, normalizeAppointmentChangePolicy, normalizeBookingMode, normalizeRuntimeLocale, normalizeTransferMode, runtimeLocales, servicePriceFromColumns, type BusinessContextSnapshot } from "@lobbystack/shared";
+import { defaultGreeting, getKnowledgeStorageLimitBytes, normalizeAppointmentChangePolicy, normalizeBookingMode, normalizeRuntimeLocale, normalizeTransferMode, runtimeLocales, servicePriceFromColumns, type BusinessContextSnapshot } from "@lobbystack/shared";
 import { buildBusinessContextSnapshot } from "../snapshot";
 import { countKnowledgeTokens, fuseKnowledgeRanks, KNOWLEDGE_SEARCH_TOKEN_BUDGET, knowledgeLexicalQueries, knowledgeQueryTerms, withinKnowledgeBudget, type KnowledgePassage } from "../knowledgeRanking";
 
@@ -574,6 +574,7 @@ export async function refreshBusinessSnapshot(
     // SMS number when self-hosted.
     const smsNumber = await resolveSmsSender(tx, input.businessId);
     const version = `${Date.now()}`;
+    const defaultLocale = normalizeRuntimeLocale(business[0].defaultLocale);
     builtSnapshot = buildBusinessContextSnapshot({
       businessId: input.businessId,
       version,
@@ -581,12 +582,12 @@ export async function refreshBusinessSnapshot(
       displayName: business[0].name,
       ...(business[0].legalName ? { legalName: business[0].legalName } : {}),
       timezone: business[0].timezone,
-      defaultLocale: normalizeRuntimeLocale(business[0].defaultLocale),
+      defaultLocale,
       businessType: ["clinic", "repair_shop", "salon", "service_company"].includes(business[0].businessType) ? business[0].businessType as BusinessContextSnapshot["businessType"] : "other",
       telemetryEnabled: business[0].telemetryEnabled,
       ...(phoneNumber ? { phoneNumber } : {}),
       ...(smsNumber ? { smsNumber } : {}),
-      greeting: currentProfile?.greeting ?? `Thank you for calling ${business[0].name}.`,
+      greeting: currentProfile?.greeting ?? defaultGreeting(business[0].name, defaultLocale),
       tone: currentProfile?.tone ?? "professional",
       bookingPolicy: currentProfile?.bookingPolicy ?? "Confirm availability before booking.",
       ...(currentProfile?.voiceInstructions ? { voiceInstructions: currentProfile.voiceInstructions } : {}),

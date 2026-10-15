@@ -1,6 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
-import { and, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 
 import { canTextNumber, type InterfaceLocale } from "@lobbystack/shared";
 import { enqueueOutbox, onboardingPhoneVerifications, withBusinessTransaction } from "@lobbystack/db";
@@ -8,6 +8,7 @@ import { enqueueOutbox, onboardingPhoneVerifications, withBusinessTransaction } 
 import { requireBusinessMembership } from "../authz";
 import type { DomainContext } from "./context";
 import { enableOperatorSmsAlertsWithConsent } from "./notifications";
+import { isNumberCountry } from "./numberTrials";
 import { resolveSmsSender } from "./smsSender";
 import { VERIFICATION_CODE_TTL_MS, newVerificationCode, verificationCodeSecret } from "./verificationCode";
 
@@ -220,5 +221,120 @@ export async function releaseOperatorPhoneVerificationCodeSend(context: DomainCo
     await tx.update(onboardingPhoneVerifications)
       .set({ status: input.retry ? "queued" : "failed", codeHash: null, lastError: input.error, updatedAt: new Date() })
       .where(and(eq(onboardingPhoneVerifications.id, input.attemptId), eq(onboardingPhoneVerifications.businessId, input.businessId), eq(onboardingPhoneVerifications.status, "processing")));
+  });
+}
+
+/** Twilio Verify and Lookup, as the onboarding phone step uses them. */
+export type OnboardingPhoneVerifyProvider = {
+  lookupLineType(phoneE164: string): Promise<string | null>;
+  sendCode(input: { to: string; locale?: InterfaceLocale }): Promise<{ sid: string }>;
+  checkCode(input: { to: string; code: string }): Promise<string>;
+};
+
+/**
+ * Starts the onboarding phone step. Twilio Verify texts the code, so phones
+ * outside the US and Canada get one too. The trial number needs a real
+ * person's mobile, so internet (VoIP) numbers, which come cheap in bulk, are
+ * refused, and so are lines that can't receive a text.
+ */
+export async function startOnboardingPhoneVerification(
+  context: DomainContext,
+  input: { userId: string; businessId: string; phoneE164: string; countryCode: string; locale?: InterfaceLocale },
+  provider: OnboardingPhoneVerifyProvider,
+): Promise<{ attemptId: string }> {
+  const countryCode = input.countryCode.trim().toUpperCase();
+  if (!E164_PATTERN.test(input.phoneE164) || !/^[A-Z]{2}$/.test(countryCode)) throw phoneVerificationError(422, "phone_number_invalid", "Enter a valid mobile number.");
+  // The step guards a number from the phone's country, so a country without numbers gets no text.
+  if (!isNumberCountry(countryCode)) throw phoneVerificationError(422, "phone_country_unsupported", "Phone numbers aren't available in this country yet.");
+  const fingerprint = createHash("sha256").update(`${input.userId}:${input.phoneE164}`).digest("hex");
+  let attemptId: string;
+  try {
+    attemptId = await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
+      await requireBusinessMembership(tx, input);
+      const result = await tx.execute(sql`SELECT app.reserve_phone_verification_attempt(${input.businessId}::uuid, ${input.userId}::uuid, ${input.phoneE164}, ${countryCode}, ${null}, ${fingerprint}) AS id`);
+      const id = String((result.rows[0] as { id?: unknown } | undefined)?.id ?? "");
+      if (!id) throw new Error("Phone verification could not be reserved.");
+      return id;
+    });
+  } catch (error) {
+    throw reservationError(error) ?? error;
+  }
+  const scope = and(eq(onboardingPhoneVerifications.id, attemptId), eq(onboardingPhoneVerifications.businessId, input.businessId), eq(onboardingPhoneVerifications.userId, input.userId));
+  // Each lookup is a paid Twilio request, so it runs only once the attempt counts against the
+  // rate limits; a refused number uses up an attempt too.
+  const closeAttempt = async (lastError: string, lineType: string | null = null) => await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
+    await tx.update(onboardingPhoneVerifications).set({ status: "failed", lineType, lastError, updatedAt: new Date() }).where(scope);
+  });
+  // A lookup that errors isn't billed, so the attempt is dropped and the user can retry once Twilio recovers.
+  const lineType = await provider.lookupLineType(input.phoneE164).catch(async (error: unknown) => {
+    await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => { await tx.delete(onboardingPhoneVerifications).where(scope); })
+      .catch((cleanupError: unknown) => console.error("[phone-verification] attempt not dropped", cleanupError instanceof Error ? cleanupError.message : cleanupError));
+    throw error;
+  });
+  const refusal = lineType === "fixedVoip" || lineType === "nonFixedVoip"
+    ? phoneVerificationError(422, "phone_voip_refused", "Use your mobile number. Internet phone numbers can't be verified.")
+    : lineType && !["mobile", "personal", "unknown"].includes(lineType) ? phoneVerificationError(422, "phone_not_mobile", "Use a mobile number that can receive texts.") : undefined;
+  if (refusal) {
+    await closeAttempt(refusal.message, lineType);
+    throw refusal;
+  }
+  try {
+    const { sid } = await provider.sendCode({ to: input.phoneE164, ...(input.locale ? { locale: input.locale } : {}) });
+    await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
+      // An earlier code stays valid until this one is on its way, so a refused number doesn't cost it.
+      await tx.update(onboardingPhoneVerifications)
+        .set({ status: "canceled", codeHash: null, lastError: "Replaced by a newer verification.", updatedAt: new Date() })
+        .where(and(eq(onboardingPhoneVerifications.businessId, input.businessId), eq(onboardingPhoneVerifications.userId, input.userId), inArray(onboardingPhoneVerifications.status, ["queued", "processing", "pending"]), ne(onboardingPhoneVerifications.id, attemptId)));
+      await tx.update(onboardingPhoneVerifications).set({ status: "pending", lineType, providerVerificationId: sid, expiresAt: new Date(Date.now() + PHONE_VERIFICATION_CODE_TTL_MS), updatedAt: new Date() }).where(scope);
+    });
+  } catch (error) {
+    await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
+      await tx.update(onboardingPhoneVerifications).set({ status: "failed", lastError: "The code couldn't be sent.", updatedAt: new Date() }).where(scope);
+    });
+    console.error("[phone-verification] code not sent", error instanceof Error ? error.message : error);
+    throw phoneVerificationError(502, "verification_send_failed", "We couldn't text this number. Check it and try again.");
+  }
+  return { attemptId };
+}
+
+/** Checks the onboarding code with Twilio Verify. A correct code verifies the phone on the user's account and moves onboarding to the number step. */
+export async function checkOnboardingPhoneVerificationCode(
+  context: DomainContext,
+  input: { userId: string; businessId: string; attemptId: string; code: string; now?: Date },
+  provider: OnboardingPhoneVerifyProvider,
+): Promise<{ approved: boolean } & PhoneVerificationCheckOutcome> {
+  const code = input.code.trim();
+  if (!CODE_PATTERN.test(code)) throw phoneVerificationError(400, "verification_code_invalid", "Enter the 6-digit code.");
+  const now = input.now ?? new Date();
+  const scope = and(eq(onboardingPhoneVerifications.id, input.attemptId), eq(onboardingPhoneVerifications.businessId, input.businessId), eq(onboardingPhoneVerifications.userId, input.userId));
+  // Count the check before calling Twilio, so parallel guesses can't get past the limit.
+  const attempt = await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
+    await requireBusinessMembership(tx, input);
+    const row = (await tx.select({ phoneE164: onboardingPhoneVerifications.phoneE164, status: onboardingPhoneVerifications.status, expiresAt: onboardingPhoneVerifications.expiresAt, attemptCount: onboardingPhoneVerifications.attemptCount, providerVerificationId: onboardingPhoneVerifications.providerVerificationId })
+      .from(onboardingPhoneVerifications).where(scope).limit(1).for("update"))[0];
+    if (!row || row.status !== "pending" || !row.providerVerificationId) return { outcome: { status: "unavailable" } as const };
+    if (row.expiresAt.getTime() <= now.getTime()) {
+      await tx.update(onboardingPhoneVerifications).set({ status: "expired", updatedAt: now }).where(scope);
+      return { outcome: { status: "expired" } as const };
+    }
+    if (row.attemptCount >= PHONE_VERIFICATION_MAX_CHECKS) return { outcome: { status: "locked" } as const };
+    await tx.update(onboardingPhoneVerifications).set({ attemptCount: row.attemptCount + 1, updatedAt: now }).where(scope);
+    return { phoneE164: row.phoneE164, used: row.attemptCount + 1 };
+  });
+  if ("outcome" in attempt) return { approved: false, ...attempt.outcome };
+  const status = await provider.checkCode({ to: attempt.phoneE164, code }).catch(() => "failed");
+  return await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
+    if (status === "approved") {
+      const completed = await tx.execute(sql`SELECT app.complete_phone_verification(${input.businessId}::uuid, ${input.userId}::uuid, ${input.attemptId}::uuid, ${"approved"}) AS approved`);
+      const approved = (completed.rows[0] as { approved?: unknown } | undefined)?.approved === true;
+      return approved ? { approved: true, status: "approved" } : { approved: false, status: "unavailable" };
+    }
+    const remainingAttempts = PHONE_VERIFICATION_MAX_CHECKS - attempt.used;
+    if (remainingAttempts <= 0) {
+      await tx.update(onboardingPhoneVerifications).set({ status: "failed", lastError: "Too many incorrect codes.", updatedAt: now }).where(scope);
+      return { approved: false, status: "locked" };
+    }
+    await tx.update(onboardingPhoneVerifications).set({ lastError: "Verification code was not approved.", updatedAt: now }).where(scope);
+    return { approved: false, status: "invalid", remainingAttempts };
   });
 }

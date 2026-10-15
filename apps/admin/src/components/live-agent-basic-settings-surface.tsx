@@ -6,7 +6,7 @@ import { Sparkles } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActiveBusiness } from "@/hooks/use-active-business";
 import { requestJson } from "@/lib/request-json";
-import { intlLocale, normalizeBookingMode, type AppointmentChangePolicy, type BookingMode, type RuntimeLocale } from "@lobbystack/shared";
+import { intlLocale, normalizeBookingMode, runtimeLocales, type AppointmentChangePolicy, type BookingMode, type RuntimeLocale } from "@lobbystack/shared";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
@@ -45,13 +45,6 @@ type AgentSettings = {
   profile: { greeting: string; summary: string; summarySource: "placeholder" | "generated" | "operator"; summaryRegenerateStatus?: "pending" | "completed" | "empty" | "failed" | null; transferNumber: string | null; transferMode: string; appointmentChangePolicy: AppointmentChangePolicy | null; bookingMode: BookingMode } | null;
   hasKnowledgeSources?: boolean;
 };
-
-const RUNTIME_LOCALE_OPTIONS = [
-  { value: "en", labelKey: "common:language.english" },
-  { value: "fr", labelKey: "common:language.french" },
-  { value: "es", labelKey: "common:language.spanish" },
-  { value: "sr", labelKey: "common:language.serbian" },
-] as const satisfies ReadonlyArray<{ value: RuntimeLocale; labelKey: string }>;
 
 // Matches SelectTrigger, so the searchable timezone picker looks like the selects beside it.
 const COMBOBOX_TRIGGER_CLASS = "flex h-9 w-full min-w-0 items-center justify-between gap-1.5 rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 enabled:hover:bg-input/50 sm:w-56";
@@ -537,11 +530,11 @@ export function AgentBasicSettingsPage({
               </ItemContent>
               <ItemActions className="w-full sm:w-auto">
                 {isLoadingConfiguration ? (
-                  <Skeleton className="h-10 w-full rounded-md sm:w-36" />
+                  <Skeleton className="h-10 w-full rounded-md sm:w-52" />
                 ) : (
                   <Select
                     disabled={!canManageTenant || isLocaleSaving}
-                    items={RUNTIME_LOCALE_OPTIONS.map(({ value, labelKey }) => ({ value, label: t(labelKey) }))}
+                    items={runtimeLocales.map((code) => ({ value: code, label: t(`common:callerLanguage.${code}`) }))}
                     onValueChange={(value) => {
                       const nextLocale = ((value as RuntimeLocale | null) || "en");
                       setDefaultLocale(nextLocale);
@@ -564,10 +557,10 @@ export function AgentBasicSettingsPage({
                     }}
                     value={defaultLocale}
                   >
-                    <SelectTrigger aria-label={t("agent:fields.defaultLocale.label")} className="w-full sm:w-36" id="agent-default-language" loading={isLocaleSaving}><SelectValue /></SelectTrigger>
+                    <SelectTrigger aria-label={t("agent:fields.defaultLocale.label")} className="w-full sm:w-52" id="agent-default-language" loading={isLocaleSaving}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {RUNTIME_LOCALE_OPTIONS.map(({ value, labelKey }) => <SelectItem key={value} value={value}>{t(labelKey)}</SelectItem>)}
+                        {runtimeLocales.map((code) => <SelectItem key={code} value={code}>{t(`common:callerLanguage.${code}`)}</SelectItem>)}
                       </SelectGroup>
                     </SelectContent>
                   </Select>

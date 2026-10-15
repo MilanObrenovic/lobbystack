@@ -278,7 +278,7 @@ Per minute, yes. LobbyStack Starter works out to $0.20 a minute, the same as its
 
 LobbyStack costs $30 at 40 calls, $60 at 100 calls and $118 at 200 calls (Pro, $100 for 500 minutes plus $0.18 a minute). The three worked bills come to $30, $40 and $48. On annual billing, Starter costs $24 a month.
 
-Starter includes 150 minutes, one business number in the US, Canada, the UK or Australia, booking into Google Calendar, and confirmation and 24-hour reminder texts to US and Canadian numbers. It also includes 20 transfer attempts a month, then $0.02 each.
+Starter includes 150 minutes, one business number in the US, Canada, the UK, Australia or New Zealand, booking into Google Calendar, and confirmation and 24-hour reminder texts to US and Canadian numbers. It also includes 20 transfer attempts a month, then $0.02 each.
 
 Plans don't limit how many calls the receptionist answers at once. Calls open in your default language, English or French, and the receptionist then answers in the caller's language (70+ languages). You keep your number by forwarding it, and your carrier's forwarding rule decides whether LobbyStack takes overflow, after-hours or every call.
 
@@ -288,7 +288,7 @@ Plans don't limit how many calls the receptionist answers at once. Calls open in
 - The AI doesn't reply to texts.
 - Google Calendar is the only calendar. For a CRM or practice software, you use webhooks and the REST API.
 - LobbyStack makes no HIPAA claim, and a phone call ends at 30 minutes.
-- The Free plan runs in the browser, with no phone number.
+- The Free plan includes a US or Canadian number for 14 days. After that, you test in the browser.
 
 A live service is the better buy when you want a person on every call or your callers won't talk to an AI. Live agents also suit upset callers and sensitive subjects, and some vendors offer warm handoffs (Moneypenny) and on-call rosters (MAP's Roster Service, A Message Center's on-call technicians). For other AI vendors' prices and the cost of hiring, see [what AI receptionists cost and save](/blog/ai-receptionist-savings/).
 
@@ -346,4 +346,4 @@ Most live services in our table bill month to month, with a notice period in pla
 
 Multiply your monthly calls by your average call length, then find the closest minutes row in the volume table. That row shows each billing model's cost before you call a vendor.
 
-If the AI row fits, [LobbyStack pricing](/pricing/) starts at $30 a month for 150 minutes, then $0.20 a minute. Pro costs $100 for 500 minutes, then $0.18. No plan has a setup fee. The Free plan gives you 30 browser voice minutes a month to test your hardest calls. It needs no card and comes with no telephone number, so it can't answer your business line. It doesn't expire. [Create a free account](https://app.lobbystack.com/en/signup).
+If the AI row fits, [LobbyStack pricing](/pricing/) starts at $30 a month for 150 minutes, then $0.20 a minute. Pro costs $100 for 500 minutes, then $0.18. No plan has a setup fee. The Free plan gives you 30 voice minutes a month to test your hardest calls, and a US or Canadian number free for 14 days. It needs no card. [Create a free account](https://app.lobbystack.com/en/signup).

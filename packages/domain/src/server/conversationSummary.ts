@@ -64,6 +64,10 @@ const FALLBACK_SUMMARY: Record<CallSummaryLocale, { excerpt: string; empty: stri
   fr: { excerpt: "Résumé de l'appel : ", empty: "Interaction vocale terminée." },
   es: { excerpt: "Resumen de la llamada: ", empty: "Interacción de voz completada." },
   sr: { excerpt: "Rezime poziva: ", empty: "Glasovna interakcija je završena." },
+  de: { excerpt: "Anrufzusammenfassung: ", empty: "Sprachinteraktion abgeschlossen." },
+  pt: { excerpt: "Resumo da chamada: ", empty: "Interação por voz concluída." },
+  it: { excerpt: "Riepilogo della chiamata: ", empty: "Interazione vocale completata." },
+  nl: { excerpt: "Samenvatting van het gesprek: ", empty: "Spraakinteractie voltooid." },
 };
 
 /** A model-written summary and caller name, before the domain validates them. */

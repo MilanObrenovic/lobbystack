@@ -148,7 +148,6 @@ function liveBusinessFacts(snapshot: BusinessContextSnapshot, now: DateTime): st
   ].filter(Boolean);
 }
 
-
 /** The language a call starts in, named for GPT-Live: the business's default locale. */
 export function liveLanguage(snapshot: BusinessContextSnapshot): string {
   return runtimeLocaleName(normalizeRuntimeLocale(snapshot.defaultLocale));

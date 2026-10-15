@@ -125,7 +125,7 @@ En [el portal de administración de Grasshopper](https://support.grasshopper.com
 
 Active el desvío por ocupado y sin respuesta hacia el número del servicio, y deje apagado el desvío de todas las llamadas. Su teléfono suena primero y el servicio recibe las llamadas que su equipo no puede tomar. Agregue el desvío por fuera de alcance si también quiere cubrir un celular apagado o sin señal.
 
-1. **Consiga el número del servicio.** Con LobbyStack es su número de LobbyStack, disponible en Estados Unidos, Canadá, Reino Unido y Australia. Elija uno en el país de su línea: AT&T, Verizon, T-Mobile y Spectrum Mobile no desvían a números internacionales, y TELUS solo desvía dentro de Norteamérica.
+1. **Consiga el número del servicio.** Con LobbyStack es su número de LobbyStack, disponible en Estados Unidos, Canadá, Reino Unido, Australia y Nueva Zelanda. Elija uno en el país de su línea: AT&T, Verizon, T-Mobile y Spectrum Mobile no desvían a números internacionales, y TELUS solo desvía dentro de Norteamérica.
 2. **Active el desvío por ocupado y sin respuesta.** Use los códigos de arriba, o el ajuste Busy Line & Missed Calls o Missed calls de su portal. No use `*72` para el exceso de llamadas, porque desvía cada llamada antes de que suene su teléfono.
 3. **Ajuste el tiempo de timbrado.** T-Mobile permite de 5 a 30 segundos y TELUS 10, 20 o 30. Grasshopper usa 25 segundos por defecto y Ooma Office 12. El `*71` de Verizon desvía después de 3 a 6 timbres y el `*92` de Bell Business Phone después de 4. Una espera corta manda llamadas que su equipo pudo contestar; una larga hace esperar a quien llama.
 4. **Revise su buzón de voz.** AT&T dice que el desvío reemplaza el buzón, y Spectrum Mobile que las llamadas sin respuesta ya no llegan a él. Rogers dice que el desvío condicional no funciona mientras el buzón esté activo, así que pida a Rogers que lo apague en esa línea si sus códigos no funcionan.
@@ -175,8 +175,8 @@ Depende del operador. Verizon dice que el desvío se maneja desde el celular, y 
 
 ### ¿Puedo desviar las llamadas de mi negocio a una recepcionista con IA?
 
-Sí. Desvíe al número de la recepcionista con IA como a cualquier otro. Ooma Office pide una línea externa compartida (Pro Plus) para llegar a un número externo. Google Voice es la excepción: Google no admite el desvío a un sistema automatizado. Con LobbyStack, desvíe al número incluido en Starter o Pro; el plan Free no tiene número.
+Sí. Desvíe al número de la recepcionista con IA como a cualquier otro. Ooma Office pide una línea externa compartida (Pro Plus) para llegar a un número externo. Google Voice es la excepción: Google no admite el desvío a un sistema automatizado. Con LobbyStack, desvíe a su número de LobbyStack. El plan Free incluye un número de EE. UU. o Canadá durante 14 días, y Starter o Pro lo conservan.
 
 ## Escuche a la recepcionista antes de desviar una línea
 
-El plan Free de LobbyStack le da 30 minutos de voz en el navegador, sin tarjeta ni número de teléfono, para probar desde el panel cómo atiende sus llamadas. Si las llamadas de prueba le convencen, Starter cuesta $30 al mes ($24 al mes con facturación anual) por 150 minutos y un número para su negocio, sin tarifa de configuración, y puede cancelar sin cargo. Después marque su código de desvío sin respuesta y mándele solo las llamadas que pierde. [Empiece gratis](https://app.lobbystack.com/es/signup) o [compare los planes](/es/pricing/).
+El plan Free de LobbyStack le da 30 minutos de voz y un número de EE. UU. o Canadá gratis durante 14 días, sin tarjeta. Marque su código de desvío sin respuesta para mandarle solo las llamadas que pierde, y vea cómo las atiende. Para conservar el número, Starter cuesta $30 al mes ($24 al mes con facturación anual) por 150 minutos, sin tarifa de configuración, y puede cancelar sin cargo. [Empiece gratis](https://app.lobbystack.com/es/signup) o [compare los planes](/es/pricing/).

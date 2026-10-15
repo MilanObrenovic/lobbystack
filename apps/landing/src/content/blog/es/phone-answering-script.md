@@ -308,11 +308,11 @@ Con LobbyStack como ejemplo (más detalles en la página de [atención telefóni
 - **Recados.** Usted recibe una alerta por correo cuando toma un recado, con alertas por mensaje de texto como opción. LobbyStack guarda en el panel un resumen, una transcripción y la grabación de cada llamada.
 - **Llamadas basura.** LobbyStack no cobra las llamadas de spam ni las de menos de 10 segundos.
 - **Mensajes de texto.** La IA no responde mensajes de texto, así que deje a una persona a cargo de cualquier línea de mensajes que anuncie.
-- **Números.** LobbyStack tiene números de teléfono en Estados Unidos, Canadá, el Reino Unido y Australia, y usted puede desviar a él el número actual de su negocio.
+- **Números.** LobbyStack tiene números de teléfono en Estados Unidos, Canadá, el Reino Unido, Australia y Nueva Zelanda, y usted puede desviar a él el número actual de su negocio.
 
 ### Pruebe las reglas antes de que las escuchen sus clientes
 
-Llame a su recepcionista y haga de cada cliente: una urgencia, una cita, una pregunta de precio, un cliente molesto y un número equivocado. El plan Free de LobbyStack le da 30 minutos de voz en el navegador, sin tarjeta ni número de teléfono, suficiente para probar cada escenario más de una vez. El plan Free no recibe llamadas reales, no transfiere ni envía mensajes de texto, así que revise esas funciones en un plan de pago antes de depender de ellas.
+Llame a su recepcionista y haga de cada cliente: una urgencia, una cita, una pregunta de precio, un cliente molesto y un número equivocado. El plan Free de LobbyStack le da 30 minutos de voz y un número de EE. UU. o Canadá gratis durante 14 días, sin tarjeta, suficiente para probar cada escenario más de una vez. Durante la prueba, las transferencias solo van al celular que usted verificó, así que revise las transferencias a su equipo en un plan de pago antes de depender de ellas.
 
 Corrija la regla detrás de cualquier respuesta que no le guste. Luego [desvíe el número de su negocio](/es/blog/how-to-forward-business-calls/) para todas las llamadas, solo para las que no alcanza a contestar o para las de fuera de horario. Para más ejemplos de reglas, vea [flujos de una recepcionista con IA en lenguaje sencillo](/es/blog/ai-receptionist-workflows/).
 
@@ -340,4 +340,4 @@ Desvíe el número de su negocio a un servicio de atención telefónica o a una 
 
 ## Pruebe sus guiones con una recepcionista con IA
 
-Escriba sus reglas en una tarde y pruébelas esa misma noche. El plan Free de LobbyStack le da 30 minutos de voz en el navegador, sin tarjeta ni número de teléfono. Cuando las llamadas le convenzan, Starter cuesta $30 dólares estadounidenses al mes por 150 minutos y un número para su negocio (Estados Unidos, Canadá, Reino Unido o Australia), y después $0.20 por minuto, sin tarifa de configuración. [Empiece gratis](https://app.lobbystack.com/es/signup) y pruebe su primer guion en el navegador.
+Escriba sus reglas en una tarde y pruébelas esa misma noche. El plan Free de LobbyStack le da 30 minutos de voz y un número de EE. UU. o Canadá gratis durante 14 días, sin tarjeta. Cuando las llamadas le convenzan, Starter cuesta $30 dólares estadounidenses al mes por 150 minutos y un número para su negocio (Estados Unidos, Canadá, Reino Unido, Australia o Nueva Zelanda), y después $0.20 por minuto, sin tarifa de configuración. [Empiece gratis](https://app.lobbystack.com/es/signup) y pruebe su primer guion en el navegador.

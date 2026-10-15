@@ -127,7 +127,7 @@ Vous réglez la règle chez votre opérateur : renvoi sur occupation ou non-rép
 
 Avec LobbyStack comme exemple :
 
-- Vous obtenez un numéro LobbyStack (disponible aux États-Unis, au Canada, au Royaume-Uni et en Australie) et vous y renvoyez votre numéro professionnel. Il peut répondre à tous les appels ou seulement aux appels en débordement ou hors horaires.
+- Vous obtenez un numéro LobbyStack (disponible aux États-Unis, au Canada, au Royaume-Uni, en Australie et en Nouvelle-Zélande) et vous y renvoyez votre numéro professionnel. Il peut répondre à tous les appels ou seulement aux appels en débordement ou hors horaires.
 - Il prend les rendez-vous dans Google Calendar. Avec l'accord de l'appelant, il envoie par SMS une confirmation et un rappel 24 heures avant le rendez-vous aux numéros américains et canadiens.
 - Il transfère les appels urgents vers un seul numéro par entreprise. Les transferts se font à l'aveugle : il ne présente pas l'appel à la personne qui décroche. Si un transfert échoue, il prévient l'appelant, propose de prendre un message, et votre équipe peut recevoir une alerte d'échec de transfert.
 - Chaque appel reçoit un résumé, une transcription et un enregistrement. Vous recevez une alerte par e-mail quand il prend un message, et les alertes SMS sont en option.
@@ -138,7 +138,7 @@ Connaissez les limites avant de renvoyer une ligne : Google Calendar est le seul
 
 ### 4. Testez depuis votre propre fiche
 
-Après la fermeture, cherchez votre entreprise sur Google depuis un téléphone, appuyez sur le bouton d'appel et vérifiez que l'appel arrive au relais. Prenez un rendez-vous test et demandez quelque chose d'urgent. Lisez ensuite le compte rendu de l'appel. Le forfait Gratuit de LobbyStack vous donne 30 minutes vocales dans le navigateur, sans carte ni numéro de téléphone, pour écouter le réceptionniste avant de payer. Il ne peut pas prendre de vrais appels : le renvoi demande Starter ou Pro.
+Après la fermeture, cherchez votre entreprise sur Google depuis un téléphone, appuyez sur le bouton d'appel et vérifiez que l'appel arrive au relais. Prenez un rendez-vous test et demandez quelque chose d'urgent. Lisez ensuite le compte rendu de l'appel. Le forfait Gratuit de LobbyStack vous donne 30 minutes vocales et un numéro américain ou canadien gratuit pendant 14 jours, sans carte : vous pouvez y renvoyer votre ligne et faire ce test avant de payer.
 
 ## Les appels de Google au sujet de votre fiche sont-ils authentiques ?
 
@@ -174,4 +174,4 @@ Oui. Gardez votre numéro sur la fiche et renvoyez-le vers le réceptionniste IA
 
 ## Répondez aux appels que votre fiche vous envoie déjà
 
-Votre fiche place votre numéro sous les yeux des personnes qui vous cherchent. La personne qui décroche décide si ces appels deviennent des rendez-vous. Commencez par le forfait Gratuit de LobbyStack : 30 minutes vocales dans le navigateur, sans carte ni numéro de téléphone, de quoi entendre comment le réceptionniste traite un appelant venu de Google. Quand le résultat vous convient, Starter coûte 30 $ par mois pour 150 minutes, puis 0,20 $ la minute, avec un numéro vers lequel renvoyer votre ligne. LobbyStack ne facture pas de frais de mise en service. [Commencez gratuitement](https://app.lobbystack.com/fr/signup) ou comparez les forfaits sur la [page des tarifs](/fr/pricing/).
+Votre fiche place votre numéro sous les yeux des personnes qui vous cherchent. La personne qui décroche décide si ces appels deviennent des rendez-vous. Commencez par le forfait Gratuit de LobbyStack : 30 minutes vocales et un numéro américain ou canadien gratuit pendant 14 jours, sans carte, de quoi entendre comment le réceptionniste traite un appelant venu de Google. Pour garder le numéro, Starter coûte 30 $ par mois pour 150 minutes, puis 0,20 $ la minute. LobbyStack ne facture pas de frais de mise en service. [Commencez gratuitement](https://app.lobbystack.com/fr/signup) ou comparez les forfaits sur la [page des tarifs](/fr/pricing/).

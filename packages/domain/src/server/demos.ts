@@ -5,6 +5,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { businessContextSnapshots, businessMemberships, businesses, calls, enqueueOutbox, knowledgeDocuments, prospectDemos, receptionistProfiles, services, staff, staffServiceAssignments, users, websiteIngestionJobs, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
 import { defaultCurrencyForTimezone, normalizeRuntimeLocale } from "@lobbystack/shared";
 
+import { defaultGreeting } from "@lobbystack/shared";
 import { type TelemetryEventName, type TelemetryProperties } from "@lobbystack/telemetry";
 
 import type { DomainContext } from "./context";
@@ -189,7 +190,7 @@ export async function createProspectDemo(
     await tx.insert(businessMemberships).values({ businessId, userId: input.operatorUserId, role: "business_owner", status: "active" });
     await tx.insert(receptionistProfiles).values({
       businessId,
-      greeting: input.greeting?.trim() || `Thanks for calling ${name}.`,
+      greeting: input.greeting?.trim() || defaultGreeting(name, locale),
       tone: "professional and friendly",
       summary: `${name} virtual receptionist`,
       bookingPolicy: "Do not book appointments during this prospect demo.",

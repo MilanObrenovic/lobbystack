@@ -1,9 +1,9 @@
 import { countKnowledgeTokens } from "@lobbystack/domain";
-import { demoSnapshot } from "@lobbystack/shared";
+import { demoSnapshot, runtimeLocales } from "@lobbystack/shared";
 import { DateTime } from "luxon";
 import { describe, expect, it, vi } from "vitest";
 
-import { buildAgentInstructions, buildLiveInstructions } from "./instructions";
+import { buildAgentInstructions, buildLiveInstructions, liveLanguage } from "./instructions";
 
 const callStart = DateTime.fromISO("2026-10-01T18:30:00.000Z");
 
@@ -111,8 +111,9 @@ describe("buildLiveInstructions", () => {
     expect(instructions).toContain(`Open the call with this greeting as soon as you're told to start: "${demoSnapshot.greeting}" Say it once, at the start of the call only.`);
   });
 
-  it("speaks Spanish or Serbian, in Latin script, when the business chose it", () => {
-    expect(buildLiveInstructions({ ...demoSnapshot, defaultLocale: "es" }, "voice", callStart)).toContain("Speak Spanish unless the caller asks to switch");
+  it("names each caller language for GPT-Live", () => {
+    expect(runtimeLocales.map((defaultLocale) => liveLanguage({ ...demoSnapshot, defaultLocale }))).toEqual(["English", "French", "Spanish", "Serbian (Latin script)", "German", "Brazilian Portuguese", "Italian", "Dutch"]);
+    expect(buildLiveInstructions({ ...demoSnapshot, defaultLocale: "pt" }, "voice", callStart)).toContain("Speak Brazilian Portuguese unless the caller asks to switch or clearly speaks another language.");
     expect(buildLiveInstructions({ ...demoSnapshot, defaultLocale: "sr" }, "voice", callStart)).toContain("Speak Serbian (Latin script) unless the caller asks to switch");
   });
 

@@ -310,11 +310,11 @@ Avec LobbyStack comme exemple (plus de détails sur la page [réponse téléphon
 - **Messages.** Vous recevez une alerte par e-mail quand il prend un message, avec des alertes par SMS en option. LobbyStack conserve un résumé, une transcription et l'enregistrement de chaque appel dans le tableau de bord.
 - **Indésirables.** LobbyStack ne facture ni les appels indésirables ni les appels de moins de 10 secondes.
 - **SMS.** L'IA ne répond pas aux SMS : gardez une personne sur toute ligne SMS que vous affichez.
-- **Numéros.** LobbyStack fournit des numéros aux États-Unis, au Canada, au Royaume-Uni et en Australie, et vous pouvez y renvoyer votre numéro professionnel actuel.
+- **Numéros.** LobbyStack fournit des numéros aux États-Unis, au Canada, au Royaume-Uni, en Australie et en Nouvelle-Zélande, et vous pouvez y renvoyer votre numéro professionnel actuel.
 
 ### Testez les règles avant que vos clients les entendent
 
-Appelez votre réceptionniste et jouez chaque appelant : une urgence, un rendez-vous, une question de prix, un client mécontent et une erreur de numéro. L'offre gratuite de LobbyStack donne 30 minutes vocales dans le navigateur, sans carte ni numéro de téléphone, de quoi jouer chaque scénario plus d'une fois. L'offre gratuite ne prend pas de vrais appels, ne transfère pas et n'envoie pas de SMS : vérifiez ces points sur une offre payante avant de compter dessus.
+Appelez votre réceptionniste et jouez chaque appelant : une urgence, un rendez-vous, une question de prix, un client mécontent et une erreur de numéro. L'offre gratuite de LobbyStack donne 30 minutes vocales et un numéro américain ou canadien gratuit pendant 14 jours, sans carte, de quoi jouer chaque scénario plus d'une fois. Pendant l'essai, les transferts vont uniquement vers le numéro mobile que vous avez vérifié : vérifiez les transferts vers votre équipe sur une offre payante avant de compter dessus.
 
 Corrigez la règle derrière toute réponse qui ne vous plaît pas. Ensuite, [renvoyez votre numéro professionnel](/fr/blog/how-to-forward-business-calls/) pour tous les appels, pour le débordement seulement ou pour les appels hors horaires. Pour d'autres exemples de règles, voyez [des règles d'appel en langage clair](/fr/blog/ai-receptionist-workflows/).
 
@@ -342,4 +342,4 @@ Renvoyez votre numéro professionnel vers une permanence téléphonique ou un r�
 
 ## Essayez vos scripts sur un réceptionniste IA
 
-Écrivez vos règles en une soirée et testez-les le soir même. L'offre gratuite de LobbyStack donne 30 minutes vocales dans le navigateur, sans carte ni numéro de téléphone. Quand les appels vous conviennent, l'offre Starter coûte 30 $ par mois pour 150 minutes et un numéro professionnel (États-Unis, Canada, Royaume-Uni ou Australie), puis 0,20 $ la minute, sans frais de mise en service. [Commencez gratuitement](https://app.lobbystack.com/fr/signup) et jouez votre premier script dans le navigateur.
+Écrivez vos règles en une soirée et testez-les le soir même. L'offre gratuite de LobbyStack donne 30 minutes vocales et un numéro américain ou canadien gratuit pendant 14 jours, sans carte. Quand les appels vous conviennent, l'offre Starter coûte 30 $ par mois pour 150 minutes et un numéro professionnel (États-Unis, Canada, Royaume-Uni, Australie ou Nouvelle-Zélande), puis 0,20 $ la minute, sans frais de mise en service. [Commencez gratuitement](https://app.lobbystack.com/fr/signup) et jouez votre premier script dans le navigateur.

@@ -132,7 +132,7 @@ describe("AgentBasicSettingsPage saves", () => {
     await user.click(screen.getByRole("switch", { name: "agent:appointmentChanges.allowCancel.label" }));
     await waitFor(() => expect(patches).toHaveLength(1));
     await user.click(screen.getByRole("combobox", { name: "agent:fields.defaultLocale.label" }));
-    await user.click(await screen.findByRole("option", { name: "common:language.french" }));
+    await user.click(await screen.findByRole("option", { name: "common:callerLanguage.fr" }));
     await waitFor(() => expect(patches).toHaveLength(2));
 
     expect(patches).toEqual([

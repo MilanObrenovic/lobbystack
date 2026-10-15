@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { requestJson } from "@/lib/request-json";
 import { useActiveBusiness } from "@/hooks/use-active-business";
@@ -8,11 +8,13 @@ import { useStepNavigation } from "@/lib/use-step-navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowRight, Check, LoaderCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { planCards, billingErrorCodes } from "@lobbystack/shared";
 
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { OnboardingPlanComparison } from "@/components/onboarding-plan-comparison";
 import { useTelemetry } from "@/components/product-analytics";
+import { checkoutRefusalKey, errorCode } from "@/lib/checkout-errors";
 import { cn } from "@/lib/utils";
 
 type BillingInterval = "monthly" | "annual";
@@ -20,48 +22,15 @@ type Plan = "free_cloud" | "starter" | "pro" | "enterprise";
 type Checkout = { id: string; status: string; checkoutUrl: string | null; error: string | null };
 type BillingStatus = { checkoutAvailable: boolean; availableCheckoutPlans?: Array<"starter" | "pro">; availableCheckoutIntervals?: { starter: BillingInterval[]; pro: BillingInterval[] } };
 
-const tiers: Array<{ slug: Plan; highlight?: boolean; features: string[] }> = [
-  { slug: "free_cloud", features: ["voiceMinutes", "bookingContacts", "support"] },
-  { slug: "starter", features: ["voiceMinutes", "dedicatedNumber", "alertSms", "support"] },
-  { slug: "pro", highlight: true, features: ["voiceMinutes", "dedicatedNumber", "alertSms", "support"] },
-  { slug: "enterprise", features: ["phoneNumbers", "selfHosted", "support"] },
-];
-
-const REPORTED_CHECKOUT_KEY = "lobbystack.onboarding.checkoutReported";
-
-/**
- * The funnel should count checkouts, not visits to the return URL. A ref only
- * lasts one mount, so a reload of that URL would report the same checkout again.
- */
-function hasReportedCheckout(key: string): boolean {
-  try {
-    const raw = window.localStorage.getItem(REPORTED_CHECKOUT_KEY);
-    return raw ? (JSON.parse(raw) as string[]).includes(key) : false;
-  } catch {
-    return false;
-  }
-}
-
-function markCheckoutReported(key: string): void {
-  try {
-    const raw = window.localStorage.getItem(REPORTED_CHECKOUT_KEY);
-    const current = raw ? JSON.parse(raw) as string[] : [];
-    if (current.includes(key)) return;
-    window.localStorage.setItem(REPORTED_CHECKOUT_KEY, JSON.stringify([...current.slice(-19), key]));
-  } catch {
-    // Storage is unavailable, so the per-mount ref is the only guard left.
-  }
-}
 
 export function OnboardingPlanSurface() {
-  const { t } = useTranslation("onboarding");
+  const { i18n, t } = useTranslation("onboarding");
   const { navigate, navigating, router } = useStepNavigation();
   const telemetry = useTelemetry();
   const searchParams = useSearchParams();
   const [interval, setInterval] = useState<BillingInterval>("annual");
   const [checkoutRequestId, setCheckoutRequestId] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const returnAttempt = useRef<{ key: string; promise: Promise<unknown> } | null>(null);
   const { business } = useActiveBusiness();
   const billing = useQuery({ queryKey: ["billing", business?.businessId], queryFn: () => requestJson<BillingStatus>(`/api/billing?businessId=${encodeURIComponent(business!.businessId)}`), enabled: Boolean(business) });
   const checkout = useQuery({
@@ -78,32 +47,18 @@ export function OnboardingPlanSurface() {
   const startCheckout = useMutation({
     mutationFn: (target: "starter" | "pro") => requestJson<{ requestId: string }>("/api/billing/checkout", { method: "POST", body: JSON.stringify({ businessId: business!.businessId, target, billingInterval: interval }) }),
     onSuccess: ({ requestId }) => setCheckoutRequestId(requestId),
+    // Already paying, from a checkout whose return page closed early: the number is next.
+    onError: (error) => {
+      if (errorCode(error) !== billingErrorCodes.subscriptionActive) return;
+      void requestJson(`/api/onboarding/stage?businessId=${encodeURIComponent(business!.businessId)}`, { method: "POST", body: JSON.stringify({ to: "phone_number" }) })
+        .then(() => navigate("/onboarding/number"), () => setCheckoutError(t("plan.continueFailed")));
+    },
     meta: { inlineError: true },
   });
 
+  // Checkouts opened before the success page existed still return here.
   const returnRequestId = searchParams.get("checkout") === "success" ? searchParams.get("requestId") : null;
-  const returnedCheckout = useQuery({
-    queryKey: ["onboarding-checkout-return", business?.businessId, returnRequestId],
-    enabled: Boolean(business && returnRequestId),
-    queryFn: () => requestJson<{ synced: boolean; target: string | null }>(`/api/billing/checkout?businessId=${encodeURIComponent(business!.businessId)}&requestId=${encodeURIComponent(returnRequestId!)}`),
-    refetchInterval: query => query.state.data?.synced ? false : 1500,
-  });
-  useEffect(() => {
-    const key = `${business?.businessId}:${returnRequestId}`;
-    if (!business || !returnRequestId || !returnedCheckout.data?.synced) return;
-    if (returnAttempt.current?.key !== key) {
-      if (!hasReportedCheckout(key)) {
-        markCheckoutReported(key);
-        telemetry.track("web.onboarding.plan_checkout_completed", { businessId: business.businessId, plan: returnedCheckout.data.target ?? "unknown" });
-      }
-      returnAttempt.current = { key, promise: requestJson(`/api/onboarding/stage?businessId=${encodeURIComponent(business.businessId)}`, { method: "POST", body: JSON.stringify({ to: "phone_number" }) }) };
-    }
-    let cancelled = false;
-    void returnAttempt.current.promise.then(() => {
-      if (!cancelled) router.replace("/onboarding/number");
-    }).catch(() => { if (!cancelled) returnAttempt.current = null; });
-    return () => { cancelled = true; };
-  }, [business, returnRequestId, returnedCheckout.data?.synced, returnedCheckout.data?.target, router, telemetry]);
+  useEffect(() => { if (returnRequestId) router.replace(`/billing/success?requestId=${encodeURIComponent(returnRequestId)}`); }, [returnRequestId, router]);
   useEffect(() => {
     if (checkout.data?.status === "error" || checkout.isError) {
       setCheckoutError(checkout.data?.error ?? t("plan.continueFailed"));
@@ -128,6 +83,8 @@ export function OnboardingPlanSurface() {
   }, [availableIntervals, interval]);
 
   const pendingPlan = selectFree.isPending || navigating ? "free_cloud" : startCheckout.isPending || checkoutRequestId ? "paid" : null;
+  const refusal = checkoutRefusalKey(startCheckout.error);
+  const checkoutFailure = startCheckout.isError && errorCode(startCheckout.error) !== billingErrorCodes.subscriptionActive ? (refusal ? t(`settings:${refusal}`) : startCheckout.error.message) : null;
 
   function act(plan: Plan) {
     if (!business || pendingPlan) return;
@@ -150,22 +107,22 @@ export function OnboardingPlanSurface() {
         </div>
       </div>
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {tiers.map((tier) => {
+        {planCards(i18n.language).map((tier) => {
           const paid = tier.slug === "starter" || tier.slug === "pro";
           const busy = tier.slug === "free_cloud" ? pendingPlan === "free_cloud" : paid && pendingPlan === "paid";
-          const price = paid ? t(`plan.tiers.${tier.slug}.price.${interval}`) : t(`plan.tiers.${tier.slug}.price`);
-          const description = paid ? t(`plan.tiers.${tier.slug}.description.${interval}`) : t(`plan.tiers.${tier.slug}.description`);
-          const cta = paid ? t(`plan.tiers.${tier.slug}.cta.${interval}`) : t(`plan.tiers.${tier.slug}.cta`);
-          return <section className={cn("relative flex flex-col rounded-2xl border bg-background p-8", tier.highlight ? "border-foreground/30 shadow-sm" : "border-border/60")} key={tier.slug}>
-            {tier.highlight ? <div className="absolute -top-3 left-8 rounded-full bg-foreground px-3 py-0.5 text-xs font-medium text-background">{t("plan.popular")}</div> : null}
-            <div className="mb-6"><h3 className="font-heading text-lg font-semibold tracking-tight">{t(`plan.tiers.${tier.slug}.name`)}</h3><div className="mt-3 flex items-baseline gap-1"><span className="font-heading text-4xl font-semibold tracking-tighter">{price}</span><span className="text-sm text-muted-foreground">{t(`plan.tiers.${tier.slug}.period`)}</span></div><p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p></div>
-            <Button className="mb-6 w-full rounded-full" disabled={!business || Boolean(pendingPlan) || (paid && (!billing.data?.checkoutAvailable || (configuredIntervals && !configuredIntervals[tier.slug as "starter" | "pro"].includes(interval))))} onClick={() => act(tier.slug)} type="button" variant={tier.highlight ? "default" : "outline"}>{busy ? <LoaderCircle className="size-4 animate-spin" /> : <>{cta}<ArrowRight className="ml-1 size-4" /></>}</Button>
-            <div className="flex-1 border-t border-border/50 pt-5"><ul className="space-y-2.5">{tier.features.map((feature) => <li className="flex items-start gap-2.5 text-sm" key={feature}><Check className="mt-0.5 size-3.5 shrink-0 text-foreground/60" /><span className="whitespace-pre-line">{t(`plan.tiers.${tier.slug}.highlights.${feature}`)}</span></li>)}</ul></div>
+          const price = tier.price[interval];
+          const description = tier.description[interval];
+          const cta = tier.cta;
+          return <section className={cn("relative flex flex-col rounded-2xl border bg-background p-8", tier.featured ? "border-foreground/30 shadow-sm" : "border-border/60")} key={tier.slug}>
+            {tier.featured ? <div className="absolute -top-3 left-8 rounded-full bg-foreground px-3 py-0.5 text-xs font-medium text-background">{t("plan.popular")}</div> : null}
+            <div className="mb-6"><h3 className="font-heading text-lg font-semibold tracking-tight">{tier.name}</h3><div className="mt-3 flex items-baseline gap-1"><span className="font-heading text-4xl font-semibold tracking-tighter">{price}</span><span className="text-sm text-muted-foreground">{tier.period}</span></div><p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p></div>
+            <Button className="mb-6 w-full rounded-full" disabled={!business || Boolean(pendingPlan) || (paid && (!billing.data?.checkoutAvailable || (configuredIntervals && !configuredIntervals[tier.slug as "starter" | "pro"].includes(interval))))} onClick={() => act(tier.slug)} type="button" variant={tier.featured ? "default" : "outline"}>{busy ? <LoaderCircle className="size-4 animate-spin" /> : <>{cta}<ArrowRight className="ml-1 size-4" /></>}</Button>
+            <div className="flex-1 border-t border-border/50 pt-5"><ul className="space-y-2.5">{tier.lines.map((line) => <li className="flex items-start gap-2.5 text-sm" key={line.label}><Check className="mt-0.5 size-3.5 shrink-0 text-foreground/60" /><span className="whitespace-pre-line">{line.sublabel ? `${line.label}\n${line.sublabel}` : line.label}</span></li>)}</ul></div>
           </section>;
         })}
       </div>
-      {selectFree.isError || startCheckout.isError || checkoutError ? <FieldError>{selectFree.error?.message ?? startCheckout.error?.message ?? checkoutError ?? t("plan.continueFailed")}</FieldError> : null}
-      <OnboardingPlanComparison t={t} />
+      {selectFree.isError || checkoutFailure || checkoutError ? <FieldError>{selectFree.error?.message ?? checkoutFailure ?? checkoutError ?? t("plan.continueFailed")}</FieldError> : null}
+      <OnboardingPlanComparison locale={i18n.language} t={t} />
     </div>
   );
 }

@@ -127,7 +127,7 @@ La regla se configura con su operador: desvío si está ocupado o no contesta pa
 
 Con LobbyStack como ejemplo:
 
-- Usted obtiene un número de LobbyStack (disponible en Estados Unidos, Canadá, Reino Unido y Australia) y desvía a él el número de su negocio. Puede contestar todas las llamadas o solo las de exceso o fuera de horario.
+- Usted obtiene un número de LobbyStack (disponible en Estados Unidos, Canadá, Reino Unido, Australia y Nueva Zelanda) y desvía a él el número de su negocio. Puede contestar todas las llamadas o solo las de exceso o fuera de horario.
 - Agenda citas en Google Calendar. Con el consentimiento de quien llama, envía por SMS una confirmación y un recordatorio 24 horas antes de la cita a números de Estados Unidos y Canadá.
 - Transfiere las llamadas urgentes a un solo número por negocio. Las transferencias son directas, sin aviso previo a la persona que contesta. Si una transferencia no se completa, se lo dice a quien llama, ofrece tomar un mensaje y su equipo puede recibir una alerta de transferencia fallida.
 - Cada llamada queda con un resumen, una transcripción y una grabación. Usted recibe una alerta por correo cuando toma un mensaje, y las alertas por SMS son opcionales.
@@ -138,7 +138,7 @@ Conozca los límites antes de desviar una línea: Google Calendar es el único c
 
 ### 4. Pruébelo desde su propio perfil
 
-Después de su hora de cierre, busque su negocio en Google desde un teléfono, toque el botón de llamada y compruebe que la llamada llega a su respaldo. Agende una cita de prueba y pida algo urgente. Luego lea el registro de la llamada. El plan Free de LobbyStack le da 30 minutos de voz en el navegador, sin tarjeta ni número de teléfono, para escuchar a la recepcionista antes de pagar. No puede recibir llamadas reales; el desvío requiere Starter o Pro.
+Después de su hora de cierre, busque su negocio en Google desde un teléfono, toque el botón de llamada y compruebe que la llamada llega a su respaldo. Agende una cita de prueba y pida algo urgente. Luego lea el registro de la llamada. El plan Free de LobbyStack le da 30 minutos de voz y un número de EE. UU. o Canadá gratis durante 14 días, sin tarjeta, así que puede desviar su línea y hacer esta prueba antes de pagar.
 
 ## ¿Son reales las llamadas de Google sobre mi Perfil de Negocio?
 
@@ -174,4 +174,4 @@ Sí. Deje su número en el perfil y desvíelo a la recepcionista con IA para lla
 
 ## Conteste las llamadas que su perfil ya le envía
 
-Su perfil pone su número a un toque de quienes lo buscan. La persona que contesta decide si esas llamadas se vuelven citas. Empiece con el plan Free de LobbyStack: 30 minutos de voz en el navegador, sin tarjeta ni número de teléfono, suficiente para escuchar cómo la recepcionista atiende a alguien que lo encontró en Google. Cuando le convenza, Starter cuesta $30 al mes por 150 minutos, luego $0.20 por minuto, e incluye un número al que desviar su línea. No hay cuota de configuración. [Empiece gratis](https://app.lobbystack.com/es/signup) o compare planes en la [página de precios](/es/pricing/).
+Su perfil pone su número a un toque de quienes lo buscan. La persona que contesta decide si esas llamadas se vuelven citas. Empiece con el plan Free de LobbyStack: 30 minutos de voz y un número de EE. UU. o Canadá gratis durante 14 días, sin tarjeta, suficiente para escuchar cómo la recepcionista atiende a alguien que lo encontró en Google. Para conservar el número, Starter cuesta $30 al mes por 150 minutos, luego $0.20 por minuto. No hay cuota de configuración. [Empiece gratis](https://app.lobbystack.com/es/signup) o compare planes en la [página de precios](/es/pricing/).

@@ -125,7 +125,7 @@ U [Grasshopper administratorskom portalu](https://support.grasshopper.com/help/f
 
 Uključite preusmeravanje kada je zauzeto i bez odgovora na broj usluge, a preusmeravanje svih poziva ostavite isključeno. Vaš telefon prvi zvoni, a usluga dobija pozive koje Vaš tim ne stigne da primi. Dodajte preusmeravanje kada ste nedostupni ako želite da pokrijete i isključen telefon ili telefon bez signala.
 
-1. **Nabavite broj usluge.** Kod LobbyStack-a to je Vaš LobbyStack broj, dostupan u SAD, Kanadi, Ujedinjenom Kraljevstvu i Australiji. Izaberite broj u zemlji svoje linije: AT&T, Verizon, T-Mobile i Spectrum Mobile ne preusmeravaju na međunarodne brojeve, a TELUS preusmerava samo unutar Severne Amerike.
+1. **Nabavite broj usluge.** Kod LobbyStack-a to je Vaš LobbyStack broj, dostupan u SAD, Kanadi, Ujedinjenom Kraljevstvu, Australiji i na Novom Zelandu. Izaberite broj u zemlji svoje linije: AT&T, Verizon, T-Mobile i Spectrum Mobile ne preusmeravaju na međunarodne brojeve, a TELUS preusmerava samo unutar Severne Amerike.
 2. **Uključite preusmeravanje kada je zauzeto i bez odgovora.** Koristite kodove iznad, ili podešavanje Busy Line & Missed Calls ili Missed calls u svom portalu. Za višak poziva ne koristite `*72`, jer on preusmerava svaki poziv pre nego što telefon zazvoni.
 3. **Podesite vreme zvonjenja.** T-Mobile nudi od 5 do 30 sekundi, a TELUS 10, 20 ili 30. Grasshopper podrazumevano koristi 25 sekundi, a Ooma Office 12. Verizonov `*71` preusmerava posle 3 do 6 zvonjenja, a `*92` kod Bell Business Phone posle 4. Kratko čekanje šalje pozive koje je Vaš tim mogao da primi; dugo tera pozivaoca da čeka.
 4. **Proverite govornu poštu.** AT&T kaže da preusmeravanje zamenjuje govornu poštu, a Spectrum Mobile da neodgovoreni pozivi više ne idu na nju. Rogers navodi da uslovno preusmeravanje ne radi dok je govorna pošta uključena, pa ako kodovi ne prolaze, zamolite Rogers da je isključi na toj liniji.
@@ -175,8 +175,8 @@ Zavisi od operatera. Verizon kaže da preusmeravanjem upravljate sa mobilnog tel
 
 ### Mogu li da preusmerim poslovne pozive na AI recepcionera?
 
-Da. Preusmeravate na broj AI recepcionera kao na bilo koji drugi broj. Ooma Office traži deljenu spoljnu liniju (Pro Plus) da bi stigao do spoljnog broja. Google Voice je izuzetak: Google ne podržava preusmeravanje na automatizovani sistem. Kod LobbyStack-a preusmerite na broj iz paketa Starter ili Pro; paket Free nema broj telefona.
+Da. Preusmeravate na broj AI recepcionera kao na bilo koji drugi broj. Ooma Office traži deljenu spoljnu liniju (Pro Plus) da bi stigao do spoljnog broja. Google Voice je izuzetak: Google ne podržava preusmeravanje na automatizovani sistem. Kod LobbyStack-a preusmerite na svoj LobbyStack broj. Paket Free uključuje broj iz SAD ili Kanade na 14 dana, a uz Starter ili Pro ga zadržavate.
 
 ## Poslušajte recepcionera pre nego što preusmerite liniju
 
-Paket Free u LobbyStack-u daje Vam 30 minuta razgovora u pregledaču, bez kartice i broja telefona, da sa kontrolne table isprobate kako vodi Vaše pozive. Ako probni pozivi zvuče dobro, Starter košta $30 mesečno ($24 mesečno uz godišnje plaćanje) za 150 minuta i poslovni broj, bez naknade za aktivaciju, a pretplatu otkazujete bez naknade. Zatim pozovite svoj kod za preusmeravanje bez odgovora i šaljite mu samo propuštene pozive. [Počnite besplatno](https://app.lobbystack.com/sr/signup) ili [uporedite pakete](/sr/pricing/).
+Paket Free u LobbyStack-u daje Vam 30 minuta razgovora i broj iz SAD ili Kanade besplatno 14 dana, bez kartice. Pozovite svoj kod za preusmeravanje bez odgovora, šaljite mu samo propuštene pozive i pogledajte kako ih vodi. Ako želite da zadržite broj, Starter košta $30 mesečno ($24 mesečno uz godišnje plaćanje) za 150 minuta, bez naknade za aktivaciju, a pretplatu otkazujete bez naknade. [Počnite besplatno](https://app.lobbystack.com/sr/signup) ili [uporedite pakete](/sr/pricing/).

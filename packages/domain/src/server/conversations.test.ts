@@ -72,7 +72,8 @@ describe("model-written call summaries", () => {
   it("uses the Spanish and Serbian fallbacks, and English for a language the receptionist doesn't speak", () => {
     expect(buildConversationSessionSummary({ locale: normalizeCallSummaryLocale("es-MX"), transcript: ["Hola"] })).toEqual({ kind: "summary", summary: "Resumen de la llamada: Hola" });
     expect(buildConversationSessionSummary({ locale: normalizeCallSummaryLocale("sr-Latn"), transcript: [] })).toEqual({ kind: "summary", summary: "Glasovna interakcija je završena." });
-    expect(normalizeCallSummaryLocale("de")).toBe("en");
+    expect(normalizeCallSummaryLocale("de")).toBe("de");
+    expect(normalizeCallSummaryLocale("ja")).toBe("en");
   });
 
   it("bounds a generated summary to one short line", () => {
