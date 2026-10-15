@@ -39,8 +39,9 @@ describe("directToolAnswer", () => {
   it("drops service descriptions rather than cut the list short", () => {
     const services = Array.from({ length: 30 }, (_, index) => ({ name: `Service ${index + 1}`, durationMinutes: 30, description: "A long description of what the visit covers and who it suits.".repeat(2) }));
     const answer = directToolAnswer(step({ toolName: "getBusinessServices", output: { services } }))!;
+    expect(answer).toContain("- Service 1 (30 min): A long description");
     expect(answer).toContain("- Service 30 (30 min)");
-    expect(answer).not.toContain("long description");
+    expect(answer).not.toContain("- Service 30 (30 min):");
   });
 
   it("confirms a saved appointment request and an ending call", () => {
@@ -58,6 +59,7 @@ describe("directToolAnswer", () => {
   // The REFER waits for GPT-Live to announce the transfer, so the answer can't wait for a model step.
   it("announces a transfer at once, and leaves a refused one to the model", () => {
     expect(directToolAnswer(step({ toolName: "transferCall", input: { callerRequested: true, urgent: false }, output: { ok: true, transferring: true } }))).toBe("The call is being transferred to a person at the business now.");
+    expect(directToolAnswer(step({ toolName: "transferCall", input: { callerRequested: true, urgent: false, employeeName: "ana" }, output: { ok: true, transferring: true, employeeName: "Ana Petrović" } }))).toBe("The call is being transferred to Ana Petrović now.");
     expect(directToolAnswer(step({ toolName: "transferCall", output: { ok: false, reason: "Transfers aren't allowed right now. Offer to take a message." } }))).toBeUndefined();
   });
 

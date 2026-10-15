@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
-import { businessHours, businessInvitations, businessMemberships, createDatabaseClient, services, staff, users, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
+import { businesses, businessHours, businessInvitations, businessMemberships, createDatabaseClient, services, staff, users, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
 import { findAvailability } from "./booking";
-import { acceptInvitation, createBusiness, inviteMember, listUserBusinesses, previewInvitation, removeMember, revokeInvitation } from "./tenancy";
+import { acceptInvitation, createBusiness, inviteMember, listUserBusinesses, previewInvitation, removeMember, revokeInvitation, updateBusinessInTransaction } from "./tenancy";
 
 // Explicit opt-in only; never fall back to DATABASE_URL or load an env file.
 const testUrl = process.env.LOBBYSTACK_RELIABILITY_TEST_DATABASE_URL;
@@ -27,6 +27,34 @@ async function rollbackTest(run: (tx: DatabaseTransaction) => Promise<void>) {
     if (error !== rollback) throw error;
   }
 }
+
+describe.skipIf(!client)("business currency", () => {
+  it("keeps the prices people read when the currency changes, and refuses a code that isn't ISO 4217", async () => {
+    await rollbackTest(async (tx) => {
+      const businessId = randomUUID();
+      await tx.insert(businesses).values({ id: businessId, slug: businessId, name: "Studio", timezone: "America/New_York", currency: "USD", businessType: "test", telemetryEnabled: false });
+      await tx.insert(services).values([
+        { businessId, name: "Cut", slug: "cut", durationMinutes: 30, priceType: "fixed", priceMinor: 4000 },
+        { businessId, name: "Colour", slug: "colour", durationMinutes: 60, priceType: "range", priceMinor: 4050, priceMaxMinor: 9999 },
+        { businessId, name: "Consult", slug: "consult", durationMinutes: 15, priceType: "in_person" },
+      ]);
+      const prices = async () => (await tx.select({ name: services.name, priceMinor: services.priceMinor, priceMaxMinor: services.priceMaxMinor }).from(services).where(eq(services.businessId, businessId)).orderBy(services.name)).map((row) => [row.name, row.priceMinor, row.priceMaxMinor]);
+
+      // USD 40.00 is JPY 40; amounts finer than a yen round.
+      await updateBusinessInTransaction(tx, { businessId, currency: "JPY" });
+      expect(await prices()).toEqual([["Colour", 41, 100], ["Consult", null, null], ["Cut", 40, null]]);
+      await updateBusinessInTransaction(tx, { businessId, currency: "KWD" });
+      expect(await prices()).toEqual([["Colour", 41000, 100000], ["Consult", null, null], ["Cut", 40000, null]]);
+      // RSD has two decimals, like EUR.
+      await updateBusinessInTransaction(tx, { businessId, currency: "RSD" });
+      await updateBusinessInTransaction(tx, { businessId, currency: "EUR" });
+      expect(await prices()).toEqual([["Colour", 4100, 10000], ["Consult", null, null], ["Cut", 4000, null]]);
+
+      await expect(updateBusinessInTransaction(tx, { businessId, currency: "ABC" })).rejects.toMatchObject({ status: 400 });
+      expect((await tx.select({ currency: businesses.currency }).from(businesses).where(eq(businesses.id, businessId)))[0]?.currency).toBe("EUR");
+    });
+  });
+});
 
 describe.skipIf(!client)("createBusiness", () => {
   it("gives a new business a default staff member so it can take bookings", async () => {
@@ -168,6 +196,19 @@ describe.skipIf(!client)("team membership", () => {
       await tx.execute(sql`reset role`);
       const [membership] = await tx.select({ role: businessMemberships.role, status: businessMemberships.status }).from(businessMemberships).where(and(eq(businessMemberships.businessId, businessId), eq(businessMemberships.userId, owner!.id)));
       expect(membership).toEqual({ role: "business_owner", status: "active" });
+    });
+  });
+
+  it("refuses to remove a member twice or to remove the last owner", async () => {
+    await rollbackTest(async (tx) => {
+      const { context, businessId, people: [owner, viewer], invite, accept, listMembers } = await seedTeam(tx, ["Ana", "Ben"]);
+      await accept(viewer!, await invite(owner!.id, viewer!.email, "viewer"));
+      const members = await listMembers(owner!.id);
+      const viewerMembership = members.find((row) => row.user_id === viewer!.id)!.membership_id;
+      const ownerMembership = members.find((row) => row.user_id === owner!.id)!.membership_id;
+      await removeMember(context, { userId: owner!.id, businessId, membershipId: viewerMembership });
+      await expect(removeMember(context, { userId: owner!.id, businessId, membershipId: viewerMembership })).rejects.toMatchObject({ status: 404 });
+      await expect(removeMember(context, { userId: owner!.id, businessId, membershipId: ownerMembership })).rejects.toMatchObject({ status: 409, code: "final_owner" });
     });
   });
 });
