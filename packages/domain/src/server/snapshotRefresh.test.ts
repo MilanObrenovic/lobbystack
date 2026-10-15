@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { demoSnapshot, type BusinessContextSnapshot } from "@lobbystack/shared";
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { defaultGreeting, demoSnapshot, type BusinessContextSnapshot, type RuntimeLocale } from "@lobbystack/shared";
 
 const mocks = vi.hoisted(() => ({
   withBusinessTransaction: vi.fn(),
   enqueueOutbox: vi.fn(),
+  resolveSmsSender: vi.fn(),
 }));
 
 vi.mock("@lobbystack/db", async (importOriginal) => ({
@@ -12,6 +15,7 @@ vi.mock("@lobbystack/db", async (importOriginal) => ({
   withBusinessTransaction: mocks.withBusinessTransaction,
   enqueueOutbox: mocks.enqueueOutbox,
 }));
+vi.mock("./smsSender", () => ({ resolveSmsSender: mocks.resolveSmsSender }));
 
 import type { SnapshotCacheClient } from "./snapshotCache";
 import { refreshBusinessSnapshot } from "./knowledge";
@@ -49,6 +53,7 @@ function makeTx(selectRows: Record<string, unknown>) {
   const tx = {
     select: vi.fn(() => fromChain(rowsFor)),
     insert: vi.fn(() => ({ values: () => Promise.resolve([{ id: "saved" }]) })),
+    delete: vi.fn((table: unknown) => ({ where: (condition: SQL) => { deleted.push({ table: tableName(table), where: new PgDialect().sqlToQuery(condition) }); return Promise.resolve(); } })),
   };
   return tx;
 
@@ -72,12 +77,15 @@ function makeTx(selectRows: Record<string, unknown>) {
 }
 
 const businessRow = { id: businessId, name: "Maple Family Clinic", timezone: "America/Toronto", defaultLocale: "en" };
+let deleted: { table: string; where: { sql: string; params: unknown[] } }[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  deleted = [];
   vi.stubEnv("REDIS_PREFIX", "lobbystack");
   mocks.withBusinessTransaction.mockImplementation(async (_db, _ctx, callback) => await callback(makeTx({ businesses: [businessRow], receptionist_profiles: [profileRow] })));
   mocks.enqueueOutbox.mockResolvedValue(undefined);
+  mocks.resolveSmsSender.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -86,6 +94,8 @@ afterEach(() => {
 
 describe("refreshBusinessSnapshot write-through", () => {
   it("preserves business identity, active contact numbers, locale labels, and opt-out", async () => {
+    // The number customer texts come from, which the business's plan decides.
+    mocks.resolveSmsSender.mockResolvedValue("+14165550003");
     mocks.withBusinessTransaction.mockImplementation(async (_db, _ctx, callback) => callback(makeTx({
       businesses: [{ ...businessRow, legalName: "Maple Clinic Inc.", businessType: "clinic", telemetryEnabled: false }],
       receptionist_profiles: [profileRow],
@@ -99,7 +109,22 @@ describe("refreshBusinessSnapshot write-through", () => {
     const cache = memoryCache();
     await refreshBusinessSnapshot({ db: {} as never, snapshotCache: cache }, { businessId });
     expect(await cache.get(businessId)).toMatchObject({ legalName: "Maple Clinic Inc.", businessType: "clinic", telemetryEnabled: false, contactChannels: { phoneNumber: "+14165550002", smsNumber: "+14165550003" }, services: [{ localizedNames: { fr: "Consultation française" } }] });
+    expect(mocks.resolveSmsSender).toHaveBeenCalledWith(expect.anything(), businessId);
   });
+  it("lists the business's bookable employees with the active services each does, so the agent can offer them", async () => {
+    mocks.withBusinessTransaction.mockImplementation(async (_db, _ctx, callback) => callback(makeTx({
+      businesses: [businessRow],
+      receptionist_profiles: [profileRow],
+      services: [{ id: "service-colour", name: "Colour", durationMinutes: 60 }, { id: "service-haircut", name: "Haircut", durationMinutes: 30 }],
+      staff: [{ name: "Ana Petrović", staffId: "staff-ana" }, { name: "Marko Jovanović", staffId: "staff-marko" }],
+      // A deleted or inactive service isn't in the snapshot's services, so it's left off.
+      staff_service_assignments: [{ staffId: "staff-ana", serviceId: "service-haircut" }, { staffId: "staff-ana", serviceId: "service-colour" }, { staffId: "staff-marko", serviceId: "service-gone" }],
+    })));
+    const cache = memoryCache();
+    await refreshBusinessSnapshot({ db: {} as never, snapshotCache: cache }, { businessId });
+    expect((await cache.get(businessId))?.employees).toEqual([{ name: "Ana Petrović", services: ["Colour", "Haircut"] }, { name: "Marko Jovanović" }]);
+  });
+
   it("pushes the regenerated snapshot into the shared cache", async () => {
     const cache = memoryCache();
     const context = { db: {} as never, snapshotCache: cache };
@@ -113,6 +138,13 @@ describe("refreshBusinessSnapshot write-through", () => {
     expect(cached?.bookingPolicy).toBe("Confirm before booking.");
   });
 
+  it.each([["pt", "pt"], ["fr", "fr"], ["xx", "en"]])("opens calls of a business set to %s in %s, with that language's greeting when it has no profile", async (stored, locale) => {
+    mocks.withBusinessTransaction.mockImplementation(async (_db, _ctx, callback) => callback(makeTx({ businesses: [{ ...businessRow, defaultLocale: stored }] })));
+    const cache = memoryCache();
+    await refreshBusinessSnapshot({ db: {} as never, snapshotCache: cache }, { businessId });
+    expect(await cache.get(businessId)).toMatchObject({ defaultLocale: locale, greeting: defaultGreeting("Maple Family Clinic", locale as RuntimeLocale) });
+  });
+
   it("tolerates a failing cache write without failing the refresh", async () => {
     const cache = memoryCache();
     const failing = {
@@ -122,6 +154,12 @@ describe("refreshBusinessSnapshot write-through", () => {
     const context = { db: {} as never, snapshotCache: failing };
 
     await expect(refreshBusinessSnapshot(context, { businessId })).resolves.toBeTypeOf("string");
+  });
+
+  it("deletes the business's older snapshot rows, keeping any from a newer refresh", async () => {
+    await refreshBusinessSnapshot({ db: {} as never }, { businessId });
+
+    expect(deleted).toMatchObject([{ table: "business_context_snapshots", where: { sql: '("business_context_snapshots"."business_id" = $1 and "business_context_snapshots"."generated_at" < now())', params: [businessId] } }]);
   });
 
   it("skips the cache push when no snapshot cache is configured", async () => {

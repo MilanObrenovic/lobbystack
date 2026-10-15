@@ -185,7 +185,8 @@ async function main(): Promise<void> {
             ('lobbystack_app', 'app.list_operator_prospect_demos()'),
             ('lobbystack_worker', 'app.expire_prospect_demos()'),
             ('lobbystack_app', 'app.detach_prospect_demo_operator(uuid)'),
-            ('lobbystack_worker', 'app.resolve_onboarding_followup_recipient(uuid, timestamptz)')
+            ('lobbystack_worker', 'app.resolve_onboarding_followup_recipient(uuid, timestamptz)'),
+            ('lobbystack_worker', 'app.list_businesses_by_contact_phone(text)')
           ) as expected(role_name, function_name)
           where not has_function_privilege(expected.role_name, expected.function_name, 'EXECUTE')
         `);
@@ -201,7 +202,12 @@ async function main(): Promise<void> {
             ('lobbystack_worker', 'app.resolve_api_key(text)'),
             ('lobbystack_worker', 'app.resolve_oauth_access_token(text)'),
             ('lobbystack_worker', 'app.touch_oauth_grant(text)'),
-            ('lobbystack_app', 'app.list_oauth_grantors(uuid)')
+            ('lobbystack_app', 'app.list_oauth_grantors(uuid)'),
+            ('lobbystack_app', 'app.list_business_members(uuid)'),
+            ('lobbystack_worker', 'app.list_open_live_call_businesses(timestamptz, timestamptz)'),
+            ('lobbystack_dispatcher', 'app.list_scheduler_businesses()'),
+            ('lobbystack_dispatcher', 'app.list_summary_backfill_businesses()'),
+            ('lobbystack_dispatcher', 'app.list_reembed_businesses(text)')
           ) as expected(role_name, function_name)
           where not has_function_privilege(expected.role_name, expected.function_name, 'EXECUTE')
         `);

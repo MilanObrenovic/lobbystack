@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
-import { billingAccounts, billingUsageEvents, billingUsageMonths, businesses, calls, contacts, createDatabaseClient, outboxMessages, transcripts, type Database, type DatabaseTransaction } from "@lobbystack/db";
+import { billingAccounts, billingUsageEvents, billingUsageMonths, businesses, calls, contacts, createDatabaseClient, enqueueOutbox, outboxMessages, transcripts, type Database, type DatabaseTransaction } from "@lobbystack/db";
 
-import { blockLiveCaller, extendLiveCallReservation, finishLiveCall, lastLiveCallSequence, listOpenLiveCalls, liveCallHasRecording, markLiveCallMediaStarted, retryLiveCallRecording, saveLiveCallTurn, startLivePhoneCall, startLiveWebCall } from "./liveCalls";
+import { blockLiveCaller, extendLiveCallReservation, finishLiveCall, lastLiveCallSequence, listBusinessesWithOpenLiveCalls, listOpenLiveCalls, liveCallHasRecording, markLiveCallMediaStarted, retryLiveCallRecording, saveLiveCallTurn, startLivePhoneCall, startLiveWebCall } from "./liveCalls";
+import { heldForCall } from "./notifications";
 import { periodKeyFor } from "./usage";
 import { loadLiveCallForPricing } from "./voice";
 
@@ -282,6 +283,34 @@ describe.skipIf(!testUrl)("GPT-Live phone calls against PostgreSQL", () => {
     });
   });
 
+  it("lists the businesses with an open GPT-Live call for the recovery job, across tenants", async () => {
+    await rollbackTest(async (tx) => {
+      const minutesAgo = (count: number) => new Date(Date.now() - count * 60_000);
+      const withCall = async (fields: Partial<typeof calls.$inferInsert> & { startedAt: Date }) => {
+        const businessId = await business(tx, { plan: "pro" });
+        await tx.insert(calls).values({ businessId, provider: "openai_live", providerCallId: `live_${randomUUID()}`, transport: "web_voice", ...fields });
+        return businessId;
+      };
+      const orphaned = await withCall({ startedAt: minutesAgo(5) });
+      const orphanedPhone = await withCall({ startedAt: minutesAgo(90), transport: "pstn" });
+      const tooRecent = await withCall({ startedAt: minutesAgo(0.5) });
+      const ended = await withCall({ startedAt: minutesAgo(5), endedAt: minutesAgo(1) });
+      const tooOld = await withCall({ startedAt: minutesAgo(3 * 60) });
+      const notLive = await withCall({ startedAt: minutesAgo(5), provider: "twilio" });
+      const ours = new Set<string>([orphaned, orphanedPhone, tooRecent, ended, tooOld, notLive]);
+
+      // The function trusts only the worker's login identity.
+      await tx.execute(sql`set local session authorization lobbystack_worker`);
+      const listed = await listBusinessesWithOpenLiveCalls({ db: tx as unknown as Database }, { startedBefore: minutesAgo(1) });
+      expect(listed.filter((id) => ours.has(id)).sort()).toEqual([orphaned, orphanedPhone].sort());
+      await tx.execute(sql`reset session authorization`);
+      // The app role can't call it. A savepoint keeps the fixture transaction usable.
+      await tx.execute(sql`set local session authorization lobbystack_app`);
+      await expect(tx.transaction((inner) => inner.execute(sql`select app.list_open_live_call_businesses(now() - interval '2 hours', now())`))).rejects.toMatchObject({ cause: { message: expect.stringMatching(/permission denied/) } });
+      await tx.execute(sql`reset session authorization`);
+    });
+  });
+
   it("reads a call's last saved turn, so a re-attach numbers its turns after it", async () => {
     await rollbackTest(async (tx) => {
       const businessId = await business(tx, { plan: "pro" });
@@ -309,12 +338,24 @@ describe.skipIf(!testUrl)("GPT-Live phone calls against PostgreSQL", () => {
     });
   });
 
+  it("sends the texts held during the call when it finishes, and only that call's", async () => {
+    await rollbackTest(async (tx) => {
+      const businessId = await business(tx, { plan: "pro" });
+      const started = await asWorker(tx, (context) => startLivePhoneCall(context, call(businessId, "+14165550134")));
+      const held = (callId: string) => enqueueOutbox(tx, { topic: "notification.dispatch", businessId, aggregateType: "appointment", aggregateId: randomUUID(), dedupeKey: `notification:${randomUUID()}:dispatch`, ...heldForCall(callId, { notificationId: randomUUID() }) });
+      const [ours, other] = [await held(started.callId), await held(randomUUID())];
+      await asWorker(tx, (context) => finishLiveCall(context, { businessId, callId: started.callId, seconds: 42, end: "caller_hung_up" }));
+      const due = async (id: string) => (await tx.select({ availableAt: outboxMessages.availableAt }).from(outboxMessages).where(eq(outboxMessages.id, id)))[0]!.availableAt.getTime() <= Date.now();
+      expect([await due(ours), await due(other)]).toEqual([true, false]);
+    });
+  });
+
   it("queues the recording copy in the outbox with the call's finish, once, and retries it as a new job", async () => {
     await rollbackTest(async (tx) => {
       const businessId = await business(tx, { plan: "pro" });
       const phone = call(businessId, "+14165550134");
       const started = await asWorker(tx, (context) => startLivePhoneCall(context, phone));
-      const recording = { sessionId: phone.sessionId, durationMs: 42_000 };
+      const recording = { sessionId: phone.sessionId };
       const finished = await asWorker(tx, async (context) => [
         await finishLiveCall(context, { businessId, callId: started.callId, seconds: 42, end: "caller_hung_up", recording }),
         // A late re-attach finishing the same call again queues nothing.
@@ -324,7 +365,7 @@ describe.skipIf(!testUrl)("GPT-Live phone calls against PostgreSQL", () => {
       const jobs = () => tx.select({ dedupeKey: outboxMessages.dedupeKey, payload: outboxMessages.payload, availableAt: outboxMessages.availableAt }).from(outboxMessages).where(and(eq(outboxMessages.aggregateId, started.callId), eq(outboxMessages.topic, "call.saveRecording")));
       const [first, ...rest] = await jobs();
       expect(rest).toHaveLength(0);
-      expect(first).toMatchObject({ dedupeKey: `call:${started.callId}:recording:1`, payload: { callId: started.callId, sessionId: phone.sessionId, durationMs: 42_000, attempt: 1 } });
+      expect(first).toMatchObject({ dedupeKey: `call:${started.callId}:recording:1`, payload: { callId: started.callId, sessionId: phone.sessionId, attempt: 1 } });
       expect(first!.availableAt.getTime()).toBeGreaterThan(Date.now() + 3_000);
 
       // OpenAI answered 404: the next attempt is its own outbox row, ten seconds out.

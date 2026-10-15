@@ -27,6 +27,9 @@ export const WEB_EVENT_NAMES = [
   "web.onboarding.knowledge_uploaded",
   "web.onboarding.knowledge_skipped",
   "web.onboarding.greeting_submitted",
+  "web.onboarding.test_call_continued",
+  "web.onboarding.phone_verified",
+  "web.onboarding.number_waitlist_joined",
   "web.onboarding.number_claim_started",
   "web.onboarding.number_claim_completed",
   "web.onboarding.plan_selected",
@@ -109,17 +112,15 @@ export const WORKFLOW_EVENT_NAMES = [
 
 export const BILLING_EVENT_NAMES = [
   "billing.subscription_started",
+  "billing.subscription_canceled",
 ] as const;
 
 export const OPERATIONS_EVENT_NAMES = [
   "ops.billing.usage_sync_failed",
   "ops.billing.usage_sync_recovered",
   "ops.billing.unit_economics_rollup_recorded",
-  "ops.billing.webhook_unresolved",
   "ops.outbox.backlog_sample",
   "ops.outbox.flush_failed",
-  "ops.service.health_check",
-  "ops.service.health_check_failed",
 ] as const;
 
 export const TELEMETRY_EVENT_NAMES = [
@@ -220,36 +221,10 @@ export type TelemetryContext = {
   model?: string;
 };
 
-export type TelemetryRequirementKey =
-  | keyof TelemetryContext
-  | "deploymentMode"
-  | "pathname"
-  | "countryCode"
-  | "selectionMode"
-  | "numberKind"
-  | "section"
-  | "contentType"
-  | "providerStatus"
-  | "setting"
-  | "contactId"
-  | "inboxItemId"
-  | "hasMedia"
-  | "serviceId"
-  | "sourceChannel"
-  | "staffId"
-  | "workflowName"
-  | "latencyBucket"
-  | "toolName"
-  | "backlogBucket"
-  | "monthKey"
-  | "plan"
-  | "prospectDemoId"
-  | "campaignId"
-  | "endedBy";
-
 export const TELEMETRY_REQUIRED_PROPERTIES_BY_EVENT = {
   "web.auth.login_succeeded": ["deploymentMode", "pathname"],
-  "web.auth.signup_succeeded": ["deploymentMode", "pathname"],
+  // method: "email" or "google".
+  "web.auth.signup_succeeded": ["deploymentMode", "method", "pathname"],
   "web.workspace.business_switched": [
     "businessId",
     "deploymentMode",
@@ -283,6 +258,10 @@ export const TELEMETRY_REQUIRED_PROPERTIES_BY_EVENT = {
   "web.onboarding.knowledge_uploaded": ["businessId", "deploymentMode"],
   "web.onboarding.knowledge_skipped": ["businessId", "deploymentMode"],
   "web.onboarding.greeting_submitted": ["businessId", "deploymentMode"],
+  // heard: whether a test call ended on that screen before the owner moved on.
+  "web.onboarding.test_call_continued": ["businessId", "deploymentMode", "heard"],
+  "web.onboarding.phone_verified": ["businessId", "deploymentMode", "countryCode"],
+  "web.onboarding.number_waitlist_joined": ["businessId", "deploymentMode", "countryCode"],
   "web.onboarding.number_claim_started": [
     "businessId",
     "deploymentMode",
@@ -351,6 +330,8 @@ export const TELEMETRY_REQUIRED_PROPERTIES_BY_EVENT = {
   "web.activation.upgrade_prompt_clicked": ["businessId", "deploymentMode", "trigger"],
   "web.activation.abandon_intent": ["businessId", "deploymentMode", "trigger"],
   "billing.subscription_started": ["businessId", "plan", "billingInterval", "previousPlan"],
+  // reason: the operator's answer in the cancel dialog, or "none" when they skipped it.
+  "billing.subscription_canceled": ["businessId", "plan", "reason"],
   "voice.call_started": [
     "businessId",
     "deploymentMode",
@@ -520,21 +501,8 @@ export const TELEMETRY_REQUIRED_PROPERTIES_BY_EVENT = {
     "deploymentMode",
     "monthKey",
   ],
-  "ops.billing.webhook_unresolved": ["deploymentMode", "provider"],
   "ops.outbox.backlog_sample": ["deploymentMode", "backlogBucket"],
   "ops.outbox.flush_failed": ["deploymentMode"],
-  "ops.service.health_check": [
-    "deploymentMode",
-    "service",
-    "status",
-    "latencyMs",
-  ],
-  "ops.service.health_check_failed": [
-    "deploymentMode",
-    "service",
-    "status",
-    "latencyMs",
-  ],
 } satisfies Record<TelemetryEventName, ReadonlyArray<string>>;
 
 export type TelemetryValidationInput = Partial<TelemetryContext> & {

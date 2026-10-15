@@ -35,12 +35,6 @@ export const polarWebhookSchema = z.object({
   data: z.record(z.string(), z.unknown()),
 });
 
-export const resendWebhookSchema = z.looseObject({
-  type: z.string().min(1).max(160),
-  created_at: z.iso.datetime().optional(),
-  data: z.record(z.string(), z.unknown()),
-});
-
 const uploadContentTypes = {
   knowledge: new Set(["text/plain", "text/markdown", "text/x-markdown", "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/png", "image/webp", "image/tiff"]),
   attachment: new Set(["text/plain", "application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif", "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm"]),
@@ -52,13 +46,14 @@ export type UploadPurpose = keyof typeof uploadContentTypes;
 
 export function isAllowedUploadContentType(purpose: string, contentType: string): boolean {
   const allowed = uploadContentTypes[purpose as UploadPurpose];
-  const normalized = contentType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
-  return Boolean(allowed?.has(normalized as never));
+  // The whole value, parameters included: browsers read `text/plain;x,text/html` as HTML. File.type never has parameters.
+  return Boolean(allowed?.has(contentType.toLowerCase() as never));
 }
 
 export const uploadCreateRequestSchema = z.object({
   businessId: z.guid(),
-  purpose: z.enum(["knowledge", "attachment", "recording", "export"]),
+  // Browsers only upload knowledge documents; other purposes are written server side.
+  purpose: z.enum(["knowledge"]),
   fileName: z.string().min(1).max(255),
   contentType: z.string().min(1).max(255),
   length: z.number().int().positive().max(500_000_000),
@@ -121,7 +116,8 @@ export const snapshotSchema = z.object({
   displayName: z.string().min(1),
   legalName: z.string().optional(),
   timezone: z.string().min(1),
-  defaultLocale: z.enum(["en", "fr"]),
+  // runtimeLocales from @lobbystack/shared, which this package doesn't depend on.
+  defaultLocale: z.enum(["en", "fr", "es", "sr", "de", "pt", "it", "nl"]),
   businessType: z.string().min(1),
   telemetryEnabled: z.boolean().optional(),
   greeting: z.string(),
@@ -130,6 +126,7 @@ export const snapshotSchema = z.object({
   chatInstructions: z.string(),
   summary: z.string(),
   bookingPolicy: z.string(),
+  bookingMode: z.enum(["off", "request", "instant"]).optional(),
   knowledgeDigest: z.string(),
   knowledgeSnippets: z.array(z.object({
     id: z.string(),
@@ -170,6 +167,11 @@ export const snapshotSchema = z.object({
     localizedNames: z.object({ en: z.string().optional(), fr: z.string().optional() }).optional(),
     durationMinutes: z.number().int().positive(),
     description: z.string().optional(),
+    price: z.discriminatedUnion("type", [
+      z.object({ type: z.enum(["fixed", "from"]), amountMinor: z.number().int().nonnegative(), currency: z.string().regex(/^[A-Z]{3}$/), discountPercent: z.number().gt(0).max(100).optional() }),
+      z.object({ type: z.literal("range"), amountMinor: z.number().int().nonnegative(), maxAmountMinor: z.number().int().nonnegative(), currency: z.string().regex(/^[A-Z]{3}$/), discountPercent: z.number().gt(0).max(100).optional() }),
+      z.object({ type: z.literal("in_person") }),
+    ]).optional(),
   })),
   contactChannels: z.object({
     phoneNumber: z.string().optional(),
@@ -189,12 +191,13 @@ export const outboxMessageSchema = z.object({
   trace: traceContextSchema,
 });
 
-export const jobQueues = ["critical", "default", "bulk", "maintenance"] as const;
+// Webhook deliveries get their own queue: a tenant's slow endpoint holds a slot
+// for up to 10 s per attempt and must not hold up other tenants' bookings.
+export const jobQueues = ["critical", "default", "bulk", "maintenance", "webhooks"] as const;
 export type JobQueue = (typeof jobQueues)[number];
 
 export const queueForJobType = {
   "email.send": "default",
-  "email.reconcileDelivery": "default",
   "sms.send": "critical",
   "appointment.sendChangeOtp": "critical",
   "sms.syncPrice": "critical",
@@ -207,10 +210,9 @@ export const queueForJobType = {
   "billing.createCheckout": "critical",
   "calendar.syncAppointment": "default",
   "calendar.reconcileBusiness": "default",
+  "calendar.deleteEvent": "default",
   "knowledge.extractDocument": "bulk",
   "knowledge.crawlWebsite": "bulk",
-  "knowledge.indexDocument": "bulk",
-  "knowledge.reindexBusiness": "bulk",
   "knowledge.reembedBusiness": "bulk",
   "business.generateSummary": "bulk",
   "business.extractHours": "bulk",
@@ -219,20 +221,23 @@ export const queueForJobType = {
   "notification.dailySummary": "maintenance",
   "conversation.finalizeSession": "default",
   "privacy.scrubMessage": "maintenance",
-  "privacy.deleteTranscript": "maintenance",
   "privacy.deleteRecording": "maintenance",
   "privacy.cleanupPendingUpload": "maintenance",
-  "phoneVerification.send": "critical",
   "phoneVerification.sendCode": "critical",
   "phoneNumber.provision": "critical",
   "phoneNumber.reclaim": "maintenance",
+  // Moves a number between the receptionist and the forward-or-reject fallback; callers notice a delay.
+  "phoneNumber.route": "critical",
+  "numberTrial.sweep": "maintenance",
+  "numberTrial.sendEmail": "default",
+  "phoneNumber.releaseEmail": "default",
   "prospectDemo.expire": "maintenance",
   "onboarding.sendFollowup": "default",
   "affiliate.generatePayoutRun": "maintenance",
   "telemetry.flush": "maintenance",
   "outbox.backlogSample": "maintenance",
   "realtime.publish": "default",
-  "webhook.deliver": "default",
+  "webhook.deliver": "webhooks",
   "api.retention": "maintenance",
 } as const satisfies Record<string, JobQueue>;
 export type JobType = keyof typeof queueForJobType;

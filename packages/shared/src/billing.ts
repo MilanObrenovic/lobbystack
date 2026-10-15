@@ -62,6 +62,8 @@ export const billingErrorCodes = {
   aiSmsNotEnabled: "ai_sms_not_enabled",
   dedicatedNumberRequiresPaidPlan: "dedicated_number_requires_paid_plan",
   chatAiLimitReached: "chat_ai_limit_reached",
+  checkoutInProgress: "checkout_in_progress",
+  subscriptionActive: "subscription_active",
 } as const;
 
 export type BillingErrorCode =
@@ -218,54 +220,6 @@ export function contentRetentionDaysForPlan(
     return Math.min(base, FREE_CONTENT_RETENTION_MAX_DAYS);
   }
   return overrides?.[category] ?? base;
-}
-
-export const billingAddonCatalog = {
-  ai_sms: {
-    recurringMonthlyChargeCents: 500,
-    oneTimeSetupChargeCents: 1_900,
-    usageRatePerSegmentCents: 3,
-  },
-} as const satisfies Record<
-  BillingAddonSlug,
-  {
-    recurringMonthlyChargeCents: number;
-    oneTimeSetupChargeCents: number;
-    usageRatePerSegmentCents: number;
-  }
->;
-
-export function getBillingMonthlyChargeCents(input: {
-  plan: BillingPlanSlug;
-  billingInterval?: BillingInterval | null;
-  activeAddons?: Array<BillingAddonSlug>;
-}): number | null {
-  const planConfig = billingPlanCatalog[input.plan];
-  const baseMonthlyChargeCents =
-    input.billingInterval === "annual"
-      ? planConfig.annualEffectiveMonthlyChargeCents
-      : planConfig.monthlyChargeCents;
-  if (baseMonthlyChargeCents === null) {
-    return null;
-  }
-
-  const recurringAddonChargeCents = (input.activeAddons ?? []).reduce<number>(
-    (total, addon) => total + billingAddonCatalog[addon].recurringMonthlyChargeCents,
-    0,
-  );
-
-  return baseMonthlyChargeCents + recurringAddonChargeCents;
-}
-
-export function getBillingPeriodChargeCents(input: {
-  plan: BillingPlanSlug;
-  billingInterval?: BillingInterval | null;
-}): number | null {
-  const planConfig = billingPlanCatalog[input.plan];
-  if (input.billingInterval === "annual") {
-    return planConfig.annualChargeCents;
-  }
-  return planConfig.monthlyChargeCents;
 }
 
 export type PolarMeteredUsagePayload = {

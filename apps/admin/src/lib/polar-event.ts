@@ -27,11 +27,15 @@ export function normalizePolarEvent(type: string, data: RecordValue, env: Record
   });
   const businessId = references.find(isUuid);
   const candidate = businessId ?? references[0];
-  const productId = text(subscription.product_id) ?? text(data.product_id);
+  // Only a subscription sets the plan; a checkout or one-off order with a product_id must not.
+  const productId = text(subscription.product_id);
   const match = (["starter", "pro"] as const).flatMap(plan => (["monthly", "annual"] as const).map(interval => ({ plan, interval, id: env[`POLAR_${plan.toUpperCase()}_${interval.toUpperCase()}_PRODUCT_ID`] }))).find(product => product.id && product.id === productId);
   const subscriptionId = text(subscription.id) ?? text(data.subscription_id);
   const customerId = text(customer.id) ?? text(data.customer_id);
   const subscriptionState = text(subscription.status);
+  // Reconcile orders subscription snapshots by this, so a late retry cannot roll state back.
+  const modifiedAt = new Date(text(subscription.modified_at) ?? text(subscription.created_at) ?? Number.NaN);
+  const subscriptionModifiedAt = Number.isNaN(modifiedAt.valueOf()) ? undefined : modifiedAt.toISOString();
   return {
     businessId,
     businessReference: candidate,
@@ -42,6 +46,7 @@ export function normalizePolarEvent(type: string, data: RecordValue, env: Record
       ...(subscriptionId ? { subscriptionId } : {}),
       ...(match ? { plan: match.plan, billingInterval: match.interval } : {}),
       ...(subscriptionState ? { subscriptionState } : {}),
+      ...(subscriptionModifiedAt ? { subscriptionModifiedAt } : {}),
     },
   };
 }

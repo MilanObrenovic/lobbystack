@@ -66,7 +66,7 @@ function dateTime(value: string, locale: string, dateOnly = false): string {
 }
 
 function resolveCallStatus(status: string, disposition: string | null): "blocked" | "completed" | "failed" | "in_progress" {
-  if (status === "in_progress" || status === "open") return "in_progress";
+  if (status === "started" || status === "in_progress" || status === "open") return "in_progress";
   const value = disposition?.trim().toLowerCase() ?? "";
   if (value.includes("blocked")) return "blocked";
   if (["failed", "busy", "canceled", "cancelled", "no_answer", "missed"].some((part) => value.includes(part))) return "failed";
@@ -105,6 +105,18 @@ const calendarSyncStateKeys: Record<string, string> = {
 function calendarSyncStateLabel(state: string, t: ReturnType<typeof useTranslation<"contacts">>["t"]): string {
   const key = calendarSyncStateKeys[state.trim().toLowerCase()];
   return key ? t(`detail.appointments.syncStateValues.${key}`) : humanize(state);
+}
+
+// Only "subscribed" gets texts. "declined" means the contact was asked and said no.
+const smsConsentStatusKeys: Record<string, string> = {
+  subscribed: "subscribed",
+  declined: "declined",
+  opted_out: "optedOut",
+};
+
+function smsConsentStatusLabel(status: string, t: ReturnType<typeof useTranslation<"contacts">>["t"]): string {
+  const key = smsConsentStatusKeys[status.trim().toLowerCase()];
+  return key ? t(`detail.details.smsConsentStatusValues.${key}`) : humanize(status);
 }
 
 export function LiveContactDetailSurface({ contactId }: { contactId: string }) {
@@ -235,7 +247,7 @@ function DetailsTab({ contact, copiedField, locale, onCopy }: { contact: NonNull
   return <div className="py-4"><Surface className="flex flex-col">
     <DetailSection className="ph-mask" title={t("detail.details.contactInfoTitle")}><DescriptionList rows={[[t("detail.details.name"), contact.name ?? t("detail.details.notSet")], [t("detail.details.phone"), hasDisplayablePhone(contact.phone) ? formatPhoneNumberDisplay(contact.phone, locale) : t("detail.details.notSet")], [t("detail.details.email"), contact.email ?? t("detail.details.notSet")], [t("detail.details.timezone"), contact.timezone ?? t("detail.details.notSet")], [t("detail.details.preferredLocale"), contact.preferredLocale ? new Intl.DisplayNames([intlLocale(locale)], { type: "language" }).of(contact.preferredLocale) ?? contact.preferredLocale : t("detail.details.notSet")]]} /></DetailSection>
     <DetailSection className="border-t" title={t("detail.details.blockingTitle")}><DescriptionList rows={[[t("detail.details.blockingStatus"), contact.operatorBlockedAt ? t("detail.blocking.badge") : t("detail.blocking.active")], [t("detail.details.blockedAt"), contact.operatorBlockedAt ? dateTime(contact.operatorBlockedAt, locale) : t("detail.details.notSet")], [t("detail.details.blockedBy"), t("detail.details.notSet")]]} /></DetailSection>
-    <DetailSection className="border-t" title={t("detail.details.smsConsentTitle")}><DescriptionList rows={[[t("detail.details.smsConsentStatus"), contact.smsConsentStatus ?? t("detail.details.notSet")], [t("detail.details.smsConsentUpdatedAt"), contact.smsConsentUpdatedAt ? dateTime(contact.smsConsentUpdatedAt, locale) : t("detail.details.notSet")], [t("detail.details.smsConsentSource"), contact.smsConsentSource ?? t("detail.details.notSet")]]} /></DetailSection>
+    <DetailSection className="border-t" title={t("detail.details.smsConsentTitle")}><DescriptionList rows={[[t("detail.details.smsConsentStatus"), contact.smsConsentStatus ? smsConsentStatusLabel(contact.smsConsentStatus, t) : t("detail.details.notSet")], [t("detail.details.smsConsentUpdatedAt"), contact.smsConsentUpdatedAt ? dateTime(contact.smsConsentUpdatedAt, locale) : t("detail.details.notSet")], [t("detail.details.smsConsentSource"), contact.smsConsentSource ?? t("detail.details.notSet")]]} /></DetailSection>
     <DetailSection className="border-t" title={t("detail.details.systemTitle")}><dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-6 gap-y-3"><dt className="type-meta">{t("detail.details.contactId")}</dt><dd className="flex items-center gap-1.5"><span className="type-technical-value">{truncateId(displayId)}</span><button aria-label={t("detail.details.copy")} className={cn("text-muted-foreground", copiedField === "contactId" && "text-emerald-500")} onClick={() => onCopy(displayId, "contactId")} type="button">{copiedField === "contactId" ? <CheckCircle2 className="size-3" /> : <Copy className="size-3" />}</button></dd><dt className="type-meta">{t("detail.details.createdAt")}</dt><dd className="type-body">{dateTime(contact.createdAt, locale)}</dd></dl></DetailSection>
   </Surface></div>;
 }

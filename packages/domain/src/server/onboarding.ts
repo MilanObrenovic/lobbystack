@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { normalizeInterfaceLocale, type InterfaceLocale } from "@lobbystack/shared";
 
-import { billingAccounts, businesses, enqueueOutbox, users, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
+import { businesses, enqueueOutbox, users, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
 
 import { requireBusinessAdmin } from "../authz";
 import type { DomainContext } from "./context";
@@ -19,7 +19,8 @@ export type OnboardingStage =
   | "website"
   | "knowledge"
   | "greeting"
-  | "plan"
+  | "test_call"
+  | "verify_phone"
   | "phone_number"
   | "phone_number_claiming"
   | "attribution"
@@ -30,7 +31,8 @@ const stageRoutes: Record<OnboardingStage, string> = {
   website: "/onboarding/website",
   knowledge: "/onboarding/knowledge",
   greeting: "/onboarding/greeting",
-  plan: "/onboarding/plan",
+  test_call: "/onboarding/test-call",
+  verify_phone: "/onboarding/verify-phone",
   phone_number: "/onboarding/number",
   phone_number_claiming: "/onboarding/number",
   attribution: "/onboarding/attribution",
@@ -42,29 +44,34 @@ const stageSteps: Record<OnboardingStage, number> = {
   website: 3,
   knowledge: 4,
   greeting: 5,
-  plan: 6,
-  phone_number: 7,
-  phone_number_claiming: 7,
-  attribution: 8,
-  complete: 9,
+  test_call: 6,
+  verify_phone: 7,
+  phone_number: 8,
+  phone_number_claiming: 8,
+  attribution: 9,
+  complete: 10,
 };
 
+// Owners hear their agent before anything else is asked of them. Verifying a
+// phone leads to the number step, or straight to attribution when the
+// business's country has no numbers yet or the owner skips the number.
 const transitions: Record<OnboardingStage, readonly OnboardingStage[]> = {
   create_business: ["website"],
   website: ["knowledge"],
   knowledge: ["greeting"],
-  greeting: ["plan"],
-  plan: ["phone_number", "attribution"],
+  greeting: ["test_call"],
+  test_call: ["verify_phone"],
+  verify_phone: ["phone_number", "attribution"],
   phone_number: ["attribution"],
   phone_number_claiming: ["phone_number", "attribution"],
   attribution: ["complete"],
   complete: [],
 };
 
-// Personal phone verification was removed from onboarding. Workspaces parked on
-// a verification stage before the removal normalize forward to plan so they
-// resume instead of looping on a step that no longer exists.
-const legacyVerificationStages = new Set(["verify_phone", "verify_phone_code"]);
+// The plan step left onboarding: plans now come after the owner has heard
+// their agent. A workspace parked on it, or on the second screen of the old
+// phone verification, resumes at the nearest step that still exists.
+const legacyStages: Record<string, OnboardingStage> = { plan: "test_call", verify_phone_code: "verify_phone" };
 
 export function isOnboardingStage(value: unknown): value is OnboardingStage {
   return typeof value === "string" && Object.hasOwn(stageRoutes, value);
@@ -72,16 +79,12 @@ export function isOnboardingStage(value: unknown): value is OnboardingStage {
 
 export function normalizeOnboardingStage(value: unknown): OnboardingStage {
   if (isOnboardingStage(value)) return value;
-  if (typeof value === "string" && legacyVerificationStages.has(value)) return "plan";
+  if (typeof value === "string" && Object.hasOwn(legacyStages, value)) return legacyStages[value]!;
   return "create_business";
 }
 
 export function resolveOnboardingRoute(stage: string | null | undefined): string {
   return stageRoutes[normalizeOnboardingStage(stage ?? "create_business")];
-}
-
-export function resolveOnboardingStageForPlan(stage: OnboardingStage, plan: string | null): OnboardingStage {
-  return (stage === "phone_number" || stage === "phone_number_claiming") && plan === "free_cloud" ? "plan" : stage;
 }
 
 export function isValidOnboardingTransition(from: OnboardingStage, to: OnboardingStage): boolean {
@@ -104,11 +107,7 @@ async function onboardingStateForBusiness(
   await tx.execute(sql`select set_config('app.business_id', ${businessId}, true)`);
   const business = (await tx.select({ onboardingStage: businesses.onboardingStage }).from(businesses).where(eq(businesses.id, businessId)).limit(1))[0];
   if (!business) return null;
-  const billing = (await tx.select({ plan: billingAccounts.plan }).from(billingAccounts).where(eq(billingAccounts.businessId, businessId)).limit(1))[0];
-  return {
-    businessId,
-    stage: resolveOnboardingStageForPlan(normalizeOnboardingStage(business.onboardingStage), billing?.plan ?? null),
-  };
+  return { businessId, stage: normalizeOnboardingStage(business.onboardingStage) };
 }
 
 export async function getActiveOnboardingState(
@@ -181,6 +180,22 @@ export async function submitOnboardingAttribution(
   context: DomainContext,
   input: { userId: string; businessId: string; source?: string | null; referralCode?: string | null },
 ): Promise<void> {
+  if (input.referralCode) {
+    // Attribute before the stage moves to complete, so a retry after a failed
+    // attribution still finds the "attribution" stage. Only that onboarding step
+    // attributes, so a finished business cannot be credited to a new referrer.
+    const stage = await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
+      await requireBusinessAdmin(tx, input);
+      return (await tx.select({ onboardingStage: businesses.onboardingStage }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1))[0]?.onboardingStage;
+    });
+    // The operator transaction above proved business administration. Attribution
+    // runs separately as the system actor because the referrer's profile is not
+    // visible under the referred operator's RLS context. It is idempotent, so a
+    // retried submission cannot double count.
+    if (stage === "attribution") {
+      await attributeBusiness(context, { businessId: input.businessId, referredUserId: input.userId, referralCode: input.referralCode, source: "referral_link" });
+    }
+  }
   await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
     const changed = await tx.update(businesses)
@@ -205,13 +220,6 @@ export async function submitOnboardingAttribution(
       payload: { completedAt: completedAt.toISOString() },
     });
   });
-  // The operator transaction above proved business administration. Attribution
-  // runs separately as the system actor because the referrer's profile is not
-  // visible under the referred operator's RLS context. It is idempotent, so a
-  // retried submission cannot double count.
-  if (input.referralCode) {
-    await attributeBusiness(context, { businessId: input.businessId, referredUserId: input.userId, referralCode: input.referralCode, source: "referral_link" });
-  }
 }
 
 export const ONBOARDING_FOLLOWUP_DELAY_MS = 24 * 60 * 60_000;

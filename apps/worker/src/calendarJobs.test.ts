@@ -2,12 +2,14 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ transaction: vi.fn(), token: vi.fn(), update: vi.fn(), updateTx: vi.fn(), mark: vi.fn(), busy: vi.fn(), backfill: vi.fn(), record: vi.fn() }));
 vi.mock("@lobbystack/db", async (original) => ({ ...await original<typeof import("@lobbystack/db")>(), withBusinessTransaction: mocks.transaction }));
 vi.mock("@lobbystack/domain", () => ({ CALENDAR_SYNC_HORIZON_MS: 90 * 86400_000, resolveCalendarAccessToken: mocks.token, updateAppointmentSyncState: mocks.update, updateAppointmentSyncStateInTransaction: mocks.updateTx, markCalendarConnectionSync: mocks.mark, queueUnsyncedAppointmentSyncs: mocks.backfill, upsertBusyBlocks: mocks.busy, recordProductEvent: mocks.record }));
-import { reconcileBusinessCalendar, syncAppointmentCalendar } from "./calendarJobs";
+import { calendarConnections } from "@lobbystack/db";
+import { deleteReleasedCalendarEvent, reconcileBusinessCalendar, syncAppointmentCalendar } from "./calendarJobs";
 
-type Chain = Promise<unknown[]> & { from: () => Chain; innerJoin: () => Chain; leftJoin: () => Chain; where: () => Chain; orderBy: () => Chain; limit: () => Chain };
+type Chain = Promise<unknown[]> & { from: () => Chain; innerJoin: () => Chain; leftJoin: () => Chain; where: () => Chain; orderBy: () => Chain; limit: () => Chain; for: (...args: unknown[]) => Chain };
 let batches: unknown[][];
 const execute = vi.fn();
-function query() { const chain = Promise.resolve(batches.shift() ?? []) as Chain; for (const method of ["from", "innerJoin", "leftJoin", "where", "orderBy", "limit"] as const) chain[method] = () => chain; return chain; }
+const lock = vi.fn();
+function query() { const chain = Promise.resolve(batches.shift() ?? []) as Chain; for (const method of ["from", "innerJoin", "leftJoin", "where", "orderBy", "limit"] as const) chain[method] = () => chain; chain.for = (...args) => { lock(...args); return chain; }; return chain; }
 const provider = { getBusyBlocks: vi.fn(), upsertEvent: vi.fn(), deleteEvent: vi.fn(), refreshAccessToken: vi.fn() };
 const dependencies = { domain: { db: {} as never }, calendar: provider };
 const appointment = { id: "appointment", status: "confirmed", startsAt: new Date("2026-09-14T10:00:00Z"), endsAt: new Date("2026-09-14T10:30:00Z"), externalEventId: "event", serviceName: "Service", contactName: null, connectionId: "connection", calendarId: "selected", connectionStatus: "connected", provider: "google" };
@@ -32,6 +34,12 @@ it("rereads durable cancellation state and deletes instead of rewriting the even
   expect(mocks.updateTx).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ state: "synced" }));
 });
 
+it("holds the connection row while it writes the event, so a calendar switch waits for it", async () => {
+  await syncAppointmentCalendar(dependencies, { businessId: "business", appointmentId: "appointment" });
+  expect(lock).toHaveBeenLastCalledWith("share", { of: calendarConnections });
+  expect(lock.mock.invocationCallOrder.at(-1)).toBeLessThan(provider.upsertEvent.mock.invocationCallOrder[0]!);
+});
+
 it("uses deterministic event identity for creates and reschedules", async () => {
   batches = [[{ ...appointment, externalEventId: null }], [{ ...appointment, externalEventId: null }]];
   await syncAppointmentCalendar(dependencies, { businessId: "business", appointmentId: "appointment" });
@@ -43,7 +51,7 @@ it("preserves busy data on one calendar failure and still reconciles other conne
   provider.getBusyBlocks.mockRejectedValueOnce(new Error("permission denied")).mockResolvedValueOnce([]);
   await expect(reconcileBusinessCalendar(dependencies, "business")).rejects.toThrow("1 connection");
   expect(mocks.busy).toHaveBeenCalledOnce();
-  expect(mocks.busy).toHaveBeenCalledWith(dependencies.domain, expect.objectContaining({ connectionId: "second", calendarId: "two", markSynced: true }));
+  expect(mocks.busy).toHaveBeenCalledWith(dependencies.domain, expect.objectContaining({ connectionId: "second", calendarId: "two" }));
   expect(mocks.mark).toHaveBeenCalledWith(dependencies.domain, expect.objectContaining({ connectionId: "first", error: "permission denied" }));
 });
 
@@ -67,6 +75,18 @@ it("records integration.calendar_sync_failed with the appointment and provider",
     businessId: "business",
     properties: { appointmentId: "appointment", provider: "google" },
   }));
+  // One failed event write must not mark the whole connection stale and block every booking.
+  expect(mocks.mark).not.toHaveBeenCalled();
+});
+
+it("marks the connection when its credentials cannot be resolved", async () => {
+  mocks.token.mockRejectedValue(new Error("Google Calendar authorization requires reconnection."));
+
+  await expect(syncAppointmentCalendar(dependencies, { businessId: "business", appointmentId: "appointment" })).rejects.toThrow("requires reconnection");
+
+  expect(provider.upsertEvent).not.toHaveBeenCalled();
+  expect(mocks.update).toHaveBeenCalledWith(dependencies.domain, expect.objectContaining({ appointmentId: "appointment", state: "failed" }));
+  expect(mocks.mark).toHaveBeenCalledWith(dependencies.domain, { businessId: "business", connectionId: "connection", error: "Google Calendar authorization requires reconnection." });
 });
 
 it("does not record a sync failure when the calendar selection changed mid-sync", async () => {
@@ -76,4 +96,17 @@ it("does not record a sync failure when the calendar selection changed mid-sync"
 
   expect(mocks.mark).not.toHaveBeenCalled();
   expect(mocks.record).not.toHaveBeenCalled();
+});
+
+it("deletes a released booking's event from the calendar its connection left, unless it switched back and wrote it again", async () => {
+  const release = { businessId: "business", appointmentId: "appointment", connectionId: "connection", calendarId: "old", eventId: "event" };
+  batches = [[{ status: "connected", selectedCalendarId: "new" }], [{ eventId: "event" }]];
+  await expect(deleteReleasedCalendarEvent(dependencies, release)).resolves.toMatchObject({ status: "completed" });
+  expect(provider.deleteEvent).toHaveBeenCalledWith({ accessToken: "access", calendarId: "old", eventId: "event" });
+  provider.deleteEvent.mockClear();
+  batches = [[{ status: "connected", selectedCalendarId: "old" }], [{ eventId: "event" }]];
+  await expect(deleteReleasedCalendarEvent(dependencies, release)).resolves.toMatchObject({ status: "skipped" });
+  batches = [[{ status: "disconnected", selectedCalendarId: "new" }], [{ eventId: null }]];
+  await expect(deleteReleasedCalendarEvent(dependencies, release)).resolves.toMatchObject({ status: "skipped" });
+  expect(provider.deleteEvent).not.toHaveBeenCalled();
 });

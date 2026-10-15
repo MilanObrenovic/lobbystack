@@ -249,7 +249,7 @@ for (const routeCase of routes) for (const viewport of viewports) for (const loc
         await context.route("**/api/billing?*", async route => {
           const response = await route.fetch();
           const original = await response.json();
-          await route.fulfill({ json: { ...original, permissions, availableCheckoutPlans: [], availableCheckoutIntervals: { starter: [], pro: [] },
+          await route.fulfill({ json: { ...original, permissions, availableCheckoutPlans: [], availableCheckoutIntervals: { starter: [], pro: [] }, effectivePlan: "pro",
             account: { ...original.account, plan: "pro", subscriptionState: "active", billingInterval: "monthly", overageSpendingCapCents: 1250 },
             usageStatus: { ...original.usageStatus, overageSpendCents: 250, usageComplete: complete, overageSpendingCapReached: false }, transactions,
           } });
@@ -462,7 +462,8 @@ for (const routeCase of routes) for (const viewport of viewports) for (const loc
       await page.getByRole("button", { name: agent.sections.knowledge.addKnowledge, exact: true }).click();
       await page.getByRole("menuitem", { name: agent.sections.knowledge.addKnowledgeOptions[kind], exact: true }).click();
       await expect(page.getByRole("dialog")).toBeVisible();
-      await expect(page.getByRole("dialog").getByRole("button", { name: kind === "website" ? agent.sections.knowledge.websiteImport.submit : agent.actions.save, exact: true })).toBeEnabled();
+      const submit = kind === "website" ? agent.sections.knowledge.websiteImport.submit : kind === "upload" ? agent.actions.upload : agent.actions.add;
+      await expect(page.getByRole("dialog").getByRole("button", { name: submit, exact: true })).toBeEnabled();
     }
     if (routeCase.interaction?.startsWith("import-")) {
       await expect(page.getByText("example.invalid/help", { exact: true })).toBeVisible();

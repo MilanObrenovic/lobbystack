@@ -13,6 +13,14 @@
     "./product-capabilities": {
       "types": "./dist/product-capabilities.d.ts",
       "default": "./dist/product-capabilities.js"
+    },
+    "./plan-cards": {
+      "types": "./dist/planCards.d.ts",
+      "default": "./dist/planCards.js"
+    },
+    "./plan-comparison": {
+      "types": "./dist/planComparison.d.ts",
+      "default": "./dist/planComparison.js"
     }
   },
   "dependencies": {

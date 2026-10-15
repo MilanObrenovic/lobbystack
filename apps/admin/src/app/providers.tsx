@@ -1,9 +1,10 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { I18nextProvider } from "react-i18next";
+import { toast } from "sonner";
 
 import { ProductAnalytics } from "@/components/product-analytics";
 import { AppearanceProvider } from "@/components/appearance-provider";
@@ -26,8 +27,13 @@ type ProvidersProps = {
 };
 
 export function Providers({ children, initialLocale, initialLocaleSource, initialResources }: ProvidersProps) {
-  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { staleTime: 10_000, refetchOnWindowFocus: false } } }));
   const [i18n] = useState(() => createI18nInstance({ locale: initialLocale, resources: initialResources }));
+  const [queryClient] = useState(() => new QueryClient({
+    // A failed action must never end silently. Mutations that report their own
+    // failure set onError or meta.inlineError and skip this generic toast.
+    mutationCache: new MutationCache({ onError: (_error, _variables, _context, mutation) => { if (!mutation.options.onError && !mutation.meta?.inlineError) toast.error(i18n.t("common:errors.unexpected")); } }),
+    defaultOptions: { queries: { staleTime: 10_000, refetchOnWindowFocus: false } },
+  }));
   const pathname = usePathname() ?? "/";
   const namespaceKey = routeNamespaces(pathname).join(",");
   const [language, setLanguage] = useState(() => i18n.resolvedLanguage ?? initialLocale);
@@ -75,7 +81,7 @@ export function Providers({ children, initialLocale, initialLocaleSource, initia
   return (
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18n}>
-        <ThemeProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AppearanceProvider>
             <LocaleProvider initialLocale={initialLocale} initialLocaleSource={initialLocaleSource}>
               <ProductAnalytics>

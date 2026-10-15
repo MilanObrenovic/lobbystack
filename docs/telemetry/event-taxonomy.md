@@ -121,18 +121,19 @@ The answer gap skips caller speech that ended while the receptionist was still t
 
 `billing.subscription_started` fires once, when a workspace crosses from free into a live paid plan. Renewals, plan changes between paid tiers, and recovery from `past_due` do not repeat it, so the event counts subscriptions rather than webhooks. The worker records it after the reconciling transaction commits, which means a reporting failure cannot roll back a payment.
 
+`billing.subscription_canceled` fires when an owner or admin cancels the plan from **Settings → Plan** and Polar accepts the request. The admin route records it after Polar schedules the end of the current period, so the plan stays active until then. `reason` holds the answer to the dialog's optional question: `setup`, `quality`, `price`, `missing_feature`, `other`, or `none` when the operator skips it. The event carries `hasComment` but never the comment itself. Polar stores the comment with the subscription.
+
 - `billing.subscription_started`
+- `billing.subscription_canceled`
 
 ### Operations events
 
-Outbox health is reported durably from the worker. A tenant-scoped `outbox.backlogSample` job runs every 60 seconds, counts that business's publishable outbox rows, and records `ops.outbox.backlog_sample` with `deploymentMode` and `backlogBucket`. A zero backlog is not emitted, so the event tracks real backlog without idle-workspace noise.
+Outbox health is reported durably from the worker. A tenant-scoped `outbox.backlogSample` job runs every 60 seconds for each active business, counts that business's publishable outbox rows, and records `ops.outbox.backlog_sample` with `deploymentMode` and `backlogBucket`. A zero backlog is not emitted, so the event tracks real backlog without idle-workspace noise.
 
 `ops.outbox.flush_failed` remains a registered but undelivered contract. The dispatcher runs as `lobbystack_dispatcher`, which has no write grant on `product_events`, and a global poll failure has no tenant to scope an RLS-safe row to. Until a worker-role consumer exists, dispatcher failures are tracked by OpenTelemetry counters (`lobbystack.outbox.dispatch_failures`, `lobbystack.outbox.dead_lettered`, `lobbystack.outbox.poll_failures`).
 
 - `ops.outbox.backlog_sample`
 - `ops.outbox.flush_failed`
-- `ops.service.health_check`
-- `ops.service.health_check_failed`
 
 ## Shared defaults
 

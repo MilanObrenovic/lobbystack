@@ -7,7 +7,7 @@ afterEach(cleanup);
 const labels = { countryLabel: "Country", areaCodeLabel: "Area code", areaCodePlaceholder: "Area", search: "Search", phoneNumberHeader: "Phone number", select: "Select", loadMore: "Load more", empty: "Empty", loadFailed: "Load failed", searchFailed: "Search failed", claimFailed: "Claim failed", unavailable: "Unavailable" };
 function offer(index: number): AvailableNumberSummary { return { e164: `+14165550${String(index).padStart(3, "0")}`, display: `(416) 555-0${String(index).padStart(3, "0")}`, countryCode: "CA", kind: "local", capabilities: { sms: true, voice: true }, selectionContext: { mode: "suggested", countryCode: "CA" }, claimToken: `token-${index}` }; }
 function setup(overrides: Partial<React.ComponentProps<typeof PhoneNumberChooser>> = {}) {
-  const props = { businessId: "business-1", labels, getErrorMessage: (_error: unknown, fallback: string) => fallback, getInitialNumberSuggestion: vi.fn().mockResolvedValue({ market: { countryCode: "CA", areaCode: "416" }, suggestion: offer(0), alternatives: Array.from({ length: 9 }, (_, i) => offer(i + 1)) }), searchAvailableNumbers: vi.fn().mockResolvedValue({ market: { countryCode: "CA" }, selectionContext: { mode: "suggested", countryCode: "CA" }, numbers: Array.from({ length: 20 }, (_, i) => offer(i)) }), claimNumber: vi.fn().mockResolvedValue({ status: "failed", message: "Failed" }), onClaimed: vi.fn(), ...overrides };
+  const props = { businessId: "business-1", labels, getErrorMessage: (_error: unknown, fallback: string) => fallback, getInitialNumberSuggestion: vi.fn().mockResolvedValue({ market: { countryCode: "CA", areaCode: "416" }, suggestion: offer(0), alternatives: Array.from({ length: 9 }, (_, i) => offer(i + 1)) }), searchAvailableNumbers: vi.fn().mockResolvedValue({ market: { countryCode: "CA" }, selectionContext: { mode: "suggested", countryCode: "CA" }, numbers: Array.from({ length: 20 }, (_, i) => offer(i)) }), claimNumber: vi.fn().mockResolvedValue({ status: "failed" }), onClaimed: vi.fn(), ...overrides };
   render(<PhoneNumberChooser {...props} />);
   return props;
 }
@@ -20,6 +20,12 @@ describe("original phone inventory chooser", () => {
     await waitFor(() => expect(screen.getAllByRole("button", { name: "Select" })).toHaveLength(20));
     expect(props.searchAvailableNumbers).toHaveBeenCalledWith({ businessId: "business-1", mode: "area_code", countryCode: "CA", areaCode: "416", limit: 20 });
     expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+  it("shows the verified phone's country without a picker", async () => {
+    setup({ getInitialNumberSuggestion: vi.fn().mockResolvedValue({ market: { countryCode: "NZ" }, suggestion: null, alternatives: [], countryFixed: true }) });
+    expect(await screen.findByText("Empty")).toBeTruthy();
+    expect(screen.getByText("NZ")).toBeTruthy();
+    expect(screen.queryByRole("combobox")).toBeNull();
   });
   it("omits area-code search for a UK market", async () => {
     setup({ getInitialNumberSuggestion: vi.fn().mockResolvedValue({ market: { countryCode: "GB" }, suggestion: null, alternatives: [] }) });

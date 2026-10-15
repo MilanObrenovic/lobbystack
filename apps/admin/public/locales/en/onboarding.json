@@ -5,7 +5,7 @@
     "privacy": "Privacy"
   },
   "errors": {
-    "tooManyBusinesses": "Too many setup attempts. Please wait a bit and try again."
+    "tooManyBusinesses": "You already own 10 workspaces, the limit for one account."
   },
   "adminRequired": {
     "eyebrow": "Workspace setup",
@@ -89,19 +89,66 @@
     "continueFailed": "We couldn't continue right now. Please try again.",
     "skipFailed": "We couldn't skip this step right now. Please try again."
   },
+  "testCall": {
+    "title": "Hear your receptionist",
+    "continue": "Continue",
+    "skip": "Skip for now",
+    "continueFailed": "We couldn't continue. Try again."
+  },
+  "verifyPhone": {
+    "title": "Verify your mobile number",
+    "fields": {
+      "mobileNumber": "Mobile number",
+      "country": "Country"
+    },
+    "hint": "Use a mobile that gets texts. Internet phone numbers won't work.",
+    "sendCode": "Text me a code",
+    "sending": "Sending…",
+    "sendFailed": "We couldn't send the code. Try again.",
+    "errors": {
+      "voip": "Use your mobile number. Internet phone numbers can't be verified.",
+      "notMobile": "Use a mobile number that gets texts.",
+      "countryMismatch": "This number isn't from the country you picked.",
+      "invalidNumber": "Enter a valid mobile number.",
+      "rateLimited": "Too many codes. Wait a moment and try again."
+    },
+    "code": {
+      "sentTo": "Enter the 6-digit code we sent to {{phone}}.",
+      "checking": "Checking…",
+      "invalid_one": "That code didn't work. You have {{count}} try left.",
+      "invalid_other": "That code didn't work. You have {{count}} tries left.",
+      "expired": "This code expired. Send a new one.",
+      "locked": "Too many tries. Send a new code.",
+      "failed": "We couldn't check the code. Try again.",
+      "resend": "Send a new code",
+      "changeNumber": "Use another number"
+    },
+    "unavailable": {
+      "title": "We don't offer numbers in this country yet ({{country}}).",
+      "body": "You can still use your receptionist in the browser, and we can email you when numbers arrive there.",
+      "notify": "Email me when they're available",
+      "joined": "Done. We'll email you.",
+      "continue": "Continue without a number",
+      "failed": "Something went wrong. Try again."
+    }
+  },
   "greeting": {
     "title": "How should we greet your callers?",
     "description": "This is what your AI says first. You can change it any time.",
     "label": "Greeting",
-    "language": "Language",
-    "english": "English",
-    "french": "French",
+    "language": "Caller language",
     "placeholder": "Thanks for calling. How can I help?",
     "continue": "Continue",
     "submitting": "Saving...",
     "submitFailed": "We couldn't save that greeting right now. Please try again."
   },
   "number": {
+    "ready": {
+      "label": "Your number is ready",
+      "body": "Call it from your phone and hear your receptionist answer.",
+      "call": "Call {{number}}"
+    },
+    "planRequired": "To get a number, choose a plan.",
     "title": "Pick your AI's phone number",
     "description": "Choose a local number callers can reach you on.",
     "countryLabel": "Country",
@@ -127,6 +174,7 @@
     "searchFailed": "We couldn't search numbers right now.",
     "claimFailed": "We couldn't provision that number. Please try again.",
     "claimRateLimited": "You've tried several numbers. Please wait a bit before trying again.",
+    "offerExpired": "That offer expired. Search again and pick a number.",
     "trialAccountPurchaseLimit": "This Twilio account can't buy that number yet. Trial accounts can only buy eligible trial numbers; release an existing number or upgrade the account, then try again.",
     "skipFailed": "We couldn't skip this step right now. Please try again.",
     "tooManySearches": "Too many searches. Please wait a bit and try again.",
@@ -174,7 +222,7 @@
     "popular": "Popular",
     "enterpriseSubject": "Enterprise plan",
     "compareTitle": "Compare plans in detail",
-    "compareDescription": "Test 30 browser voice minutes on Free, without a telephone number. Starter and Pro include a dedicated number and monthly usage allowances.",
+    "compareDescription": "Free gives you 30 voice minutes and a US or Canadian number for 14 days. Starter and Pro include a dedicated number and monthly usage allowances.",
     "featureHeader": "Feature",
     "billingInterval": {
       "label": "Billing interval",
@@ -182,176 +230,9 @@
       "annual": "Annual",
       "save": "Save 20%"
     },
-    "tiers": {
-      "free_cloud": {
-        "name": "Free",
-        "price": "$0",
-        "period": "",
-        "description": "Try LobbyStack with enough usage to see it work.",
-        "cta": "Start free",
-        "highlights": {
-          "voiceMinutes": "30 browser voice minutes included",
-          "bookingContacts": "No telephone number",
-          "support": "Community support"
-        }
-      },
-      "starter": {
-        "name": "Starter",
-        "price": {
-          "monthly": "$30",
-          "annual": "$24"
-        },
-        "period": "/mo",
-        "description": {
-          "monthly": "Billed monthly. Includes 150 voice minutes that reset monthly.",
-          "annual": "Billed annually. Includes 150 voice minutes that reset monthly."
-        },
-        "cta": {
-          "monthly": "Start monthly",
-          "annual": "Start annual"
-        },
-        "highlights": {
-          "voiceMinutes": "150 voice minutes included\nThen $0.20/min",
-          "dedicatedNumber": "1 dedicated business number",
-          "alertSms": "50 alert SMS segments",
-          "support": "Email support"
-        }
-      },
-      "pro": {
-        "name": "Pro",
-        "price": {
-          "monthly": "$100",
-          "annual": "$80"
-        },
-        "period": "/mo",
-        "description": {
-          "monthly": "Billed monthly. More included usage for growing call volume.",
-          "annual": "Billed annually. More included usage for growing call volume."
-        },
-        "cta": {
-          "monthly": "Go Pro monthly",
-          "annual": "Go Pro annual"
-        },
-        "highlights": {
-          "voiceMinutes": "500 voice minutes included\nThen $0.18/min",
-          "dedicatedNumber": "1 dedicated business number",
-          "alertSms": "200 alert SMS segments",
-          "support": "Priority email support"
-        }
-      },
-      "enterprise": {
-        "name": "Enterprise",
-        "price": "Custom",
-        "period": "",
-        "description": "For higher volume, multiple numbers, or custom deployment needs.",
-        "cta": "Contact us",
-        "highlights": {
-          "phoneNumbers": "Multiple dedicated numbers",
-          "selfHosted": "Self-hosted deployment option",
-          "support": "Dedicated implementation support"
-        }
-      }
-    },
     "comparison": {
-      "groups": {
-        "usage": "Usage & limits",
-        "core": "Core receptionist",
-        "booking": "Booking",
-        "routing": "Routing & transfers",
-        "notifications": "Notifications",
-        "data": "Data & dashboard",
-        "deployment": "Deployment & support"
-      },
-      "features": {
-        "voiceMinutes": "Voice minutes",
-        "outboundCalls": "Transfer attempts",
-        "alertSms": "Alert SMS segments",
-        "knowledgeStorage": "Knowledge base",
-        "phoneNumbers": "Phone numbers",
-        "callAnswering": "24/7 call answering",
-        "callerDetails": "Caller details and message capture",
-        "knowledgeAnswers": "Knowledge base answers",
-        "workflows": "Plain-language workflows",
-        "spamFiltering": "Spam filtering",
-        "shortCalls": "Calls under 10s excluded from billing",
-        "concurrentCalls": "Concurrent call handling",
-        "multilingual": "Answers in the caller's language",
-        "appointmentBooking": "Appointment booking",
-        "confirmationTexts": "Appointment confirmation texts",
-        "googleCalendar": "Google Calendar integration",
-        "urgentHandoff": "Urgent call handoff",
-        "callTransfers": "Call transfers",
-        "afterHours": "After-hours answering",
-        "emailNotifications": "Email notifications",
-        "smsNotifications": "SMS notifications",
-        "summaries": "Call summaries",
-        "history": "Call history",
-        "contentRetention": "Transcript and recording retention",
-        "callerProfiles": "Caller profiles and notes",
-        "contacts": "Contacts",
-        "websiteImport": "Website knowledge import",
-        "hosting": "Hosting",
-        "usageBilling": "Usage-based overages",
-        "support": "Support"
-      },
-      "values": {
-        "common": {
-          "custom": "Custom",
-          "included": "Included",
-          "notIncluded": "Not included",
-          "multiple": "Multiple",
-          "unlimited": "Unlimited",
-          "browserTesting": "Browser testing"
-        },
-        "usage": {
-          "voiceMinutes": {
-            "freeIncluded": "{{minutes}} browser minutes",
-            "starterIncluded": "150 included",
-            "starterThen": "then $0.20/min",
-            "proIncluded": "500 included",
-            "proThen": "then $0.18/min"
-          },
-          "outboundCalls": {
-            "starterIncluded": "20 included",
-            "starterThen": "then $0.02/attempt",
-            "proIncluded": "100 included",
-            "proThen": "then $0.02/attempt"
-          },
-          "alertSms": {
-            "starterIncluded": "50 included",
-            "starterThen": "then $0.02/segment",
-            "proIncluded": "200 included",
-            "proThen": "then $0.02/segment"
-          },
-          "knowledgeStorage": {
-            "free": "1 MB",
-            "starter": "5 MB",
-            "pro": "20 MB"
-          },
-          "phoneNumbers": {
-            "starter": "1 dedicated",
-            "pro": "1 dedicated"
-          }
-        },
-        "data": {
-          "contentRetention": {
-            "free": "{{days}} days",
-            "paid": "{{days}} days"
-          }
-        },
-        "deployment": {
-          "hosting": {
-            "managed": "Managed cloud",
-            "enterprise": "Cloud or self-hosted"
-          },
-          "support": {
-            "community": "Community",
-            "email": "Email",
-            "priority": "Priority email",
-            "dedicated": "Dedicated implementation"
-          }
-        }
-      }
+      "included": "Included",
+      "notIncluded": "Not included"
     },
     "continue": "Continue",
     "continuing": "Continuing...",

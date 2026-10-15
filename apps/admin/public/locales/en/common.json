@@ -16,6 +16,16 @@
     "spanish": "Español",
     "serbian": "Srpski"
   },
+  "callerLanguage": {
+    "en": "English",
+    "fr": "French",
+    "es": "Spanish",
+    "sr": "Serbian",
+    "de": "German",
+    "pt": "Portuguese (Brazil)",
+    "it": "Italian",
+    "nl": "Dutch"
+  },
   "badges": {
     "live": "Live",
     "configured": "Configured",
@@ -70,12 +80,23 @@
       "failed": "We could not save that feedback."
     }
   },
+  "numberTrial": {
+    "daysLeft_one": "{{number}} is yours for {{count}} more day. Choose a plan to keep it.",
+    "daysLeft_other": "{{number}} is yours for {{count}} more days. Choose a plan to keep it.",
+    "outOfMinutes": "You're out of minutes. Calls now go to {{forwardTo}}.",
+    "stillAvailable": "{{number}} is still available. Subscribe now to get it back.",
+    "keepNumber": "Keep my number",
+    "getReceptionistBack": "Get my receptionist back",
+    "getNumberBack": "Get my number back"
+  },
   "testCall": {
     "trigger": "Test Call",
     "title": "Test your AI receptionist",
     "description": "Start a live browser call with your configured receptionist.",
+    "start": "Start call",
     "connecting": "Connecting...",
     "hangUp": "Hang up",
+    "upgrade": "Upgrade plan",
     "status": {
       "idle": "Ready when you are",
       "requesting_microphone": "Asking for microphone access",
@@ -105,6 +126,7 @@
       "browserNoWebRtc": "This browser does not support live voice calls.",
       "businessNotFound": "We couldn't find this workspace. Switch to an active workspace and try again.",
       "rateLimited": "Too many test calls have been started. Please try again shortly.",
+      "voiceLimitReached": "This workspace has used this month's voice minutes.",
       "unavailable": "Your AI receptionist is unavailable right now.",
       "generic": "Something went wrong while starting the call."
     }
@@ -138,6 +160,21 @@
       "failed": "Failed",
       "error": "Error",
       "cancelled": "Cancelled"
+    },
+    "actions": "Actions",
+    "cancel": {
+      "action": "Cancel",
+      "actionLabel": "Cancel appointment: {{time}}",
+      "approve": "Approve cancellation",
+      "title": "Cancel this appointment?",
+      "description": "{{appointment}}. We'll remove it from your connected calendar and skip its reminder.",
+      "requestDescription": "{{appointment}}. We'll remove it from your connected calendar, skip its reminder and close the request.",
+      "confirm": "Cancel appointment",
+      "keep": "Keep appointment",
+      "done": "Appointment cancelled",
+      "failed": "We couldn't cancel the appointment. Try again.",
+      "summary": "{{service}} for {{name}} on {{time}}",
+      "summaryNoService": "Appointment for {{name}} on {{time}}"
     }
   },
   "abandonIntent": {

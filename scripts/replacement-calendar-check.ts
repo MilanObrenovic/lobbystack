@@ -30,7 +30,7 @@ async function main(): Promise<void> {
   const phone = "+14165550123";
   const day = new Date(); day.setUTCDate(day.getUTCDate() + 2); day.setUTCHours(10, 0, 0, 0);
   const at = (hour: number) => { const date = new Date(day); date.setUTCHours(hour); return date.toISOString(); };
-  const find = (hour: number) => findAvailability(context, { businessId, serviceId, startsAt: at(hour), timezone: "America/Los_Angeles" });
+  const find = (hour: number) => findAvailability(context, { businessId, serviceId, startsAt: at(hour) });
   const book = (hour: number, preferredStaffId = staffId) => bookAppointment(context, { businessId, serviceId, startsAt: at(hour), timezone: "UTC", contactPhone: phone, sourceChannel: "voice", preferredStaffId });
   const events = new Map<string, { startsAt: string; endsAt: string }>();
   let refreshes = 0;
@@ -57,7 +57,7 @@ async function main(): Promise<void> {
     await admin.db.insert(businessHours).values(Array.from({ length: 7 }, (_, dayOfWeek) => ({ businessId, dayOfWeek, openMinutes: 540, closeMinutes: 1020 })));
     phase = "booking-policy";
     assert.deepEqual((await find(10)).map((slot) => slot.staffId), [staffId]);
-    assert.equal((await find(18)).length, 0, "Caller timezone must not bypass business hours");
+    assert.equal((await find(18)).length, 0, "Times outside business hours must not be open");
     await assert.rejects(book(8));
     await assert.rejects(book(10, otherStaffId));
     const race = await Promise.allSettled([book(10), book(10)]);
@@ -93,7 +93,7 @@ async function main(): Promise<void> {
     assert.equal([...events.values()][0]?.startsAt, at(14));
 
     phase = "failure-and-freshness";
-    await assert.rejects(upsertBusyBlocks(context, { businessId, connectionId, calendarId: "stale-selection", markSynced: true, blocks: [] }));
+    await assert.rejects(upsertBusyBlocks(context, { businessId, connectionId, calendarId: "stale-selection", blocks: [] }));
     assert.equal((await admin.db.select().from(calendarBusyBlocks).where(eq(calendarBusyBlocks.businessId, businessId))).length, 1);
     await admin.db.update(calendarConnections).set({ lastSyncedAt: new Date(Date.now() - MAX_CALENDAR_SYNC_AGE_MS - 1000) }).where(eq(calendarConnections.id, connectionId));
     assert.equal((await find(12)).length, 0, "Stale calendar mirrors must fail closed");

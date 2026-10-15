@@ -1,6 +1,7 @@
 import { countKnowledgeTokens } from "@lobbystack/domain";
 
 import { describeClosure, describeServices, type ServiceFact, type UpcomingClosure } from "../businessFacts";
+import type { ToolName } from "../capabilities";
 
 // On a call, GPT-Live phrases whatever the agent hands back, so some tool
 // results need no second model step to put them into words: a list read from
@@ -10,6 +11,9 @@ import { describeClosure, describeServices, type ServiceFact, type UpcomingClosu
 // OpenAI's GPT-Live guide: commentary carries facts for GPT-Live to say in its
 // own words, and standing behavior belongs in its instructions. So these are
 // plain facts; the live instructions say what to do with each kind of result.
+
+/** What GPT-Live hears, as silent background, once the agent has ended the call. */
+export const CALL_ENDING = "The call is ending.";
 
 /** Commentary appends are capped at 500 tokens; keep a direct answer well inside that. */
 export const MAX_DIRECT_ANSWER_CHARS = 1_200;
@@ -71,7 +75,7 @@ function trimToTokens(value: string, tokens: number): string {
   return `${sentence > cut.length / 2 ? cut.slice(0, sentence + 1) : cut}…`;
 }
 
-const FORMATTERS: Record<string, Formatter> = {
+const FORMATTERS: Partial<Record<ToolName, Formatter>> = {
   getBusinessServices: (_input, output) => {
     const services = Array.isArray(output.services) ? output.services as ServiceFact[] : [];
     if (!services.length) {
@@ -101,9 +105,19 @@ const FORMATTERS: Record<string, Formatter> = {
     const details = [text(input.serviceName), text(input.preferredTime)].filter(Boolean).join(", ");
     return `The appointment request is saved for the team${details ? ` (${details})` : ""}. The team will contact the caller to confirm the time.`;
   },
-  endCall: (_input, output) => (output.ok === true ? "The call is ending." : undefined),
+  // The appointment stays booked until the team acts, so the answer says so.
+  requestAppointmentCancellation: (input, output) => {
+    if (output.ok !== true) return undefined;
+    const details = [text(input.serviceName), text(input.appointmentStartsAt)].filter(Boolean).join(", ");
+    return `The cancellation request is saved for the team${details ? ` (${details})` : ""}. The appointment is still booked until the team cancels it, and the team will confirm with the caller.`;
+  },
+  endCall: (_input, output) => (output.ok === true ? CALL_ENDING : undefined),
   // The REFER waits until GPT-Live has said this, so it goes out at once.
-  transferCall: (_input, output) => (output.ok === true && output.transferring === true ? "The call is being transferred to a person at the business now." : undefined),
+  transferCall: (_input, output) => {
+    if (output.ok !== true || output.transferring !== true) return undefined;
+    const employee = text(output.employeeName);
+    return employee ? `The call is being transferred to ${employee} now.` : "The call is being transferred to a person at the business now.";
+  },
   searchKnowledge: (_input, output) => knowledgeAnswer(output),
 };
 
@@ -119,7 +133,7 @@ export function directToolAnswer(step: DirectAnswerStep | undefined): string | u
   if (!step?.toolCalls.length) return undefined;
   const answers: string[] = [];
   for (const call of step.toolCalls) {
-    const formatter = FORMATTERS[call.toolName];
+    const formatter = FORMATTERS[call.toolName as ToolName];
     const result = step.toolResults.find((item) => item.toolCallId === call.toolCallId);
     if (!formatter || !result || typeof result.output !== "object" || result.output === null) return undefined;
     const input = typeof result.input === "object" && result.input !== null ? result.input as Record<string, unknown> : {};

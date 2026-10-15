@@ -1,14 +1,13 @@
 import { randomUUID } from "node:crypto";
 
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { createReceptionistAgent } from "@lobbystack/agent-core/agent";
 import { createAgentModel, describeAgentUsage } from "@lobbystack/agent-core/model";
-import { appendMessage, getCachedBusinessSnapshot, getOrCreateWidgetConversation, loadWidgetChatHistory, recordAiGenerationEvent, registerWidgetVisitor, reserveWidgetChatUsageInTransaction, type DomainContext } from "@lobbystack/domain";
-import { conversations, withBusinessTransaction } from "@lobbystack/db";
-import { widgetChatRequestSchema, type BusinessContextSnapshot } from "@lobbystack/shared";
+import { appendMessage, getCachedBusinessSnapshot, getOrCreateWidgetConversation, loadWidgetChatHistory, recordAiGenerationEvent, registerWidgetVisitor, reserveWidgetChatUsageInTransaction } from "@lobbystack/domain";
+import { withBusinessTransaction } from "@lobbystack/db";
+import { normalizeRuntimeLocale, runtimeLocaleName, widgetChatRequestSchema, type BusinessContextSnapshot } from "@lobbystack/shared";
 
 import { getWorkerDatabase, readJson } from "@/lib/api-helpers";
 import { createWorkerDomainContext } from "@/lib/domain-context";
@@ -52,13 +51,6 @@ function fallbackSnapshot(session: WidgetSession): BusinessContextSnapshot {
   };
 }
 
-async function loadAutomationState(context: DomainContext, businessId: string, conversationId: string): Promise<"ai_active" | "human_handoff"> {
-  return await withBusinessTransaction(context.db, { businessId, actorType: "worker" }, async (tx) => {
-    const row = (await tx.select({ automationState: conversations.automationState }).from(conversations).where(eq(conversations.id, conversationId)).limit(1))[0];
-    return row?.automationState === "human_handoff" ? "human_handoff" : "ai_active";
-  });
-}
-
 export async function POST(request: Request) {
   try {
     const body = widgetChatRequestSchema.parse(await readJson(request));
@@ -73,17 +65,17 @@ export async function POST(request: Request) {
 
     const context = createWorkerDomainContext();
     await registerWidgetVisitor(context, { businessId: session.businessId, visitorId: body.visitorId, metadata: { userAgent: request.headers.get("user-agent") ?? undefined } });
-    const { conversationId } = await getOrCreateWidgetConversation(context, { businessId: session.businessId, widgetVisitorId: body.visitorId });
-    const inboundMessageId = await appendMessage(context, { businessId: session.businessId, conversationId, body: body.content, direction: "inbound", channel: "web_chat" });
+    const { conversationId, automationState } = await getOrCreateWidgetConversation(context, { businessId: session.businessId, widgetVisitorId: body.visitorId });
+    await appendMessage(context, { businessId: session.businessId, conversationId, body: body.content, direction: "inbound", channel: "web_chat" });
     const { queueOperatorAlert } = await import("@lobbystack/domain");
     await queueOperatorAlert(context, {
       businessId: session.businessId,
       eventKind: "widgetChat",
-      eventKey: `widget-chat:${inboundMessageId}`,
+      // One alert per chat per day: the unique event key drops the rest.
+      eventKey: `widget-chat:${conversationId}:${new Date().toISOString().slice(0, 10)}`,
       subject: "New website chat message",
       body: body.content.slice(0, 240) || "A website visitor sent a chat message.",
     });
-    const automationState = await loadAutomationState(context, session.businessId, conversationId);
     const model = automationState === "ai_active" ? createAgentModel() : undefined;
     if (automationState === "ai_active" && !model) {
       return NextResponse.json({ error: "The AI chat provider is not configured.", code: "ai_provider_unavailable" }, { status: 503 });
@@ -108,7 +100,8 @@ export async function POST(request: Request) {
           const snapshot = await getCachedBusinessSnapshot(context, { businessId: session.businessId });
           const activeSnapshot = snapshot ?? fallbackSnapshot(session);
           const history = await loadWidgetChatHistory(context, { businessId: session.businessId, conversationId });
-          const language = body.locale === "fr" || (!body.locale && (session.config.localeOverride === "fr" || session.defaultLocale === "fr")) ? "French" : "English";
+          // The widget's interface language when the receptionist speaks it; otherwise the widget's set language, else the business's caller language.
+          const language = runtimeLocaleName(normalizeRuntimeLocale(body.locale ?? session.config.localeOverride ?? session.defaultLocale));
           const agent = createReceptionistAgent({
             model: model!,
             context: { domain: context, snapshot: activeSnapshot, channel: "web_chat", conversationId },

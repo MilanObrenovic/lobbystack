@@ -1,11 +1,14 @@
 import { customType } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   text,
@@ -120,6 +123,8 @@ export const businesses = pgTable(
     legalName: text("legal_name"),
     timezone: varchar("timezone", { length: 80 }).notNull(),
     defaultLocale: varchar("default_locale", { length: 8 }).default("en").notNull(),
+    /** ISO 4217 code every service price is in. */
+    currency: varchar("currency", { length: 3 }).default("USD").notNull(),
     businessType: varchar("business_type", { length: 64 }).notNull(),
     deploymentMode: varchar("deployment_mode", { length: 32 }).default("cloud").notNull(),
     status: varchar("status", { length: 32 }).default("active").notNull(),
@@ -156,7 +161,6 @@ export const businessMemberships = pgTable(
   },
   (table) => [
     uniqueIndex("business_memberships_business_user_unique").on(table.businessId, table.userId),
-    index("business_memberships_business_idx").on(table.businessId),
     index("business_memberships_user_idx").on(table.userId),
   ],
 );
@@ -223,10 +227,18 @@ export const staff = pgTable(
     timezone: varchar("timezone", { length: 80 }).notNull(),
     active: boolean("active").default(true).notNull(),
     transferNumber: text("transfer_number"),
+    // Listed on the Employees page. The default staff member that stands for the business is not one.
+    isEmployee: boolean("is_employee").default(false).notNull(),
+    // Inclusive dates in the business's timezone when the staff member is away. Both set or neither.
+    vacationStartsOn: date("vacation_starts_on", { mode: "string" }),
+    vacationEndsOn: date("vacation_ends_on", { mode: "string" }),
     ...legacyId,
     ...timestamps,
   },
-  (table) => [index("staff_business_active_idx").on(table.businessId, table.active)],
+  (table) => [
+    index("staff_business_active_idx").on(table.businessId, table.active),
+    uniqueIndex("staff_employee_phone_unique").on(table.businessId, table.transferNumber).where(sql`${table.isEmployee} and ${table.active} and ${table.transferNumber} is not null`),
+  ],
 );
 
 export const services = pgTable(
@@ -239,6 +251,12 @@ export const services = pgTable(
     localizedNames: jsonb("localized_names").$type<Record<string, string>>(),
     description: text("description"),
     durationMinutes: integer("duration_minutes").notNull(),
+    /** In the business currency's smallest unit; null when no price is set. The lower bound for a range. */
+    priceMinor: bigint("price_minor", { mode: "number" }),
+    priceMaxMinor: bigint("price_max_minor", { mode: "number" }),
+    priceType: varchar("price_type", { length: 16 }).$type<"fixed" | "from" | "range" | "in_person">().default("fixed").notNull(),
+    /** Percent off every amount, 0-100 with up to two decimals. */
+    discountPercent: numeric("discount_percent", { precision: 5, scale: 2, mode: "number" }).default(0).notNull(),
     active: boolean("active").default(true).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...legacyId,
@@ -309,7 +327,7 @@ export const phoneNumbers = pgTable(
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("phone_numbers_e164_unique").on(table.e164),
+    uniqueIndex("phone_numbers_e164_unreclaimed_unique").on(table.e164).where(sql`${table.status} <> 'reclaimed'`),
     uniqueIndex("phone_numbers_provider_id_unique").on(table.providerPhoneId),
     index("phone_numbers_business_idx").on(table.businessId),
   ],
@@ -322,6 +340,36 @@ export const onboardingPhoneVerifications = pgTable("onboarding_phone_verificati
 export const onboardingNumberClaimEvents = pgTable("onboarding_number_claim_events", {
   id: uuid("id").defaultRandom().primaryKey(), businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }), userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), purpose: varchar("purpose", { length: 32 }).default("onboarding").notNull(), replacingPhoneNumberId: uuid("replacing_phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }), requestedE164: varchar("requested_e164", { length: 32 }).notNull(), selectionContext: jsonb("selection_context").$type<Record<string, unknown>>().notNull(), claimTokenHash: text("claim_token_hash").notNull(), idempotencyKey: varchar("idempotency_key", { length: 255 }).notNull(), status: varchar("status", { length: 32 }).default("reserved").notNull(), phoneNumberId: uuid("phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }), providerPhoneId: varchar("provider_phone_id", { length: 255 }), reservedAt: timestamp("reserved_at", { withTimezone: true }).defaultNow().notNull(), purchasedAt: timestamp("purchased_at", { withTimezone: true }), completedAt: timestamp("completed_at", { withTimezone: true }), attemptCount: integer("attempt_count").default(0).notNull(), lastError: text("last_error"), alternatives: jsonb("alternatives").$type<Array<Record<string, unknown>>>(), ...timestamps,
 }, (table) => [uniqueIndex("onboarding_number_claim_events_business_key_unique").on(table.businessId, table.idempotencyKey), uniqueIndex("onboarding_number_claim_events_provider_unique").on(table.providerPhoneId), index("onboarding_number_claim_events_user_purchased_idx").on(table.userId, table.purchasedAt), index("onboarding_number_claim_events_business_status_idx").on(table.businessId, table.status, table.reservedAt)]);
+
+export const numberTrials = pgTable("number_trials", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  claimId: uuid("claim_id").references(() => onboardingNumberClaimEvents.id, { onDelete: "set null" }),
+  phoneNumberId: uuid("phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }),
+  verifiedPhone: varchar("verified_phone", { length: 32 }).notNull(),
+  ipHash: text("ip_hash"),
+  status: varchar("status", { length: 16 }).default("reserved").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  minutesExhaustedAt: timestamp("minutes_exhausted_at", { withTimezone: true }),
+  emailsSent: jsonb("emails_sent").$type<Record<string, string>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("number_trials_business_unique").on(table.businessId).where(sql`${table.status} <> 'failed'`),
+  index("number_trials_phone_idx").on(table.verifiedPhone),
+  index("number_trials_user_idx").on(table.userId),
+  index("number_trials_ip_created_idx").on(table.ipHash, table.createdAt),
+  index("number_trials_claim_idx").on(table.claimId),
+]);
+
+export const numberWaitlist = pgTable("number_waitlist", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  countryCode: varchar("country_code", { length: 2 }).notNull(),
+  ...timestamps,
+}, (table) => [uniqueIndex("number_waitlist_business_country_unique").on(table.businessId, table.countryCode)]);
 
 export const receptionistProfiles = pgTable(
   "receptionist_profiles",
@@ -337,6 +385,8 @@ export const receptionistProfiles = pgTable(
     summarySource: varchar("summary_source", { length: 16 }).$type<"placeholder" | "generated" | "operator">().default("placeholder").notNull(),
     summaryFingerprint: varchar("summary_fingerprint", { length: 64 }),
     summaryGeneratedAt: timestamp("summary_generated_at", { withTimezone: true }),
+    // The outcome of the last "Rewrite with AI"; null when none was asked for.
+    summaryRegenerateStatus: varchar("summary_regenerate_status", { length: 16 }).$type<"pending" | "completed" | "empty" | "failed">(),
     bookingPolicy: text("booking_policy").notNull(),
     voiceInstructions: text("voice_instructions"),
     smsInstructions: text("sms_instructions"),
@@ -363,6 +413,8 @@ export const contacts = pgTable(
     smsConsentStatus: varchar("sms_consent_status", { length: 32 }),
     smsConsentUpdatedAt: timestamp("sms_consent_updated_at", { withTimezone: true }),
     smsConsentSource: varchar("sms_consent_source", { length: 64 }),
+    // The status a STOP to the shared sender replaced, which START restores.
+    smsConsentStatusBeforeOptOut: varchar("sms_consent_status_before_opt_out", { length: 32 }),
     operatorBlockedAt: timestamp("operator_blocked_at", { withTimezone: true }),
     ...legacyId,
     ...timestamps,
@@ -543,6 +595,7 @@ export const calls = pgTable(
     uniqueIndex("calls_gateway_session_unique").on(table.gatewaySessionId),
     index("calls_business_started_idx").on(table.businessId, table.startedAt),
     index("calls_business_recording_idx").on(table.businessId, table.recordingObjectId).where(sql`${table.recordingObjectId} is not null`),
+    index("calls_open_live_started_idx").on(table.startedAt).where(sql`${table.endedAt} is null and ${table.provider} = 'openai_live'`),
   ],
 );
 
@@ -585,7 +638,10 @@ export const transcripts = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     ...timestamps,
   },
-  (table) => [uniqueIndex("transcripts_call_sequence_unique").on(table.callId, table.sequence), index("transcripts_call_idx").on(table.callId, table.sequence)],
+  (table) => [
+    uniqueIndex("transcripts_call_sequence_unique").on(table.callId, table.sequence),
+    index("transcripts_business_expires_idx").on(table.businessId, table.expiresAt).where(sql`${table.expiresAt} is not null`),
+  ],
 );
 
 export const appointments = pgTable(
@@ -672,7 +728,7 @@ export const knowledgeChunks = pgTable(
     tokenCount: integer("token_count"),
     ...timestamps,
   },
-  (table) => [uniqueIndex("knowledge_chunks_document_sequence_unique").on(table.documentId, table.sequence), index("knowledge_chunks_business_idx").on(table.businessId), index("knowledge_chunks_business_embedding_fingerprint_idx").on(table.businessId, table.embeddingFingerprint), index("knowledge_chunks_keyword_idx").using("gin", sql`to_tsvector('simple', ${table.content})`)],
+  (table) => [uniqueIndex("knowledge_chunks_document_sequence_unique").on(table.documentId, table.sequence), index("knowledge_chunks_business_embedding_fingerprint_idx").on(table.businessId, table.embeddingFingerprint), index("knowledge_chunks_reembed_pending_idx").on(table.businessId).where(sql`${table.embedding} is null or ${table.embeddingStatus} in ('pending', 'failed')`), index("knowledge_chunks_keyword_idx").using("gin", sql`to_tsvector('simple', ${table.content})`)],
 );
 
 export const knowledgeSnippets = pgTable(
@@ -907,6 +963,7 @@ export const billingTransactions = pgTable(
     sourceId: text("source_id").notNull(),
     status: varchar("status", { length: 32 }).notNull(),
     amountCents: integer("amount_cents").notNull(),
+    refundedAmountCents: integer("refunded_amount_cents").default(0).notNull(),
     currency: varchar("currency", { length: 8 }).notNull(),
     description: text("description"),
     invoiceUrl: text("invoice_url"),

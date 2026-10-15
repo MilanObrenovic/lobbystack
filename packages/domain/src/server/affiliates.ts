@@ -9,14 +9,13 @@ const COMMISSION_MONTHS = 12;
 const HOLD_DAYS = 30;
 const MIN_PAYOUT_CENTS = 10_000;
 const DEFAULT_CURRENCY = "usd";
-const PAYOUT_BATCH_LIMIT = 250;
 // Matches affiliate_profiles.referral_code; generated codes can use all of it.
 export const REFERRAL_CODE_MAX_LENGTH = 64;
 // Repeat visits from one browser within this window count as one click.
 const CLICK_DEDUPE_MS = 24 * 60 * 60_000;
-const PAID_ORDER_STATUSES = new Set(["paid", "completed", "succeeded"]);
+// A partially refunded order still earns commission on what the customer kept.
+const PAID_ORDER_STATUSES = new Set(["paid", "completed", "succeeded", "partially_refunded"]);
 const VOID_ORDER_STATUSES = new Set(["canceled", "cancelled", "refunded", "reversed"]);
-const VOID_REFUND_STATUSES = new Set(["succeeded"]);
 
 export function normalizeAffiliateReferralCode(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, REFERRAL_CODE_MAX_LENGTH);
@@ -93,9 +92,9 @@ export type AffiliateTransactionInput = {
   kind: string;
   sourceId: string;
   status: string;
+  /** What the customer kept: the order total minus any refunded amount. */
   amountCents: number;
   currency: string;
-  orderId?: string;
   occurredAt: Date;
 };
 
@@ -122,7 +121,8 @@ export async function recordAffiliateCommissionInTransaction(
   }
 
   async function adjustPayoutItem(payoutItemId: string, deltaCents: number): Promise<void> {
-    const item = (await tx.select({ amountCents: affiliatePayoutItems.amountCents, status: affiliatePayoutItems.status }).from(affiliatePayoutItems).where(eq(affiliatePayoutItems.id, payoutItemId)).limit(1))[0];
+    // Locked so a concurrent refund or payout run waits and rereads the amount.
+    const item = (await tx.select({ amountCents: affiliatePayoutItems.amountCents, status: affiliatePayoutItems.status }).from(affiliatePayoutItems).where(eq(affiliatePayoutItems.id, payoutItemId)).limit(1).for("update"))[0];
     if (!item || item.status === "paid") return;
     const amountCents = Math.max(0, item.amountCents + deltaCents);
     await tx.update(affiliatePayoutItems).set({ amountCents, status: amountCents >= MIN_PAYOUT_CENTS ? "ready" : "draft", updatedAt: now }).where(eq(affiliatePayoutItems.id, payoutItemId));
@@ -140,47 +140,33 @@ export async function recordAffiliateCommissionInTransaction(
     return existing.id;
   }
 
-  async function reduceCommission(orderSourceKey: string): Promise<string | null> {
-    const existing = (await tx.select({ id: affiliateCommissions.id, profileId: affiliateCommissions.affiliateProfileId, status: affiliateCommissions.status, amountCents: affiliateCommissions.amountCents, commissionCents: affiliateCommissions.commissionCents, payoutItemId: affiliateCommissions.payoutItemId }).from(affiliateCommissions).where(eq(affiliateCommissions.sourceKey, orderSourceKey)).limit(1))[0];
-    if (!existing || existing.status === "paid" || existing.status === "voided") return existing?.id ?? null;
-    const commissionReductionCents = Math.min(existing.commissionCents, centsForCommission(input.amountCents));
-    if (commissionReductionCents <= 0) return existing.id;
-    if (commissionReductionCents >= existing.commissionCents) return await voidCommission(orderSourceKey, "refund");
-    if (existing.payoutItemId) await adjustPayoutItem(existing.payoutItemId, -commissionReductionCents);
-    await tx.update(affiliateCommissions).set({ amountCents: Math.max(0, existing.amountCents - input.amountCents), commissionCents: existing.commissionCents - commissionReductionCents, updatedAt: now }).where(eq(affiliateCommissions.id, existing.id));
-    if (existing.status === "pending") {
-      await tx.update(affiliateProfileStats).set({ pendingCommissionCents: sql`greatest(0, ${affiliateProfileStats.pendingCommissionCents} - ${commissionReductionCents})`, updatedAt: now }).where(eq(affiliateProfileStats.affiliateProfileId, existing.profileId));
-    }
-    return existing.id;
-  }
-
-  if (input.kind === "refund") {
-    if (!input.orderId || !VOID_REFUND_STATUSES.has(normalizedStatus)) return null;
-    await recordVoidedSource(`refund:${input.sourceId}`, "refund");
-    return await reduceCommission(`order:${input.orderId}`);
-  }
-
   if (input.kind === "order" && VOID_ORDER_STATUSES.has(normalizedStatus)) {
     return await voidCommission(sourceKey, normalizedStatus);
   }
 
   if (input.kind !== "order" || !PAID_ORDER_STATUSES.has(normalizedStatus) || !attribution) return null;
   if (input.occurredAt < attribution.attributedAt || input.occurredAt > addMonths(attribution.attributedAt, COMMISSION_MONTHS)) return null;
-  const commissionCents = centsForCommission(input.amountCents);
-  if (commissionCents <= 0) return null;
+  // Events can be reconciled out of order: a paid event retried after the refund must not revive the commission.
+  if ((await tx.select({ sourceKey: affiliateVoidedSources.sourceKey }).from(affiliateVoidedSources).where(eq(affiliateVoidedSources.sourceKey, sourceKey)).limit(1))[0]) return null;
 
   const existing = (await tx.select({ id: affiliateCommissions.id, profileId: affiliateCommissions.affiliateProfileId, status: affiliateCommissions.status, amountCents: affiliateCommissions.amountCents, commissionCents: affiliateCommissions.commissionCents, payoutItemId: affiliateCommissions.payoutItemId }).from(affiliateCommissions).where(eq(affiliateCommissions.sourceKey, sourceKey)).limit(1))[0];
   if (existing) {
     if (existing.status === "paid" || existing.status === "voided") return existing.id;
+    // An order's kept amount only falls as refunds land, so a stale paid event cannot raise it back.
+    const amountCents = Math.min(input.amountCents, existing.amountCents);
+    const commissionCents = centsForCommission(amountCents);
+    if (commissionCents <= 0) return await voidCommission(sourceKey, normalizedStatus);
     const deltaCents = commissionCents - existing.commissionCents;
     if (existing.payoutItemId && deltaCents !== 0) await adjustPayoutItem(existing.payoutItemId, deltaCents);
-    await tx.update(affiliateCommissions).set({ billingTransactionId: input.billingTransactionId, amountCents: input.amountCents, commissionCents, currency: input.currency.toLowerCase(), status: "pending", payoutState: existing.payoutItemId ? "assigned" : "unassigned", occurredAt: input.occurredAt, clearsAt: addDays(input.occurredAt, HOLD_DAYS), updatedAt: now }).where(eq(affiliateCommissions.id, existing.id));
+    await tx.update(affiliateCommissions).set({ billingTransactionId: input.billingTransactionId, amountCents, commissionCents, currency: input.currency.toLowerCase(), status: "pending", payoutState: existing.payoutItemId ? "assigned" : "unassigned", occurredAt: input.occurredAt, clearsAt: addDays(input.occurredAt, HOLD_DAYS), updatedAt: now }).where(eq(affiliateCommissions.id, existing.id));
     if (existing.status === "pending" && deltaCents !== 0) {
       await tx.update(affiliateProfileStats).set({ pendingCommissionCents: sql`${affiliateProfileStats.pendingCommissionCents} + ${deltaCents}`, updatedAt: now }).where(eq(affiliateProfileStats.affiliateProfileId, existing.profileId));
     }
     return existing.id;
   }
 
+  const commissionCents = centsForCommission(input.amountCents);
+  if (commissionCents <= 0) return null;
   const [commission] = await tx.insert(affiliateCommissions).values({
     affiliateProfileId: attribution.profileId,
     referredBusinessId: input.businessId,
@@ -225,7 +211,7 @@ export async function generateAffiliatePayoutRun(
       .innerJoin(users, eq(users.id, affiliateProfiles.userId))
       .where(and(eq(affiliateCommissions.status, "pending"), eq(affiliateCommissions.payoutState, "unassigned"), eq(affiliateCommissions.currency, DEFAULT_CURRENCY), lte(affiliateCommissions.clearsAt, createdAt), eq(affiliateProfiles.status, "active")))
       .orderBy(affiliateCommissions.clearsAt, affiliateCommissions.id)
-      .limit(PAYOUT_BATCH_LIMIT)
+      // No batch limit: rows skipped below (no payout email, under the minimum) stay oldest and would fill any window forever.
       .for("update", { of: affiliateCommissions });
 
     const groups = new Map<string, typeof eligible>();
@@ -240,7 +226,9 @@ export async function generateAffiliatePayoutRun(
     for (const [profileId, group] of groups) {
       const amountCents = group.reduce((total, commission) => total + commission.commissionCents, 0);
       if (amountCents < MIN_PAYOUT_CENTS) continue;
-      const current = (await tx.select().from(affiliatePayoutItems).where(and(eq(affiliatePayoutItems.payoutRunId, run.id), eq(affiliatePayoutItems.affiliateProfileId, profileId))).limit(1))[0];
+      const current = (await tx.select().from(affiliatePayoutItems).where(and(eq(affiliatePayoutItems.payoutRunId, run.id), eq(affiliatePayoutItems.affiliateProfileId, profileId))).limit(1).for("update"))[0];
+      // A paid item is closed: reopening it would pay its old amount again. These commissions wait for next month's run.
+      if (current?.status === "paid") continue;
       const nextAmount = (current?.amountCents ?? 0) + amountCents;
       const nextStatus = nextAmount >= MIN_PAYOUT_CENTS ? "ready" : "draft";
       const item = current
@@ -260,11 +248,12 @@ export async function generateAffiliatePayoutRun(
 
 export async function markAffiliatePayoutItemPaid(
   context: DomainContext,
-  input: { payoutItemId: string; externalReference?: string; note?: string; paidAt?: string },
+  input: { payoutItemId: string; expectedAmountCents?: number; externalReference?: string; note?: string; paidAt?: string },
 ): Promise<boolean> {
   const paidAt = input.paidAt ? new Date(input.paidAt) : new Date();
   return await withDispatcherTransaction(context.db, async (tx) => {
-    const item = (await tx.update(affiliatePayoutItems).set({ status: "paid", paidAt, ...(input.externalReference ? { externalReference: input.externalReference } : {}), ...(input.note ? { note: input.note } : {}), updatedAt: paidAt }).where(and(eq(affiliatePayoutItems.id, input.payoutItemId), eq(affiliatePayoutItems.status, "ready"))).returning({ id: affiliatePayoutItems.id, payoutRunId: affiliatePayoutItems.payoutRunId }))[0];
+    // The daily run adds newly cleared commissions to a ready item, so match the amount that was actually sent.
+    const item = (await tx.update(affiliatePayoutItems).set({ status: "paid", paidAt, ...(input.externalReference ? { externalReference: input.externalReference } : {}), ...(input.note ? { note: input.note } : {}), updatedAt: paidAt }).where(and(eq(affiliatePayoutItems.id, input.payoutItemId), eq(affiliatePayoutItems.status, "ready"), ...(input.expectedAmountCents === undefined ? [] : [eq(affiliatePayoutItems.amountCents, input.expectedAmountCents)]))).returning({ id: affiliatePayoutItems.id, payoutRunId: affiliatePayoutItems.payoutRunId }))[0];
     if (!item) return false;
     const commissions = await tx.select({ id: affiliateCommissions.id, profileId: affiliateCommissions.affiliateProfileId, commissionCents: affiliateCommissions.commissionCents }).from(affiliateCommissions).where(and(eq(affiliateCommissions.payoutItemId, item.id), eq(affiliateCommissions.payoutState, "assigned")));
     for (const commission of commissions) {

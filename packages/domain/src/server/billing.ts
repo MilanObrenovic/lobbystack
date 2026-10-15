@@ -1,4 +1,4 @@
-import { and, eq, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, like, lt, or, sql } from "drizzle-orm";
 
 import { billingAccounts, billingCheckoutRequests, billingTransactions, billingUsageEvents, businesses, enqueueOutbox, providerEvents, users, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
 import { billingErrorCodes, billingPlanCatalog, DEFAULT_WEB_CALL_MAX_DURATION_MS, isPaidSubscription, MAX_WEB_CALL_MAX_DURATION_MS, type BillingPlanSlug } from "@lobbystack/shared";
@@ -6,9 +6,10 @@ import { getPostHogDistinctIdForBusinessSystem } from "@lobbystack/telemetry";
 
 import type { DomainContext } from "./context";
 import { recordAffiliateCommissionInTransaction } from "./affiliates";
+import { keepBusinessNumbersInTransaction, queuePlanCancelNoticeInTransaction, scheduleNumberReleaseInTransaction } from "./numberTrials";
 import { recordProductEventInTransaction } from "./productEvents";
 import { requireBusinessAdmin } from "../authz";
-import { correctUsageInTransaction, enqueueUsageSyncInTransaction, getUsageStatusInTransaction, reserveUsageInTransaction } from "./usage";
+import { correctUsageInTransaction, enqueueUsageSyncInTransaction, getUsageStatusInTransaction, getVoiceSecondsLeftInTransaction, loadBillingContext, reserveUsageInTransaction } from "./usage";
 
 export type BillingCheckoutTarget = "starter" | "pro";
 export type BillingInterval = "monthly" | "annual";
@@ -29,26 +30,13 @@ async function loadWebVoiceBillingAllowance(
   tx: DatabaseTransaction,
   input: { businessId: string; maxDurationMs?: number },
 ): Promise<WebVoiceBillingAllowance> {
-  const status = await getUsageStatusInTransaction(tx, { businessId: input.businessId });
-  const requested = normalizeWebCallMaxDurationMs(input.maxDurationMs);
-  const entitlement = billingPlanCatalog[status.plan];
-  const includedRemaining = status.voiceSecondsIncluded === null
-    ? Number.POSITIVE_INFINITY
-    : Math.max(0, status.voiceSecondsIncluded - status.voiceSecondsUsed);
-  const overageRemaining = !entitlement.overagesBillable || status.overageSpendingCapCents === null
-    ? entitlement.overagesBillable ? Number.POSITIVE_INFINITY : 0
-    : (() => {
-      const ratePerSecond = (entitlement.voiceOverageRatePerMinuteCents ?? 0) / 60;
-      return ratePerSecond > 0
-        ? Math.floor((Math.max(0, status.overageSpendingCapCents - status.overageSpendCents) + 1e-9) / ratePerSecond)
-        : 0;
-    })();
-  const remaining = Math.min(requested / 1_000, includedRemaining + overageRemaining) * 1_000;
+  const { plan, seconds } = await getVoiceSecondsLeftInTransaction(tx, { businessId: input.businessId });
+  const maxDurationMs = Math.floor(Math.min(normalizeWebCallMaxDurationMs(input.maxDurationMs), seconds * 1_000));
   return {
-    allowed: !status.voiceBlocked && remaining >= 1,
-    errorCode: status.voiceBlocked || remaining < 1 ? billingErrorCodes.voiceLimitReached : null,
-    maxDurationMs: Math.min(requested, Math.floor(remaining)),
-    plan: status.plan,
+    allowed: maxDurationMs >= 1,
+    errorCode: maxDurationMs >= 1 ? null : billingErrorCodes.voiceLimitReached,
+    maxDurationMs,
+    plan,
   };
 }
 
@@ -110,22 +98,48 @@ export async function reserveWidgetChatUsageInTransaction(
   tx: DatabaseTransaction,
   input: { businessId: string; conversationId: string },
 ): Promise<WidgetChatBillingAllowance> {
-  const status = await getUsageStatusInTransaction(tx, { businessId: input.businessId });
-  const entitlement = billingPlanCatalog[status.plan];
-  if (entitlement.chatAiTokensIncluded !== null) {
+  const { plan } = await loadBillingContext(tx, input.businessId);
+  if (billingPlanCatalog[plan].chatAiTokensIncluded !== null) {
     const reservation = await reserveUsageInTransaction(tx, { businessId: input.businessId, usageKind: "chat_ai_tokens", sourceKey: `chat:${input.conversationId}`, quantity: 1 });
-    if (!reservation.allowed) return { allowed: false, errorCode: billingErrorCodes.chatAiLimitReached, plan: status.plan };
-    return { allowed: true, errorCode: null, plan: status.plan };
+    if (!reservation.allowed) return { allowed: false, errorCode: billingErrorCodes.chatAiLimitReached, plan };
   }
-  return { allowed: true, errorCode: null, plan: status.plan };
+  return { allowed: true, errorCode: null, plan };
 }
 
+// We never learn that someone abandoned a Polar checkout, so one counts as open for 30 minutes: time to finish paying, and short enough that a dropped one stops blocking soon.
+const openCheckoutWindowMs = 30 * 60_000;
+
+/**
+ * Refuses a checkout that could start a second subscription: the business
+ * already pays (plan changes go through the customer portal) or someone else's
+ * checkout is open. Asking again for the same open checkout returns it, and
+ * asking for another plan replaces your own.
+ */
 export async function createBillingCheckoutRequest(
   context: DomainContext,
   input: { userId: string; businessId: string; target: BillingCheckoutTarget; billingInterval: BillingInterval },
 ): Promise<string> {
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
+    // Two tabs asking at once would both see no open checkout without this.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`billing-checkout:${input.businessId}`}, 0))`);
+    const account = (await tx.select({ plan: billingAccounts.plan, subscriptionState: billingAccounts.subscriptionState }).from(billingAccounts).where(eq(billingAccounts.businessId, input.businessId)).limit(1))[0];
+    if (isPaidSubscription(account?.plan, account?.subscriptionState)) {
+      throw Object.assign(new Error("This workspace already has a paid plan. Change it from Manage subscription."), { status: 409, code: billingErrorCodes.subscriptionActive });
+    }
+    const open = (await tx.select({ id: billingCheckoutRequests.id, requestedByUserId: billingCheckoutRequests.requestedByUserId, target: billingCheckoutRequests.target, billingInterval: billingCheckoutRequests.billingInterval })
+      .from(billingCheckoutRequests)
+      .where(and(eq(billingCheckoutRequests.businessId, input.businessId), inArray(billingCheckoutRequests.status, ["pending", "processing", "ready"]), gt(billingCheckoutRequests.createdAt, new Date(Date.now() - openCheckoutWindowMs))))
+      .orderBy(desc(billingCheckoutRequests.createdAt))
+      .limit(1))[0];
+    if (open) {
+      if (open.requestedByUserId !== input.userId) throw Object.assign(new Error("A checkout is already open for this workspace."), { status: 409, code: billingErrorCodes.checkoutInProgress });
+      if (open.target === input.target && open.billingInterval === input.billingInterval) return open.id;
+      // The same person picking another plan, such as after Polar's back arrow, replaces their own checkout.
+      // The old Polar session stays open, but Polar allows one active subscription per customer
+      // (keep "Allow multiple subscriptions" off), so paying in both tabs can't start two.
+      await tx.update(billingCheckoutRequests).set({ status: "superseded", updatedAt: new Date() }).where(and(eq(billingCheckoutRequests.id, open.id), eq(billingCheckoutRequests.businessId, input.businessId)));
+    }
     await tx.insert(billingAccounts).values({ businessId: input.businessId, billingKey: `business:${input.businessId}` }).onConflictDoNothing({ target: billingAccounts.businessId });
     const [request] = await tx.insert(billingCheckoutRequests).values({
       businessId: input.businessId,
@@ -192,18 +206,28 @@ export async function loadBillingCheckoutRequest(
   });
 }
 
+const billingCheckoutLeaseMs = 10 * 60_000;
+
 export async function claimBillingCheckoutRequest(
   context: DomainContext,
   input: { businessId: string; requestId: string },
 ): Promise<boolean> {
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
-    const staleBefore = new Date(Date.now() - 10 * 60_000);
+    const staleBefore = new Date(Date.now() - billingCheckoutLeaseMs);
     const rows = await tx.update(billingCheckoutRequests).set({ status: "processing", updatedAt: new Date(), error: null }).where(and(
       eq(billingCheckoutRequests.id, input.requestId),
       eq(billingCheckoutRequests.businessId, input.businessId),
       or(eq(billingCheckoutRequests.status, "pending"), eq(billingCheckoutRequests.status, "error"), and(eq(billingCheckoutRequests.status, "processing"), lt(billingCheckoutRequests.updatedAt, staleBefore))),
     )).returning({ id: billingCheckoutRequests.id });
     return rows.length > 0;
+  });
+}
+
+/** When another run holds this checkout request, the time its lease ends and it may be claimed again. */
+export async function billingCheckoutLeaseEndsAt(context: DomainContext, input: { businessId: string; requestId: string }): Promise<Date | null> {
+  return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    const row = (await tx.select({ updatedAt: billingCheckoutRequests.updatedAt }).from(billingCheckoutRequests).where(and(eq(billingCheckoutRequests.id, input.requestId), eq(billingCheckoutRequests.businessId, input.businessId), eq(billingCheckoutRequests.status, "processing"))).limit(1))[0];
+    return row ? new Date(row.updatedAt.getTime() + billingCheckoutLeaseMs) : null;
   });
 }
 
@@ -386,11 +410,33 @@ function numberField(source: Record<string, unknown>, ...keys: string[]): number
   return undefined;
 }
 
+/**
+ * What Polar refunded on an order. The order total includes tax, and Polar
+ * reports refunded tax apart from the refunded amount.
+ */
+export function orderRefundedCents(order: Record<string, unknown>, payload: Record<string, unknown>): number {
+  return (numberField(order, "refundedAmount", "refunded_amount") ?? numberField(payload, "refundedAmount", "refunded_amount") ?? 0)
+    + (numberField(order, "refundedTaxAmount", "refunded_tax_amount") ?? numberField(payload, "refundedTaxAmount", "refunded_tax_amount") ?? 0);
+}
+
 function dateField(source: Record<string, unknown>, ...keys: string[]): Date | undefined {
   const value = stringField(source, ...keys);
   if (!value) return undefined;
   const date = new Date(value);
   return Number.isNaN(date.valueOf()) ? undefined : date;
+}
+
+/**
+ * When a canceled plan ends, or null when it renews. Polar keeps the
+ * subscription active until then, so only its newest snapshot says so.
+ */
+export async function scheduledSubscriptionEndInTransaction(tx: DatabaseTransaction, businessId: string): Promise<string | null> {
+  const latest = (await tx.select({ payload: providerEvents.payload }).from(providerEvents)
+    .where(and(eq(providerEvents.businessId, businessId), eq(providerEvents.provider, "polar"), like(providerEvents.eventType, "subscription.%"), eq(providerEvents.status, "processed")))
+    .orderBy(sql`${providerEvents.payload}->>'subscriptionModifiedAt' desc nulls last`, desc(providerEvents.createdAt))
+    .limit(1))[0]?.payload;
+  if (latest?.cancel_at_period_end !== true || !["active", "trialing"].includes(String(latest.status))) return null;
+  return stringField(latest, "ends_at", "current_period_end") ?? null;
 }
 
 export type SubscriptionStart = { plan: string; billingInterval: string | null; previousPlan: string | null };
@@ -428,10 +474,9 @@ export async function reconcileBillingProviderEvent(
     if (event.status === "processed") return { reconciled: true, started: null };
 
     const payload = recordObject(event.payload);
-    const transactionPayload = recordObject(payload.order ?? payload.refund ?? payload);
+    const transactionPayload = recordObject(payload.order ?? payload);
     const customer = recordObject(payload.customer);
     const subscription = recordObject(payload.subscription);
-    const product = recordObject(subscription.product ?? payload.product);
     const existing = (await tx.select({
       billingKey: billingAccounts.billingKey,
       customerId: billingAccounts.customerId,
@@ -444,12 +489,29 @@ export async function reconcileBillingProviderEvent(
     if (billingKey) {
       const customerId = stringField(transactionPayload, "customerId", "externalCustomerId") ?? stringField(payload, "customerId", "externalCustomerId") ?? stringField(customer, "id", "externalId") ?? existing?.customerId;
       const subscriptionId = stringField(transactionPayload, "subscriptionId", "subscription_id") ?? stringField(payload, "subscriptionId", "subscription_id") ?? stringField(subscription, "id") ?? existing?.subscriptionId;
-      const plan = stringField(transactionPayload, "plan") ?? stringField(payload, "plan") ?? stringField(product, "name", "slug");
+      // An unmapped product (a retired or legacy product id) keeps the stored plan rather than a display name.
+      const plan = stringField(transactionPayload, "plan") ?? stringField(payload, "plan");
       const billingInterval = stringField(transactionPayload, "billingInterval", "billing_interval", "interval") ?? stringField(payload, "billingInterval", "billing_interval", "interval") ?? stringField(subscription, "billingInterval", "billing_interval", "interval");
-      const subscriptionState = stringField(transactionPayload, "subscriptionState", "status") ?? stringField(payload, "subscriptionState", "status") ?? (event.eventType.startsWith("subscription.") ? event.eventType.slice("subscription.".length) : undefined);
+      // Only a subscription's own status is a subscription state. An order's status
+      // (paid, refunded) is not, and an order without a nested subscription has none.
+      const subscriptionState = stringField(transactionPayload, "subscriptionState") ?? stringField(payload, "subscriptionState") ?? (event.eventType.startsWith("subscription.") ? stringField(payload, "status") ?? event.eventType.slice("subscription.".length) : undefined);
       const currentPeriodStart = dateField(transactionPayload, "currentPeriodStart", "current_period_start") ?? dateField(payload, "currentPeriodStart", "current_period_start") ?? dateField(subscription, "currentPeriodStart", "current_period_start");
       const currentPeriodEnd = dateField(transactionPayload, "currentPeriodEnd", "current_period_end") ?? dateField(payload, "currentPeriodEnd", "current_period_end") ?? dateField(subscription, "currentPeriodEnd", "current_period_end");
-      startedSubscription = detectSubscriptionStart(existing, {
+      // A Polar retry or replay can arrive after a newer snapshot of the subscription was applied.
+      // Both sides are normalized ISO strings (polar-event.ts), so text order is time order.
+      const modifiedAt = stringField(payload, "subscriptionModifiedAt");
+      const stale = modifiedAt !== undefined && (await tx.select({ id: providerEvents.id }).from(providerEvents)
+        .where(and(eq(providerEvents.businessId, input.businessId), eq(providerEvents.status, "processed"), sql`${providerEvents.payload}->>'subscriptionModifiedAt' > ${modifiedAt}`))
+        .limit(1)).length > 0;
+      const subscriptionFields = stale ? {} : {
+        ...(subscriptionId ? { subscriptionId } : {}),
+        ...(plan ? { plan } : {}),
+        ...(billingInterval ? { billingInterval } : {}),
+        ...(subscriptionState ? { subscriptionState } : {}),
+        ...(currentPeriodStart ? { currentPeriodStart } : {}),
+        ...(currentPeriodEnd ? { currentPeriodEnd } : {}),
+      };
+      startedSubscription = stale ? null : detectSubscriptionStart(existing, {
         plan: plan ?? existing?.plan ?? null,
         subscriptionState: subscriptionState ?? existing?.subscriptionState ?? null,
         billingInterval: billingInterval ?? existing?.billingInterval ?? null,
@@ -458,36 +520,38 @@ export async function reconcileBillingProviderEvent(
         businessId: input.businessId,
         billingKey,
         ...(customerId ? { customerId } : {}),
-        ...(subscriptionId ? { subscriptionId } : {}),
-        ...(plan ? { plan } : {}),
-        ...(billingInterval ? { billingInterval } : {}),
-        ...(subscriptionState ? { subscriptionState } : {}),
-        ...(currentPeriodStart ? { currentPeriodStart } : {}),
-        ...(currentPeriodEnd ? { currentPeriodEnd } : {}),
+        ...subscriptionFields,
       }).onConflictDoUpdate({
         target: billingAccounts.businessId,
         set: {
           billingKey,
           ...(customerId ? { customerId } : {}),
-          ...(subscriptionId ? { subscriptionId } : {}),
-          ...(plan ? { plan } : {}),
-          ...(billingInterval ? { billingInterval } : {}),
-          ...(subscriptionState ? { subscriptionState } : {}),
-          ...(currentPeriodStart ? { currentPeriodStart } : {}),
-          ...(currentPeriodEnd ? { currentPeriodEnd } : {}),
+          ...subscriptionFields,
           updatedAt: new Date(),
         },
       });
+      if (!stale) {
+        // A live paid plan keeps the business's numbers, including a trial number.
+        // When a paid plan ends, the numbers stay 30 more days, then go.
+        const wasPaid = isPaidSubscription(existing?.plan ?? null, existing?.subscriptionState ?? null);
+        const isPaid = isPaidSubscription(plan ?? existing?.plan ?? null, subscriptionState ?? existing?.subscriptionState ?? null);
+        if (isPaid) await keepBusinessNumbersInTransaction(tx, { businessId: input.businessId });
+        else if (wasPaid) await scheduleNumberReleaseInTransaction(tx, { businessId: input.businessId });
+        // Polar sends subscription.canceled when the owner cancels at the end of the period, while the plan is still live.
+        if (isPaid && event.eventType === "subscription.canceled" && currentPeriodEnd) await queuePlanCancelNoticeInTransaction(tx, { businessId: input.businessId, periodEnd: currentPeriodEnd });
+      }
     }
 
-    const transactionKind = event.eventType.startsWith("order.") ? "order" : event.eventType.startsWith("refund.") ? "refund" : undefined;
-    const sourceId = stringField(transactionPayload, "id", "orderId", "refundId") ?? stringField(payload, "id", "orderId", "refundId") ?? event.providerEventId;
+    // Refunds arrive as order.refunded (refund.* payloads name no business, so the webhook route drops them).
+    const transactionKind = event.eventType.startsWith("order.") ? "order" : undefined;
+    const sourceId = stringField(transactionPayload, "id", "orderId") ?? stringField(payload, "id", "orderId") ?? event.providerEventId;
     const amountCents = numberField(transactionPayload, "totalAmount", "total_amount", "amountCents", "amount") ?? numberField(payload, "totalAmount", "total_amount", "amountCents", "amount");
     const currency = stringField(transactionPayload, "currency") ?? stringField(payload, "currency");
     if (transactionKind && sourceId && amountCents !== undefined && currency) {
       const status = stringField(transactionPayload, "status") ?? stringField(payload, "status") ?? event.eventType.split(".").at(-1) ?? "received";
       const occurredAt = dateField(transactionPayload, "createdAt", "created_at", "occurredAt", "occurred_at") ?? dateField(payload, "createdAt", "created_at", "occurredAt", "occurred_at") ?? event.createdAt;
-      const orderId = stringField(transactionPayload, "orderId", "order_id") ?? stringField(payload, "orderId", "order_id") ?? (transactionKind === "order" ? sourceId : undefined);
+      const orderId = stringField(transactionPayload, "orderId", "order_id") ?? stringField(payload, "orderId", "order_id") ?? sourceId;
+      const refundedCents = orderRefundedCents(transactionPayload, payload);
       const subscriptionId = stringField(transactionPayload, "subscriptionId", "subscription_id") ?? stringField(payload, "subscriptionId", "subscription_id");
       const polarCustomerId = stringField(transactionPayload, "customerId", "customer_id") ?? stringField(payload, "customerId", "customer_id");
       const description = stringField(transactionPayload, "description", "reason") ?? stringField(payload, "description", "reason");
@@ -498,6 +562,7 @@ export async function reconcileBillingProviderEvent(
         sourceId,
         status,
         amountCents,
+        refundedAmountCents: refundedCents,
         currency: currency.toLowerCase(),
         ...(description ? { description } : {}),
         ...(invoiceUrl ? { invoiceUrl } : {}),
@@ -512,6 +577,8 @@ export async function reconcileBillingProviderEvent(
           businessId: input.businessId,
           status,
           amountCents,
+          // Refunds only add up, so a paid event retried after a refund cannot erase it.
+          refundedAmountCents: sql`greatest(${billingTransactions.refundedAmountCents}, excluded.refunded_amount_cents)`,
           currency: currency.toLowerCase(),
           ...(description ? { description } : {}),
           ...(invoiceUrl ? { invoiceUrl } : {}),
@@ -530,9 +597,8 @@ export async function reconcileBillingProviderEvent(
         kind: transactionKind,
         sourceId,
         status,
-        amountCents,
+        amountCents: amountCents - refundedCents,
         currency,
-        ...(orderId ? { orderId } : {}),
         occurredAt,
       });
     }

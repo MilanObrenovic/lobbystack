@@ -14,9 +14,11 @@ The agent core (`packages/agent-core`) is an AI SDK `ToolLoopAgent`. Its tools c
 - taking a message for the team
 - transferring the call (phone only) and ending it
 
+`packages/agent-core/src/capabilities.ts` decides which of these tools a call or chat gets. The agent's instructions and GPT-Live's list of backend tools both read that decision, so GPT-Live only offers what the agent can do.
+
 The caller hears silence while the agent works, so calls keep it short:
 
-- GPT-Live's instructions follow the structure in OpenAI's GPT-Live prompting guide: personality, backchannel and interruption policies, then a delegation policy that lists the backend's capabilities for this business.
+- GPT-Live's instructions follow the structure in OpenAI's GPT-Live prompting guide: personality, backchannel and interruption policies, then a delegation policy that lists what the backend can do for this business on a phone or browser call.
 - GPT-Live gets the business summary, opening hours, upcoming closures, services, the answers the business wrote for common questions, its rules, and the titles of its knowledge sources when the call starts. It answers from those facts and doesn't delegate them. The worker writes the business summary with AI from the knowledge sources (`business.generateSummary`) a few minutes after they change, unless an operator wrote it. A sibling job (`business.extractHours`) fills the opening hours from the passages that state them, unless an operator set the hours. `businesses.hours_source` records who set them: `none`, `generated` or `operator`.
 - Booking tools say why a time isn't bookable: no opening hours, closed that day, outside opening hours, a planned closure, no staff for the service, a calendar that hasn't synced, or taken. Only a taken time is reported as booked. With instant booking and no opening hours, the agent and GPT-Live take the caller's request as a message instead of offering times.
 - The agent runs on the `AI_CHAT_*` endpoint and model, with `low` reasoning and OpenAI's `priority` processing tier. Set `AI_DELEGATION_MODEL`, `AI_DELEGATION_REASONING_EFFORT` and `AI_DELEGATION_SERVICE_TIER` to change that.
@@ -27,15 +29,43 @@ The caller hears silence while the agent works, so calls keep it short:
 - If OpenAI rejects an answer, the worker sends a short failure in its place, so the caller doesn't wait in silence.
 - A booking repeated for the same caller, service and time returns the existing appointment instead of reporting the slot as taken.
 
-GPT-Live waits for the caller by default. To make it greet first, the admin starts every session with the greeting command in its starting history (`input`), as OpenAI's guide suggests for context the model needs from the start. GPT-Live then says the greeting about 2 seconds into the session. In tests against the API, a greeting command appended after `session.started` was often ignored, and on phone calls the worker can only connect after the session has started.
-
-If the worker hears no voice 4 seconds after its connection opens and the caller hasn't spoken, it sends the greeting command once more. It logs each step as `live.greeting` with `step`, `attempt`, `trigger` and `sinceAttachMs`. A `spoken` step with `attempt` 0 means the starting history did it.
-
-The sideband also reflects `session.output_audio.delta` events, which OpenAI doesn't document for sidebands. They carry the receptionist's audio as 16-bit PCM at 24 kHz, silence included, because GPT-Live is full duplex. The worker counts a chunk as speech only when it's loud, for the greeting, the goodbye and the silence timeout. Words in the output transcript count as speech too, so all three keep working if OpenAI stops sending the audio events. `live.closed` logs the events in `outputAudio`. Latency telemetry measures the receptionist's speech from the output transcript.
+The sideband also receives copies of the call's audio, as OpenAI's [server-side controls guide](https://developers.openai.com/api/docs/guides/voice-server-controls?api=live) describes: the receptionist's as `session.output_audio.delta` and the caller's as `session.input_audio.append`. Both carry 16-bit PCM at 24 kHz. The receptionist's audio includes silence, because GPT-Live is full duplex, so the worker counts a chunk as speech only when it's loud, for the greeting, the goodbye and the silence timeout. Words in the output transcript count as speech too, so all three keep working if OpenAI stops sending the audio events. The worker only measures the caller's audio. `live.closed` logs both in `outputAudio` and `inputAudio`. Latency telemetry measures the receptionist's speech from the output transcript.
 
 Keypad presses on phone calls reach the sideband as `transport.dtmf.received`, an event OpenAI sends only to sidebands. The worker adds each press to the caller's turn as `[pressed 1]`. The saved transcript and the next delegated request both show it, and a press resets the silence timeout.
 
 The worker logs each answer as `live.delegation` with `agentMs`, `totalMs`, `queueMs` (time waiting for an earlier request), `tools`, `modelSteps`, `directAnswer`, `stepMs` (each model step with the tools it called), `toolMs` (time in tools), `failed` and `superseded`. It also records each answer's tokens and cost as an AI generation with the operation `voice.delegation`.
+
+## Greet the caller before they speak
+
+GPT-Live waits for the caller by default. To make it greet first, the admin starts every session with the greeting command in its starting history (`input`), as OpenAI's guide suggests for context the model needs from the start. In tests against the API, GPT-Live ignored a command appended after `session.started` more often, and on phone calls the worker can only connect after the session has started.
+
+GPT-Live doesn't always follow the command. From October 3 to 8, it greeted from the starting history on 24 of 40 calls that connected audio: 8 of 15 phone calls and 16 of 25 browser calls. When it did, it spoke 1.9 to 4.2 seconds after the worker attached.
+
+If the worker hears no voice 4 seconds after the session starts and the caller hasn't spoken, it sends the command with `session.instructions.append`. GPT-Live can acknowledge that command and still wait: it ignored 8 of 16 acknowledged commands until the caller spoke, or for the rest of the call. When it followed one, it spoke within 4 seconds of the acknowledgment. So after 4.5 seconds without voice from either side, the worker sends the command again, up to 3 commands in all.
+
+The worker stops sending the command once the receptionist or the caller speaks, or the call starts ending. It doesn't resend a command that OpenAI rejected or never acknowledged. OpenAI's guide says an acknowledgment waits until the session timeline reaches the end of the command, so it stays pending on a call whose audio never connected.
+
+The worker logs each step as `live.greeting` with these fields:
+
+- `step`: `sent`, `acknowledged`, `spoken` or `failed`
+- `attempt`: the number of commands sent so far. A `spoken` step with `attempt` 0 means the starting history worked, and with `attempt` 2 that the second command did.
+- `trigger`: `fallback` for the first command and `retry` for the others
+- `sinceAttachMs`: milliseconds since the worker attached
+- `inputAudioMs`: milliseconds of caller audio OpenAI has reflected to the sideband so far
+
+### Why a call goes without a greeting
+
+GPT-Live skips the command on phone and browser calls at similar rates. On the October calls, the session also kept running through the silence before the caller spoke:
+
+- On every phone call that connected audio, the receptionist's reflected audio started 200 ms into the session and ran until 1.3 to 3.9 seconds before the call ended, whether or not anyone spoke. On a call where nobody spoke for 75 seconds, it covered 73.0 of 75.5 seconds.
+- OpenAI acknowledged each greeting command on those calls within 0.7 seconds of the send, so the session timeline was moving.
+- Twilio's Elastic SIP trunks offer G.711 (PCMU and PCMA) by default. Twilio's [codec page](https://www.twilio.com/docs/sip-trunking/codecs) lists voice activity detection and discontinuous transmission only for AMR-NB, a codec Twilio enables only on request. The trunk API has no silence settings.
+
+The two calls whose greeting command was never acknowledged had no audio at all: the reflected output audio never arrived, and OpenAI closed the command with "The session closed before the estimated context injection completed." No greeting change fixes those calls.
+
+To check whether audio reaches GPT-Live while a phone caller is silent, compare `inputAudioMs` on the call's `live.greeting` steps with `sinceAttachMs`, and `inputAudio.coveredMs` on `live.closed` with `durationMs`. Coverage close to the elapsed time means audio flowed through the silence. Coverage that grows only while the caller talks means the trunk or the carrier stops sending audio in silence. Zero on browser calls too means OpenAI isn't reflecting the caller's audio.
+
+OpenAI's [Live conversations guide](https://developers.openai.com/api/docs/guides/live-conversations) recommends a recorded or rendered clip for exact wording and a known end. On phone calls, Twilio sends the audio straight to OpenAI, so LobbyStack has no way to play one. Twilio would have to play the clip before it connects the call to OpenAI, or LobbyStack would have to relay the call's audio itself. The browser controls its own playback, so a browser call could play a clip while it holds back GPT-Live's audio.
 
 ## Follow a phone call
 
@@ -77,6 +107,22 @@ Once attached, the worker owns the call until OpenAI closes the session. It:
 - queues a copy of OpenAI's stored recording into LobbyStack storage, where the copy follows the plan's retention (see [Recordings](#recordings))
 - reports the call to the dashboard's live-call count
 
+When the caller is done, GPT-Live hands the call to the backend and says nothing while it waits. The caller is done when they say goodbye, "that's it" or "nothing else". Only the backend can hang up, so GPT-Live hands it every ending, even one it could answer itself. The agent then calls `endCall` with the reason `caller_finished` and writes no reply.
+
+The worker sends the answer, "The call is ending.", with `session.commentary.append`, and sends no "still checking" update. GPT-Live says one short goodbye when it hears it. Instructions that let GPT-Live say its goodbye before the answer failed: it took the goodbye for its reply and kept the call in 5 of 12 API runs with phone audio, and in 5 of 6 staging calls. With the goodbye after the answer, GPT-Live handed the call over in 24 runs out of 24. In 3 of them, it also said "Bye" or "Take care" while it waited, so the caller heard two goodbyes.
+
+For a caller who is done, the worker hangs up once the request has an answer, GPT-Live's goodbye after it has finished playing, and both sides have been quiet for 2 seconds. When GPT-Live says nothing within 4 seconds of the answer, the worker stops waiting for the goodbye. If GPT-Live keeps talking, the worker hangs up 20 seconds after the agent ended the call or the caller last spoke, whichever is later. If the caller says anything after GPT-Live handed the call over, the worker holds the hangup. Once the caller has paused for 0.8 seconds, it sends the conversation to the delegation model, which answers whether the caller's latest words only close the call, such as "Thanks, bye", or keep it going, such as "oh, one more thing". The worker asks only in this case, never on other turns. On "done", the hangup goes ahead once both sides have been quiet for 2 seconds. On "continue", or when the check fails, the worker cancels the hangup and the call goes on. If the caller says more while the check runs, the worker checks their newest words again. GPT-Live handing over another request also cancels the hangup, and it hands the call over again when the caller is done. `live.caller_done_check` logs each answer and how long it took.
+
+The check exists because GPT-Live answers a caller's "bye" after its own goodbye but rarely hands the call over again. Letting only a new hand-over cancel the hangup didn't work either: GPT-Live answered "Oh wait, one more thing" with "Go ahead" and no hand-over, and the call ended before the caller asked their question. With the check, API runs with phone audio ended the call after a trailing "Goodbye" 6 times out of 6, and never ended one in 14 runs where the caller said "Oh wait, one more thing".
+
+When the caller speaks before the agent has answered, the worker sends the answer as a silent note that the caller spoke again, so GPT-Live replies to them instead of saying goodbye. The check still decides whether the call ends.
+
+To test a change to this flow against GPT-Live, see [Test a voice change before you ship it](./testing.md).
+
+A call that ends this way, or that the caller hangs up while the worker waits, gets the disposition `caller_finished`, and `live.closed` logs `end: "caller_finished"`. The worker ends a spam or abusive call the way it ends a timeout, described below: once GPT-Live has finished speaking, or after 4 seconds of silence, whatever the caller says. If GPT-Live answers a goodbye without handing it over, the call still ends at the 75-second silence timeout, with a goodbye.
+
+The worker records the first reason the call started ending. If a caller says goodbye during a deploy's wrap-up and the agent calls `endCall`, the call keeps `service_restart`. A `caller_finished` end no longer counts once the caller keeps the call going, so a later timeout records its own reason. A REFER that went out outranks every other reason until the transfer fails. When nothing ended the call on purpose, OpenAI's close reason decides: `remote_hangup` becomes `caller_hung_up`, and a dropped connection becomes `connection_lost`.
+
 Before a timeout ends the call, the worker tells GPT-Live why and asks it for a short goodbye, then hangs up once the goodbye has played. It listens for the goodbye from the moment OpenAI acknowledges the command, so a sentence GPT-Live was already saying doesn't pass for it. Without an acknowledgment within 2 seconds, it listens from the request. GPT-Live can ignore a command appended mid-call, so the worker hangs up anyway after 4 seconds of silence, or 15 seconds in all. The duration limit's goodbye starts 30 seconds early, so it fits inside the reserved minutes. A call that reserved less than a minute gets half its length to talk instead, so a 30-second reservation still gets 15 seconds of conversation.
 
 A phone call on a plan with a minute limit asks for more minutes 60 seconds before the duration limit's goodbye would start. Each top-up adds 5 minutes, or what the plan has left when that's less, and no call goes past 30 minutes. The worker moves the goodbye back by what it got, then asks again a minute before the new goodbye.
@@ -114,15 +160,15 @@ When the worker gets SIGTERM or SIGINT, it drains instead of hanging up:
 3. At the drain timeout, GPT-Live tells each remaining caller that the service is restarting, apologizes and asks them to call back. The worker hangs up once that goodbye has played. The call record gets the disposition `service_restart`, and billing counts the call like any other. An attach that was still taking its lock at the timeout becomes active after it, and gets the same goodbye. The recovery job takes no calls while the worker drains.
 4. The worker waits until every call record is finalized, then closes its database pools and exits.
 
-Railway sends SIGKILL `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` after SIGTERM. The default is 0, so every deploy cuts calls off. On the worker service, add `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` as a service variable set to `1860` (31 minutes), so a 30-minute call can finish on its own. Add it as a variable rather than only in the service settings: the worker reads it and drains for that long minus 35 seconds, which leaves time for the goodbyes and finalization. The new deployment takes new calls while the old one drains. `.railway/railway.ts` declares the variable for production, so `railway config apply` sets it there. On a self-hosted Railway deployment, add it to the worker yourself.
+Railway sends SIGKILL `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` after SIGTERM. The default is 0, so every deploy cuts calls off. On the worker service, add `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` as a service variable set to `1860` (31 minutes), so a 30-minute call can finish on its own. Add it as a variable rather than only in the service settings: the worker reads it and drains for that long minus 35 seconds, which leaves time for the goodbyes and finalization. The new deployment takes new calls while the old one drains. `.railway/railway.ts` sets it to 1860 in production and keeps the shorter value staging sets in the dashboard, so `railway config apply` never deletes it. On a self-hosted Railway deployment, add it to the worker yourself.
 
 On other platforms, set `LIVE_DRAIN_TIMEOUT_MS` to the drain timeout. With neither variable set, the worker wraps up calls as soon as it gets the signal. The worker image starts Node directly, so Node receives the signal. A wrapper such as `npm start` would swallow it.
 
 ## Recover calls after a worker crash
 
-If the worker process dies mid-call, nobody answers the call's delegations, and its call record stays open with its minutes reserved. A scheduled job, `live.recoverOrphans`, runs every minute for each business and takes those calls over:
+If the worker process dies mid-call, nobody answers the call's delegations, and its call record stays open with its minutes reserved. One scheduled job, `live.recoverOrphans`, runs every minute on the critical queue and covers every business. Each run takes those calls over:
 
-1. It lists the business's open GPT-Live calls, phone and browser, that started between 60 seconds and 2 hours ago.
+1. It lists the open GPT-Live calls, phone and browser, that started between 60 seconds and 2 hours ago. It first finds the businesses with such a call, then reads each one's calls under that business's own access rules, one business at a time. If it can't read a business's calls, it logs the error and moves on to the next business.
 2. It leaves alone a call that saved a transcript turn in the last 45 seconds, because a worker is still running it.
 3. For each other call, it tries to take the attach lock. A missing lock means the call has no worker. When another worker holds the lock, the job leaves the call alone, and two workers running the job at once can't both take it.
 4. A dead worker stops topping up its calls, so a phone call that has run past its reservation asks for one more top-up first. The job hangs up a call still past its reserved length and finishes its record. It stops waiting for the hangup after 5 seconds, so a slow OpenAI can't hold up the job or a drain.
@@ -144,6 +190,8 @@ Sessions run with `store: true` (see `packages/agent-core/src/live/session.ts`),
 
 OpenAI finishes the recording after the session closes and answers 404 or 409 until it's ready. The job first runs 5 seconds after the call ends. After each 404 or 409 it queues another attempt with twice the delay: 10, 20, 40, 80 and 160 seconds, about 5 minutes over 6 attempts. Any other error from OpenAI ends the copy. A storage or database error fails the job, and the queue retries it.
 
+The calls list shows "Recording pending" while a call runs and for 10 minutes after it ends. After that, a call without a copy shows "No recording", as it does after a failed setup or under Zero Data Retention.
+
 OpenAI's copy follows OpenAI's rules, not the plan's retention. Its [GPT-Live data controls](https://developers.openai.com/api/docs/guides/your-data) say:
 
 - OpenAI keeps a stored session's recording for 30 days: "Stored sessions and their index expire after 30 days."
@@ -153,7 +201,7 @@ OpenAI's copy follows OpenAI's rules, not the plan's retention. Its [GPT-Live da
 
 The [Live conversations guide](https://developers.openai.com/api/docs/guides/live-conversations) adds that storage must be enabled for the OpenAI project and needs a data policy that permits persistence.
 
-When a business deletes a recording, or its plan's retention runs out, OpenAI's copy stays until its 30 days are up. Tell businesses that OpenAI keeps each call's recording for 30 days and that we can't delete it sooner. OpenAI doesn't say whether the 30 days start when the session starts or when it ends.
+After a recording's retention runs out, OpenAI keeps its copy until its 30 days are up. Tell businesses that OpenAI keeps each call's recording for 30 days and that we can't delete it sooner. OpenAI doesn't say whether the 30 days start when the session starts or when it ends.
 
 ## Interruptions and background noise
 
@@ -173,6 +221,13 @@ The admin and worker read these variables:
 | `INTERNAL_SERVICE_TOKEN` | admin, worker | Authenticates the admin's attach request to the worker. |
 | `WORKER_INTERNAL_URL` | admin | Private URL of the worker's HTTP port, for example `http://worker:3002`. |
 | `TWILIO_SIP_TRUNK_SID` | worker | Adds new phone numbers to the SIP trunk. The worker refuses to provision a number without it. |
+| `TWILIO_GB_BUNDLE_SID` | worker | The approved Twilio regulatory bundle for UK mobile numbers. The worker won't buy a UK number without it. |
+| `TWILIO_AU_BUNDLE_SID` | worker | The approved Twilio regulatory bundle for Australian mobile numbers. The worker won't buy an Australian number without it. |
+| `TWILIO_AU_ADDRESS_SID` | worker | The address in the Australian bundle. Twilio needs an address on every Australian mobile number. |
+| `TWILIO_NZ_BUNDLE_SID`, `TWILIO_NZ_ADDRESS_SID` | admin, worker | The approved Twilio regulatory bundle for New Zealand local numbers, and the address in it. |
+| `TWILIO_VERIFY_SERVICE_SID` | admin | The Twilio Verify service that texts the onboarding phone code. Onboarding can't verify a phone without it. |
+
+The admin also reads the bundle variables: it offers numbers only in the countries whose bundle is set. Set `TWILIO_GB_BUNDLE_SID`, `TWILIO_AU_BUNDLE_SID` and `TWILIO_AU_ADDRESS_SID` on the admin too.
 | `WEB_CALL_MAX_DURATION_MS` | admin | Optional cap on browser call length. |
 | `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | worker | Railway's time between SIGTERM and SIGKILL. Set it to `1860` so calls can finish during a deploy. See [Deploy the worker during calls](#deploy-the-worker-during-calls). |
 | `LIVE_DRAIN_TIMEOUT_MS` | worker | Optional. How long a shutdown lets calls finish on their own before it ends them with a goodbye. Overrides the timeout derived from `RAILWAY_DEPLOYMENT_DRAINING_SECONDS`. |
@@ -200,3 +255,19 @@ pnpm exec tsx scripts/operations/move-number-to-gpt-live.ts \
 ```
 
 A number off the trunk has nothing to answer its calls, so keep every number on it.
+
+### Sell numbers in the UK, Australia and New Zealand
+
+Twilio sells numbers in these countries only under a regulatory bundle it has approved. Create one bundle per country with LobbyStack as the business, and the worker buys every number in that country under it. UK and Australian businesses get mobile numbers, because local numbers there need a local address. New Zealand businesses get local numbers, which take calls but not texts. That's fine, because hosted businesses text from the shared sender.
+
+To set up a country:
+
+1. In the Twilio Console, open **Phone Numbers > Regulatory Compliance > Bundles**. Create a business bundle for mobile numbers in that country.
+2. Fill in what that country asks for:
+   - United Kingdom: set **Business Classification** to `INDEPENDENT_SOFTWARE_VENDOR`, and answer `YES` when Twilio asks whether you assign numbers to end customers. The address can be anywhere except a PO box. The representative's phone must be a mobile number they answer, and their email must use the company's domain.
+   - Australia: upload a commercial registry extract that shows the company's name, address and registration number.
+   - New Zealand: upload a registry extract with the company's name, and a document that proves its address, such as a recent utility bill or tax notice.
+3. Submit the bundle and wait for Twilio to approve it.
+4. On the admin and the worker, set the bundle's SID as `TWILIO_GB_BUNDLE_SID`, `TWILIO_AU_BUNDLE_SID` or `TWILIO_NZ_BUNDLE_SID`. For Australia and New Zealand, also set the SID of the bundle's address as `TWILIO_AU_ADDRESS_SID` or `TWILIO_NZ_ADDRESS_SID`.
+
+Until you set a country's bundle, number claims there fail with an error that includes the missing variable's name.

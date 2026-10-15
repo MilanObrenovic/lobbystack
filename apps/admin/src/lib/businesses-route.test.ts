@@ -1,17 +1,12 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ createBusiness: vi.fn() }));
-vi.mock("@lobbystack/domain", () => ({ createBusiness: mocks.createBusiness }));
-vi.mock("@/lib/api-helpers", () => ({
-  requireApiSession: async () => ({ user: { id: "user-1" } }),
-  readJson: (request: Request) => request.json(),
-  jsonError: (message: string, status = 400, code?: string) => Response.json({ error: message, ...(code ? { code } : {}) }, { status }),
-  asApiResponse: () => Response.json({ error: "Unexpected failure" }, { status: 500 }),
-}));
-vi.mock("@/lib/domain-context", () => ({ createDomainContext: () => ({}) }));
+vi.mock("@lobbystack/domain", async (original) => ({ ...await original<typeof import("@lobbystack/domain")>(), createBusiness: mocks.createBusiness }));
+vi.mock("@/lib/operator-request", () => import("@/lib/operator-request.fake"));
+import { fakeOperator, resetFakeOperator } from "@/lib/operator-request.fake";
 import { POST } from "../../app/api/businesses/route";
 
-beforeEach(() => { vi.clearAllMocks(); mocks.createBusiness.mockResolvedValue({ businessId: "business-1" }); });
+beforeEach(() => { vi.clearAllMocks(); resetFakeOperator(); fakeOperator.domain = {} as typeof fakeOperator.domain; mocks.createBusiness.mockResolvedValue({ businessId: "business-1" }); });
 
 function request(extra: Record<string, unknown>) {
   return new Request("https://app.example.test/api/businesses", { method: "POST", body: JSON.stringify({ name: "Test", timezone: "UTC", businessType: "test", ...extra }) });
@@ -31,4 +26,9 @@ it("allows an omitted slug for server-side generation", async () => {
 it("preserves a supplied nonempty slug", async () => {
   expect((await POST(request({ slug: "test" }))).status).toBe(201);
   expect(mocks.createBusiness).toHaveBeenCalledWith({}, expect.objectContaining({ slug: "test" }));
+});
+
+it.each([["Etc/Unknown", "UTC"], ["america/toronto", "America/Toronto"]])("creates the business in a zone the server knows when the browser sends %s", async (timezone, saved) => {
+  expect((await POST(request({ timezone }))).status).toBe(201);
+  expect(mocks.createBusiness).toHaveBeenCalledWith({}, expect.objectContaining({ timezone: saved }));
 });

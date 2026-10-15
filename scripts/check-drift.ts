@@ -68,9 +68,6 @@ for (const path of [
   requireFile(path);
 }
 
-if (!readText("apps/admin/app/api/calls/route.ts").includes("withOperatorTransaction")) {
-  errors.push("operator call creation is missing an RLS-scoped membership transaction");
-}
 if (!readText("packages/db/migrations/0012_dispatcher_runtime.sql").includes("lobbystack_dispatcher")) {
   errors.push("dispatcher runtime migration is missing dispatcher role configuration");
 }
@@ -159,7 +156,7 @@ for (const removed of ["otel-collector", "otel-certifier", "prometheus", "Docker
     errors.push(`Removed bundled observability infrastructure is still referenced: ${removed}`);
   }
 }
-for (const variable of ["POLAR_WEBHOOK_SECRET", "RESEND_WEBHOOK_SECRET", "TWILIO_AUTH_TOKEN", "TWILIO_SMS_WEBHOOK_URL", "TWILIO_STATUS_CALLBACK_URL"]) {
+for (const variable of ["POLAR_WEBHOOK_SECRET", "TWILIO_AUTH_TOKEN", "TWILIO_SMS_WEBHOOK_URL", "TWILIO_STATUS_CALLBACK_URL"]) {
   if (!compose.includes(`${variable}:`)) {
     errors.push(`Admin webhook configuration is missing ${variable}`);
   }

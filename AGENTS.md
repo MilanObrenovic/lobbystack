@@ -58,7 +58,7 @@
 - Avoid concatenating translated sentences; use interpolation.
 - Format dates, times, and numbers with the active locale through `Intl` or Luxon.
 - The interface languages are `en`, `fr`, `es`, and `sr`. Serbian uses Latin script only. Pass a locale through `intlLocale()` from `@lobbystack/shared` before you hand it to `Intl`, Luxon, `lang`, or `hreflang`, so `sr` becomes `sr-Latn`. A bare `sr` formats in Cyrillic.
-- The AI receptionist speaks English and French only (`RuntimeLocale`). Keep business caller languages and voice prompts on that list.
+- A business's default caller language (`RuntimeLocale`) is `en`, `fr`, `es`, `sr` (Latin script), `de`, `pt` (Brazilian Portuguese), `it`, or `nl`, and calls open in it. GPT-Live then switches to the caller's language when they ask or clearly speak another one. Keep business default languages and voice prompts on the `RuntimeLocale` list; name a language for a model with `runtimeLocaleName()`.
 
 ## Testing
 
@@ -68,6 +68,7 @@
 - Every new telemetry event must include a test that asserts it fires from its real production code path.
 - Run `pnpm typecheck`, `pnpm test`, and `pnpm build` before opening a PR.
 - When changing migrations or RLS, also run `pnpm db:check` and `pnpm db:verify-rls` against the test database.
+- When changing GPT-Live instructions, the call controller, or how calls end, run `pnpm voice:eval` before you open a PR and `pnpm voice:call` against staging before you merge. See `docs/voice/testing.md`.
 
 ## Datastore
 

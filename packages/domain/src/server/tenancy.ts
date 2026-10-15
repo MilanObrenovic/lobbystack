@@ -1,12 +1,13 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gt, ne, or, sql } from "drizzle-orm";
 
 import { enqueueOutbox, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
-import { businessInvitations, businessMemberships, businesses, receptionistProfiles, staff, users } from "@lobbystack/db";
-import { defaultAppointmentChangePolicy, normalizeAuthEmail } from "@lobbystack/shared";
+import { businessInvitations, businessMemberships, businesses, closures, receptionistProfiles, staff, users } from "@lobbystack/db";
+import { defaultAppointmentChangePolicy, defaultCurrencyForTimezone, defaultGreeting, isCurrencyCode, isDefaultGreeting, normalizeAuthEmail, normalizeRuntimeLocale } from "@lobbystack/shared";
 
 import { requireBusinessAdmin, requireBusinessMembership } from "../authz";
+import { enqueueBusinessSummaryRefresh } from "./businessSummary";
 import type { DomainContext } from "./context";
 
 export type BusinessRole = "business_owner" | "business_admin" | "scheduler" | "viewer";
@@ -28,10 +29,38 @@ function cleanSlug(slug: string): string {
   return result;
 }
 
+// Each business adds recurring worker jobs, so one account cannot create them without bound.
+const maxOwnedBusinesses = 10;
+
+/**
+ * The IANA time zone a value names, spelled the way Intl lists it, such as
+ * America/Vancouver for " america/vancouver", or undefined when it names none.
+ * UTC offsets such as +05:00 don't name a zone.
+ */
+export function ianaTimeZone(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const zone = value.trim();
+  if (zone.length > 80 || !/^[A-Za-z][\w+-]*(?:\/[\w+-]+)*$/.test(zone)) return undefined;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+  } catch {
+    return undefined;
+  }
+  // Intl accepts any letter case. resolvedOptions() would also swap in legacy names such as Asia/Calcutta, so only the case is fixed.
+  return Intl.supportedValuesOf("timeZone").find((known) => known.toLowerCase() === zone.toLowerCase()) ?? zone;
+}
+
+function requireIanaTimeZone(value: unknown): string {
+  const zone = ianaTimeZone(value);
+  if (!zone) throw Object.assign(new Error("timezone must be an IANA time zone, such as America/Toronto."), { status: 400, code: "invalid_timezone" });
+  return zone;
+}
+
 export async function createBusiness(
   context: DomainContext,
   input: CreateBusinessInput,
 ): Promise<{ businessId: string; membershipId: string }> {
+  const timezone = requireIanaTimeZone(input.timezone);
   const businessId = randomUUID();
   const generatedSlug = input.name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 96).replace(/-$/, "") || "business";
   const baseSlug = input.slug === undefined ? generatedSlug : cleanSlug(input.slug);
@@ -40,13 +69,20 @@ export async function createBusiness(
     businessId,
     actorType: "system",
   }, async (tx) => {
+    // Lock the user row so concurrent creates by the same account count each other.
+    await tx.select({ id: users.id }).from(users).where(eq(users.id, input.userId)).for("update");
+    const owned = await tx.execute<{ count: number }>(sql`select count(*)::int as count from app.list_user_businesses(${input.userId}) where role = 'business_owner'`);
+    if ((owned.rows[0]?.count ?? 0) >= maxOwnedBusinesses) {
+      throw Object.assign(new Error(`Too many workspaces. One account can own up to ${maxOwnedBusinesses}.`), { status: 403 });
+    }
     let business: { id: string } | undefined;
     for (let attempt = 0; attempt < 5; attempt++) {
       const insert = tx.insert(businesses).values({
         id: businessId,
         name: input.name.trim(),
         slug: attempt === 0 ? baseSlug : `${baseSlug}-${randomBytes(6).toString("hex")}`,
-        timezone: input.timezone,
+        timezone,
+        currency: defaultCurrencyForTimezone(timezone),
         businessType: input.businessType,
         deploymentMode: input.deploymentMode ?? "cloud",
         onboardingStage: "website",
@@ -70,10 +106,10 @@ export async function createBusiness(
     }
     // Booking assigns every appointment to a staff member. Businesses that don't
     // manage a team get one hidden member that stands for the business itself.
-    await tx.insert(staff).values({ businessId, name: input.name.trim(), timezone: input.timezone });
+    await tx.insert(staff).values({ businessId, name: input.name.trim(), timezone });
     await tx.insert(receptionistProfiles).values({
       businessId,
-      greeting: `Thanks for calling ${input.name.trim()}.`,
+      greeting: defaultGreeting(input.name),
       tone: "warm and direct",
       summary: `${input.name.trim()} uses LobbyStack to answer calls.`,
       bookingPolicy: "Only confirm a booking after availability is checked.",
@@ -98,28 +134,12 @@ export async function createBusiness(
 export async function listUserBusinesses(
   db: Database,
   userId: string,
-): Promise<Array<{ businessId: string; name: string; slug: string; role: string; active: boolean; onboardingStage?: string; createdAt?: string }>> {
-  const result = await withBusinessTransaction(db, { userId, actorType: "operator" }, async (tx) => {
+): Promise<Array<{ businessId: string; name: string; slug: string; role: string; active: boolean; timezone: string; businessType: string; defaultLocale: string; websiteUrl: string | null; onboardingStage: string; createdAt: string }>> {
+  return await withBusinessTransaction(db, { userId, actorType: "operator" }, async (tx) => {
     const [user] = await tx.select({ activeBusinessId: users.activeBusinessId }).from(users).where(eq(users.id, userId)).limit(1);
-    const rows = await tx.execute(sql`select business_id, name, slug, role from app.list_user_businesses(${userId})`);
-    const details = [];
-    for (const row of rows.rows) {
-      const businessId = String(row.business_id);
-      await tx.execute(sql`select set_config('app.business_id', ${businessId}, true)`);
-      const [detail] = await tx.select({
-        id: businesses.id,
-        timezone: businesses.timezone,
-        businessType: businesses.businessType,
-        defaultLocale: businesses.defaultLocale,
-        websiteUrl: businesses.websiteUrl,
-        onboardingStage: businesses.onboardingStage,
-        createdAt: businesses.createdAt,
-      }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
-      if (detail) details.push(detail);
-    }
-    return { activeBusinessId: user?.activeBusinessId ?? null, rows: rows.rows, details };
+    const rows = await tx.execute<{ businessId: string; name: string; slug: string; role: string; timezone: string; businessType: string; defaultLocale: string; websiteUrl: string | null; onboardingStage: string; createdAt: Date }>(sql`select business_id as "businessId", name, slug, role, timezone, business_type as "businessType", default_locale as "defaultLocale", website_url as "websiteUrl", onboarding_stage as "onboardingStage", created_at as "createdAt" from app.list_user_businesses(${userId})`);
+    return rows.rows.map((row) => ({ ...row, active: row.businessId === user?.activeBusinessId, createdAt: new Date(row.createdAt).toISOString() }));
   });
-  return result.rows.map((row) => { const detail = result.details.find((item) => item.id === String(row.business_id)); return { businessId: String(row.business_id), name: String(row.name), slug: String(row.slug), role: String(row.role), active: String(row.business_id) === result.activeBusinessId, ...(detail ? { timezone: detail.timezone, businessType: detail.businessType, defaultLocale: detail.defaultLocale, websiteUrl: detail.websiteUrl, onboardingStage: detail.onboardingStage, createdAt: detail.createdAt.toISOString() } : {}) }; });
 }
 
 export async function updateBusiness(
@@ -132,15 +152,39 @@ export async function updateBusiness(
   });
 }
 
-/** Updates basic business fields. Callers authorize first. */
+/** Updates basic business fields and refreshes the receptionist's snapshot. Callers authorize first. */
 export async function updateBusinessInTransaction(
   tx: DatabaseTransaction,
-  input: { businessId: string; name?: string; timezone?: string; businessType?: string; defaultLocale?: string; websiteUrl?: string | null },
+  input: { businessId: string; name?: string; timezone?: string; businessType?: string; defaultLocale?: string; websiteUrl?: string | null; currency?: string },
 ): Promise<void> {
-  const values = { ...(input.name !== undefined ? { name: input.name.trim() } : {}), ...(input.timezone !== undefined ? { timezone: input.timezone.trim() } : {}), ...(input.businessType !== undefined ? { businessType: input.businessType.trim() } : {}), ...(input.defaultLocale !== undefined ? { defaultLocale: input.defaultLocale.trim() } : {}), ...(input.websiteUrl !== undefined ? { websiteUrl: input.websiteUrl } : {}), updatedAt: new Date() };
-  if (Object.keys(values).length === 1) throw new Error("At least one business field is required.");
+  const timezone = input.timezone === undefined ? undefined : requireIanaTimeZone(input.timezone);
+  if (input.currency !== undefined && !isCurrencyCode(input.currency)) throw Object.assign(new Error("currency is invalid."), { status: 400 });
+  const values = { ...(input.name !== undefined ? { name: input.name.trim() } : {}), ...(timezone !== undefined ? { timezone } : {}), ...(input.businessType !== undefined ? { businessType: input.businessType.trim() } : {}), ...(input.defaultLocale !== undefined ? { defaultLocale: input.defaultLocale.trim() } : {}), ...(input.websiteUrl !== undefined ? { websiteUrl: input.websiteUrl } : {}), ...(input.currency !== undefined ? { currency: input.currency } : {}), updatedAt: new Date() };
+  if (Object.keys(values).length === 1) throw Object.assign(new Error("At least one business field is required."), { status: 400 });
+  // Locks the row, so a concurrent change can't alter the zone the closures were entered in, or the language the greeting is in.
+  const [before] = timezone === undefined && input.defaultLocale === undefined ? [] : await tx.select({ timezone: businesses.timezone, defaultLocale: businesses.defaultLocale, name: businesses.name }).from(businesses).where(eq(businesses.id, input.businessId)).for("update");
   const [business] = await tx.update(businesses).set(values).where(eq(businesses.id, input.businessId)).returning({ id: businesses.id });
-  if (!business) throw new Error("Business not found.");
+  if (!business) throw Object.assign(new Error("Business not found."), { status: 404 });
+  // shortcut: every staff row today is the default member that stands for the business; once staff set their own zones, update only that member.
+  if (timezone !== undefined) await tx.update(staff).set({ timezone, updatedAt: new Date() }).where(eq(staff.businessId, input.businessId));
+  // Closures are entered as local times but saved as instants. Keep their local times in the new zone, as weekly hours do.
+  if (timezone !== undefined && before && before.timezone !== timezone) {
+    await tx.update(closures).set({
+      startsAt: sql`(${closures.startsAt} at time zone ${before.timezone}) at time zone ${timezone}`,
+      endsAt: sql`(${closures.endsAt} at time zone ${before.timezone}) at time zone ${timezone}`,
+      updatedAt: new Date(),
+    }).where(and(eq(closures.businessId, input.businessId), gt(closures.endsAt, sql`now()`)));
+  }
+  // A greeting still on the old language's default follows the new language; one the owner wrote stays.
+  if (input.defaultLocale !== undefined && before) {
+    const from = normalizeRuntimeLocale(before.defaultLocale);
+    const to = normalizeRuntimeLocale(input.defaultLocale);
+    const [profile] = from === to ? [] : await tx.select({ greeting: receptionistProfiles.greeting }).from(receptionistProfiles).where(eq(receptionistProfiles.businessId, input.businessId)).limit(1);
+    if (profile && isDefaultGreeting(profile.greeting, before.name, from)) await tx.update(receptionistProfiles).set({ greeting: defaultGreeting(input.name?.trim() || before.name, to), updatedAt: new Date() }).where(eq(receptionistProfiles.businessId, input.businessId));
+  }
+  await enqueueOutbox(tx, { topic: "snapshot.refresh", businessId: input.businessId, aggregateType: "business", aggregateId: input.businessId, dedupeKey: `business:${input.businessId}:snapshot:${Date.now()}`, payload: { businessId: input.businessId, reason: "business_updated" } });
+  // The generated summary names the business and is written in its default locale.
+  if (input.name !== undefined || input.defaultLocale !== undefined) await enqueueBusinessSummaryRefresh(tx, { businessId: input.businessId, reason: "business_updated" });
 }
 
 export async function switchWorkspace(
@@ -164,6 +208,10 @@ export async function inviteMember(
   const token = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const normalizedEmail = normalizeAuthEmail(input.email);
+  // Exactly one plain address: mail transports send a comma or semicolon list to every recipient.
+  if (!/^[^\s@,;:<>()"]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(normalizedEmail)) {
+    throw Object.assign(new Error("Enter one valid email address."), { status: 400 });
+  }
   const invitationId = randomUUID();
   await withBusinessTransaction(context.db, {
     userId: input.userId,
@@ -175,7 +223,7 @@ export async function inviteMember(
       id: invitationId,
       businessId: input.businessId,
       invitedByUserId: input.userId,
-      email: input.email,
+      email: normalizedEmail,
       normalizedEmail,
       role: input.role,
       tokenHash,
@@ -189,7 +237,7 @@ export async function inviteMember(
       dedupeKey: `invitation:${invitationId}:send`,
       payload: {
         invitationId,
-        email: input.email,
+        email: normalizedEmail,
         token,
         template: "invitation",
         // Invitations may go to someone without an account preference. Let the
@@ -203,20 +251,31 @@ export async function inviteMember(
 
 export async function acceptInvitation(
   context: DomainContext,
-  input: { userId: string; tokenHash: string },
+  input: { userId: string; tokenHash: string; email: string | null | undefined; emailVerified: boolean | null | undefined },
 ): Promise<{ businessId: string; role: string }> {
   const resolved = await context.db.execute<{ business_id: string }>(sql`select app.resolve_business_by_invitation(${input.tokenHash}) as business_id`);
   const businessId = resolved.rows[0]?.business_id;
   if (!businessId) {
-    throw new Error("Invitation is invalid or expired.");
+    throw Object.assign(new Error("Invitation is invalid or expired."), { status: 404 });
   }
   return await withBusinessTransaction(context.db, { userId: input.userId, actorType: "system", businessId }, async (tx) => {
     const rows = await tx.select().from(businessInvitations).where(and(eq(businessInvitations.tokenHash, input.tokenHash), eq(businessInvitations.status, "pending"))).limit(1);
     const invitation = rows[0];
+    // The resolver also finds accepted, revoked and expired invitations, so the preview can say which.
     if (!invitation || invitation.expiresAt <= new Date()) {
-      throw new Error("Invitation is invalid or expired.");
+      throw Object.assign(new Error("Invitation is invalid or expired."), { status: 409 });
     }
-    await tx.insert(businessMemberships).values({
+    // A forwarded or leaked link must not let a different account join.
+    if (!input.emailVerified || !input.email || normalizeAuthEmail(input.email) !== invitation.normalizedEmail) {
+      throw Object.assign(new Error("Sign in with the verified email address this invitation was sent to."), { status: 403 });
+    }
+    // Claim the invitation before joining, so a second accept of the same token fails.
+    const [claimed] = await tx.update(businessInvitations).set({ status: "accepted", acceptedByUserId: input.userId, acceptedAt: new Date(), updatedAt: new Date() }).where(and(eq(businessInvitations.id, invitation.id), eq(businessInvitations.status, "pending"))).returning({ id: businessInvitations.id });
+    if (!claimed) {
+      throw Object.assign(new Error("Invitation is invalid or expired."), { status: 409 });
+    }
+    // An active member keeps their role, so an owner who accepts a viewer invite stays owner.
+    const [joined] = await tx.insert(businessMemberships).values({
       businessId: invitation.businessId,
       userId: input.userId,
       role: invitation.role,
@@ -224,9 +283,10 @@ export async function acceptInvitation(
     }).onConflictDoUpdate({
       target: [businessMemberships.businessId, businessMemberships.userId],
       set: { role: invitation.role, status: "active", updatedAt: new Date() },
-    });
-    await tx.update(businessInvitations).set({ status: "accepted", acceptedByUserId: input.userId, acceptedAt: new Date(), updatedAt: new Date() }).where(eq(businessInvitations.id, invitation.id));
-    return { businessId: invitation.businessId, role: invitation.role };
+      setWhere: ne(businessMemberships.status, "active"),
+    }).returning({ role: businessMemberships.role });
+    const role = joined?.role ?? (await tx.select({ role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.businessId, invitation.businessId), eq(businessMemberships.userId, input.userId))).limit(1))[0]!.role;
+    return { businessId: invitation.businessId, role };
   });
 }
 
@@ -249,35 +309,23 @@ export async function previewInvitation(
   });
 }
 
-export async function updateMemberRole(
-  context: DomainContext,
-  input: { userId: string; businessId: string; membershipId: string; role: Exclude<BusinessRole, "business_owner"> },
-): Promise<void> {
-  await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
-    await requireBusinessAdmin(tx, input);
-    const membership = (await tx.select({ userId: businessMemberships.userId, role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.id, input.membershipId), eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.status, "active"))).limit(1))[0];
-    if (!membership) throw new Error("Membership not found.");
-    if (membership.role === "business_owner") {
-      const owners = await tx.select({ id: businessMemberships.id }).from(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.role, "business_owner"), eq(businessMemberships.status, "active")));
-      if (owners.length <= 1) throw new Error("The final owner cannot be changed.");
-    }
-    await tx.update(businessMemberships).set({ role: input.role, updatedAt: new Date() }).where(and(eq(businessMemberships.id, input.membershipId), eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.status, "active")));
-  });
-}
-
 export async function removeMember(
   context: DomainContext,
   input: { userId: string; businessId: string; membershipId: string },
 ): Promise<void> {
   await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
-    const membership = (await tx.select({ role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.id, input.membershipId), eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.status, "active"))).limit(1))[0];
-    if (!membership) throw new Error("Membership not found.");
+    const membership = (await tx.select({ role: businessMemberships.role, userId: businessMemberships.userId }).from(businessMemberships).where(and(eq(businessMemberships.id, input.membershipId), eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.status, "active"))).limit(1))[0];
+    if (!membership) throw Object.assign(new Error("Membership not found."), { status: 404, code: "not_found" });
     if (membership.role === "business_owner") {
       const owners = await tx.select({ id: businessMemberships.id }).from(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.role, "business_owner"), eq(businessMemberships.status, "active")));
-      if (owners.length <= 1) throw new Error("The final owner cannot be removed.");
+      if (owners.length <= 1) throw Object.assign(new Error("The final owner cannot be removed."), { status: 409, code: "final_owner" });
     }
+    // RLS hides the member's users row from the app role; this function returns their email.
+    const email = (await tx.execute<{ email: string }>(sql`select email from app.list_business_members(${input.businessId}::uuid) where membership_id = ${input.membershipId}::uuid`)).rows[0]?.email;
     await tx.update(businessMemberships).set({ status: "removed", updatedAt: new Date() }).where(and(eq(businessMemberships.id, input.membershipId), eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.status, "active")));
+    // Pending invitations the member sent (the inviter gets the token) or received would let them back in.
+    await tx.update(businessInvitations).set({ status: "revoked", updatedAt: new Date() }).where(and(eq(businessInvitations.businessId, input.businessId), eq(businessInvitations.status, "pending"), or(eq(businessInvitations.invitedByUserId, membership.userId), email ? eq(businessInvitations.normalizedEmail, normalizeAuthEmail(email)) : undefined)));
   });
 }
 
@@ -288,6 +336,6 @@ export async function revokeInvitation(
   await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
     const changed = await tx.update(businessInvitations).set({ status: "revoked", updatedAt: new Date() }).where(and(eq(businessInvitations.id, input.invitationId), eq(businessInvitations.businessId, input.businessId), eq(businessInvitations.status, "pending"))).returning({ id: businessInvitations.id });
-    if (!changed.length) throw new Error("Invitation not found or already resolved.");
+    if (!changed.length) throw Object.assign(new Error("Invitation not found or already resolved."), { status: 409 });
   });
 }

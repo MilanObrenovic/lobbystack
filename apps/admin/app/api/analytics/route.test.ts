@@ -2,11 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const getAnalytics = vi.hoisted(() => vi.fn(async () => ({ series: [] })));
 vi.mock("@lobbystack/domain", () => ({ analyticsGranularities: ["hour", "day", "week", "month", "year"], getAnalytics }));
-vi.mock("@/lib/api-helpers", () => ({
-  requireOperatorBusiness: async () => ({ session: { user: { id: "user" } }, businessId: "business" }),
-  asApiResponse: () => Response.json({ error: "Request failed" }, { status: 400 }),
-}));
-vi.mock("@/lib/domain-context", () => ({ createDomainContext: () => ({}) }));
+vi.mock("@/lib/operator-request", () => import("@/lib/operator-request.fake"));
 
 import { GET } from "./route";
 
@@ -19,7 +15,7 @@ function request(days: number, granularity: string) {
 }
 
 describe("analytics route range limits", () => {
-  it.each<[string, number]>([["hour", 366], ["day", 366], ["week", 3493], ["month", 3660], ["year", 3660]])("allows %s ranges up to %i days", async (granularity, days) => {
+  it.each<[string, number]>([["hour", 20], ["day", 366], ["week", 3493], ["month", 3660], ["year", 3660]])("allows %s ranges up to %i days", async (granularity, days) => {
     expect((await request(days, granularity)).status).toBe(200);
     expect((await request(days + 1, granularity)).status).toBe(400);
   });

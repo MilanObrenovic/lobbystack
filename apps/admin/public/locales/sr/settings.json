@@ -143,7 +143,8 @@
       "openingCheckout": "Otvaranje plaćanja...",
       "openingPortal": "Otvaranje portala...",
       "viewInvoice": "Prikaži račun",
-      "retry": "Pokušaj ponovo"
+      "retry": "Pokušaj ponovo",
+      "cancelPlan": "Otkaži paket"
     },
     "currentPlan": {
       "title": "Vaš paket",
@@ -187,63 +188,7 @@
         "annual": "Godišnje"
       },
       "actions": {
-        "currentPlan": "Trenutni paket",
-        "starter": "Izaberite Starter",
-        "pro": "Pređite na Pro",
-        "enterprise": "Kontaktirajte nas"
-      },
-      "plans": {
-        "free_cloud": {
-          "name": "Free",
-          "description": {
-            "monthly": "Isprobajte glas u pregledaču",
-            "annual": "Isprobajte glas u pregledaču"
-          },
-          "highlights": {
-            "voiceMinutes": "30 minuta razgovora u pregledaču",
-            "allFeatures": "Bez broja telefona",
-            "support": "Podrška zajednice"
-          }
-        },
-        "starter": {
-          "name": "Starter",
-          "description": {
-            "monthly": "Mesečno, uz mesečnu naplatu",
-            "annual": "Mesečno, uz godišnju naplatu"
-          },
-          "highlights": {
-            "voiceMinutes": "150 minuta razgovora uključeno\nZatim 0,20 $/min",
-            "dedicatedNumber": "1 namenski poslovni broj",
-            "phoneNumber": "50 SMS segmenata za upozorenja",
-            "overages": "0,20 $/min za dodatne minute razgovora",
-            "support": "Podrška putem imejla"
-          }
-        },
-        "pro": {
-          "name": "Pro",
-          "description": {
-            "monthly": "Mesečno, uz mesečnu naplatu",
-            "annual": "Mesečno, uz godišnju naplatu"
-          },
-          "highlights": {
-            "voiceMinutes": "500 minuta razgovora uključeno\nZatim 0,18 $/min",
-            "dedicatedNumber": "1 namenski poslovni broj",
-            "alertSms": "200 SMS segmenata za upozorenja",
-            "support": "Prioritetna podrška putem imejla"
-          }
-        },
-        "enterprise": {
-          "name": "Enterprise",
-          "description": {
-            "monthly": "Za veći obim",
-            "annual": "Za veći obim"
-          },
-          "highlights": {
-            "phoneNumbers": "Više namenskih brojeva",
-            "selfHosted": "Mogućnost samostalnog hostovanja",
-            "support": "Namenska podrška pri uvođenju"
-          }
-        }
+        "currentPlan": "Trenutni paket"
       }
     },
     "usage": {
@@ -318,6 +263,7 @@
         "invoice": "Račun"
       },
       "invoice": "Račun",
+      "refundedAmount": "Vraćeno: {{amount}}",
       "statusLabels": {
         "paid": "Plaćeno",
         "pending": "Na čekanju",
@@ -328,6 +274,80 @@
         "order": "Porudžbina",
         "refund": "Povraćaj novca"
       }
+    },
+    "checkoutErrors": {
+      "inProgress": "Za ovaj radni prostor je već otvoreno plaćanje. Završite ga ili započnite novo za 30 minuta.",
+      "subscriptionActive": "Ovaj radni prostor već ima plaćeni paket. Da biste ga promenili, koristite Upravljaj pretplatom na stranici Paket."
+    },
+    "cancel": {
+      "title": "Otkazati {{plan}} paket?",
+      "description": "Vaš paket ostaje aktivan do isteka tekućeg perioda ({{date}}). Posle toga prelazite na Free paket.",
+      "descriptionNoDate": "Vaš paket ostaje aktivan do isteka tekućeg perioda naplate. Posle toga prelazite na Free paket.",
+      "reasonLabel": "Zašto otkazujete? (opciono)",
+      "reasons": {
+        "setup": "Podešavanje je bilo nejasno ili sporo",
+        "quality": "Kvalitet glasa ili poziva",
+        "price": "Cena",
+        "missing_feature": "Nedostaje neka funkcija",
+        "other": "Nešto drugo"
+      },
+      "commentLabel": "Recite nam više (opciono)",
+      "keep": "Zadrži paket",
+      "confirm": "Otkaži paket",
+      "canceling": "Otkazivanje paketa...",
+      "failed": "Paket nije otkazan. Pokušajte ponovo ili koristite Upravljaj pretplatom.",
+      "endsOn": "Vaš {{plan}} paket ostaje aktivan do isteka tekućeg perioda ({{date}})."
+    },
+    "success": {
+      "received": {
+        "title": "Uplata je primljena",
+        "description": "Ova stranica se osvežava kada Vaš paket bude spreman.",
+        "status": "Pripremamo Vaš paket..."
+      },
+      "missing": {
+        "title": "Ne možemo da pronađemo ovo plaćanje",
+        "description": "Otvorite stranicu paketa da vidite koji paket imate.",
+        "action": "Idi na paket"
+      },
+      "title": "Vaš {{plan}} paket je spreman",
+      "unlocks": {
+        "voiceMinutes_one": "{{count}} minut razgovora mesečno",
+        "voiceMinutes_few": "{{count}} minuta razgovora mesečno",
+        "voiceMinutes_other": "{{count}} minuta razgovora mesečno",
+        "numbers_one": "{{count}} namenski poslovni broj",
+        "numbers_few": "{{count}} namenska poslovna broja",
+        "numbers_other": "{{count}} namenskih poslovnih brojeva",
+        "alertSms_one": "{{count}} SMS segment za upozorenja mesečno",
+        "alertSms_few": "{{count}} SMS segmenta za upozorenja mesečno",
+        "alertSms_other": "{{count}} SMS segmenata za upozorenja mesečno",
+        "transfers_one": "{{count}} pokušaj preusmeravanja mesečno",
+        "transfers_few": "{{count}} pokušaja preusmeravanja mesečno",
+        "transfers_other": "{{count}} pokušaja preusmeravanja mesečno"
+      },
+      "number": {
+        "label": "Vaš broj",
+        "keep": "Ovaj broj je Vaš.",
+        "choose": "Izaberite broj"
+      },
+      "steps": {
+        "title": "Sledeći koraci",
+        "call": {
+          "title": "Pozovite ga sada",
+          "description": "Čujte kako recepcioner odgovara na pravi poziv."
+        },
+        "forward": {
+          "title": "Preusmerite poslovnu liniju na ovaj broj",
+          "description": "Pozivaoci i dalje biraju broj koji znaju. Vaš operater preusmerava te pozive na Vaš LobbyStack broj.",
+          "action": "Uputstvo za preusmeravanje poziva"
+        },
+        "transfer": {
+          "title": "Izaberite kuda idu hitni pozivi",
+          "description": "Dodajte broj za preusmeravanje u AI podešavanjima da bi recepcioner mogao da prosledi hitne pozive osobi.",
+          "action": "Otvori AI podešavanja"
+        }
+      },
+      "continue": "Nastavite podešavanje",
+      "dashboard": "Idi na kontrolnu tablu"
     }
   },
   "phoneNumber": {
@@ -340,6 +360,10 @@
       "title": "Ovaj broj će biti oslobođen {{date}}",
       "description": "Free paket ne uključuje namenski poslovni broj. Pređite na Starter ili Pro pre tog datuma da biste zadržali {{number}}.",
       "upgradeCta": "Nadogradite i zadržite broj"
+    },
+    "freeTrial": {
+      "description": "Još nemate broj. Isprobajte ga besplatno 14 dana.",
+      "cta": "Izaberite broj"
     },
     "requiresPaidPlan": {
       "title": "Namenski brojevi su deo plaćenih paketa",
@@ -414,7 +438,8 @@
       "connect": "Poveži",
       "connected": "Povezano",
       "settings": "Otvori podešavanja integracije",
-      "manage": "Upravljaj"
+      "manage": "Upravljaj",
+      "setUp": "Podesi"
     },
     "providers": {
       "google": "Sinhronizujte zakazivanja sa servisom Google Calendar."
@@ -472,6 +497,10 @@
       "webhooks": {
         "title": "Webhooks",
         "description": "Šaljite pozive, zakazivanja i poruke u svoje alate."
+      },
+      "zapier": {
+        "title": "Zapier",
+        "description": "Povežite pozive, zakazivanja i kontakte sa hiljadama aplikacija."
       }
     },
     "status": {
@@ -785,7 +814,7 @@
       },
       "widgetChat": {
         "title": "Nova poruka u ćaskanju na sajtu",
-        "description": "Kada posetilac pošalje poruku preko vidžeta na Vašem sajtu."
+        "description": "Kada posetilac pošalje poruku preko vidžeta na Vašem sajtu. Dobijate najviše jedno upozorenje po razgovoru dnevno."
       },
       "webhookDisabled": {
         "title": "Webhook endpoint je isključen",
@@ -843,7 +872,7 @@
   },
   "apiKeys": {
     "title": "API ključevi",
-    "description": "Povežite LobbyStack sa alatima kao što je Zapier ili sa sopstvenim skriptama. Svaki ključ važi samo za ovu firmu.",
+    "description": "Koristite ključ da povežete sopstveni kod ili drugu aplikaciju sa LobbyStack API-jem.",
     "empty": "Još nema API ključeva.",
     "neverUsed": "Nikad",
     "createdBy": "{{date}}, korisnik {{name}}",
@@ -865,7 +894,7 @@
       "title": "Kreirajte API ključ",
       "description": "Dajte ključu naziv koji ćete prepoznati i dozvolite samo pristup koji mu je potreban.",
       "nameLabel": "Naziv",
-      "namePlaceholder": "Zapier",
+      "namePlaceholder": "CRM sinhronizacija",
       "scopesLabel": "Pristup",
       "cancel": "Otkaži",
       "submit": "Kreiraj ključ",
@@ -880,7 +909,7 @@
     "revoke": {
       "action": "Opozovi",
       "title": "Opozvati ovaj API ključ?",
-      "description": "Sve što koristi {{name}} odmah prestaje da radi. Ovo ne može da se poništi.",
+      "description": "Sve što koristi {{name}} odmah prestaje da radi. Ovo ne može da se poništi. LobbyStack isključuje i webhookove koje je ovaj ključ napravio.",
       "confirm": "Opozovi ključ",
       "cancel": "Otkaži",
       "done": "API ključ je opozvan",

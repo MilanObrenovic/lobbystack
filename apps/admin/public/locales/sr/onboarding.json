@@ -5,7 +5,7 @@
     "privacy": "Privatnost"
   },
   "errors": {
-    "tooManyBusinesses": "Previše pokušaja podešavanja. Sačekajte malo i pokušajte ponovo."
+    "tooManyBusinesses": "Već posedujete 10 radnih prostora, što je ograničenje za jedan nalog."
   },
   "adminRequired": {
     "eyebrow": "Podešavanje radnog prostora",
@@ -89,19 +89,67 @@
     "continueFailed": "Trenutno ne možemo da nastavimo. Pokušajte ponovo.",
     "skipFailed": "Trenutno ne možemo da preskočimo ovaj korak. Pokušajte ponovo."
   },
+  "testCall": {
+    "title": "Poslušajte svog recepcionera",
+    "continue": "Nastavi",
+    "skip": "Preskoči za sada",
+    "continueFailed": "Nismo mogli da nastavimo. Pokušajte ponovo."
+  },
+  "verifyPhone": {
+    "title": "Potvrdite broj mobilnog telefona",
+    "fields": {
+      "mobileNumber": "Broj mobilnog telefona",
+      "country": "Zemlja"
+    },
+    "hint": "Koristite mobilni koji prima SMS poruke. Internet brojevi ne rade.",
+    "sendCode": "Pošalji mi kôd",
+    "sending": "Slanje…",
+    "sendFailed": "Nismo mogli da pošaljemo kôd. Pokušajte ponovo.",
+    "errors": {
+      "voip": "Koristite broj mobilnog telefona. Internet brojevi ne mogu da se potvrde.",
+      "notMobile": "Koristite broj mobilnog telefona koji prima SMS poruke.",
+      "countryMismatch": "Ovaj broj nije iz zemlje koju ste izabrali.",
+      "invalidNumber": "Unesite ispravan broj mobilnog telefona.",
+      "rateLimited": "Previše kodova. Sačekajte malo i pokušajte ponovo."
+    },
+    "code": {
+      "sentTo": "Unesite šestocifreni kôd koji smo poslali na {{phone}}.",
+      "checking": "Proveravamo…",
+      "invalid_one": "Taj kôd nije ispravan. Ostao Vam je {{count}} pokušaj.",
+      "invalid_few": "Taj kôd nije ispravan. Ostala su Vam {{count}} pokušaja.",
+      "invalid_other": "Taj kôd nije ispravan. Ostalo Vam je {{count}} pokušaja.",
+      "expired": "Kôd je istekao. Zatražite novi.",
+      "locked": "Previše pokušaja. Zatražite novi kôd.",
+      "failed": "Nismo mogli da proverimo kôd. Pokušajte ponovo.",
+      "resend": "Pošalji novi kôd",
+      "changeNumber": "Koristi drugi broj"
+    },
+    "unavailable": {
+      "title": "Brojevi još nisu dostupni u ovoj zemlji ({{country}}).",
+      "body": "Recepcionera i dalje možete da koristite u pregledaču, a možemo i da Vam pišemo kada brojevi stignu tamo.",
+      "notify": "Javite mi kada budu dostupni",
+      "joined": "Važi. Pisaćemo Vam.",
+      "continue": "Nastavi bez broja",
+      "failed": "Nešto nije u redu. Pokušajte ponovo."
+    }
+  },
   "greeting": {
     "title": "Kako da pozdravimo Vaše pozivaoce?",
     "description": "Ovo je prvo što Vaš AI recepcioner kaže. Možete to promeniti bilo kada.",
     "label": "Pozdrav",
-    "language": "Jezik",
-    "english": "English",
-    "french": "Français",
+    "language": "Jezik pozivalaca",
     "placeholder": "Hvala što ste nas pozvali. Kako mogu da pomognem?",
     "continue": "Nastavi",
     "submitting": "Čuvanje...",
     "submitFailed": "Trenutno ne možemo da sačuvamo pozdrav. Pokušajte ponovo."
   },
   "number": {
+    "ready": {
+      "label": "Vaš broj je spreman",
+      "body": "Pozovite ga sa svog telefona i čujte kako recepcioner odgovara.",
+      "call": "Pozovi {{number}}"
+    },
+    "planRequired": "Da biste dobili broj, izaberite paket.",
     "title": "Izaberite broj telefona za AI recepcionera",
     "description": "Izaberite lokalni broj na koji Vas pozivaoci mogu dobiti.",
     "countryLabel": "Zemlja",
@@ -127,6 +175,7 @@
     "searchFailed": "Trenutno ne možemo da pretražimo brojeve.",
     "claimFailed": "Nismo mogli da aktiviramo taj broj. Pokušajte ponovo.",
     "claimRateLimited": "Probali ste nekoliko brojeva. Sačekajte malo pre nego što pokušate ponovo.",
+    "offerExpired": "Ova ponuda je istekla. Ponovo pretražite i izaberite broj.",
     "trialAccountPurchaseLimit": "Ovaj Twilio nalog još ne može da kupi taj broj. Probni nalozi mogu da kupe samo odgovarajuće probne brojeve. Oslobodite postojeći broj ili nadogradite nalog, pa pokušajte ponovo.",
     "skipFailed": "Trenutno ne možemo da preskočimo ovaj korak. Pokušajte ponovo.",
     "tooManySearches": "Previše pretraga. Sačekajte malo i pokušajte ponovo.",
@@ -174,7 +223,7 @@
     "popular": "Popularno",
     "enterpriseSubject": "Enterprise paket",
     "compareTitle": "Detaljno poređenje paketa",
-    "compareDescription": "Na Free paketu isprobajte 30 minuta razgovora u pregledaču, bez broja telefona. Starter i Pro uključuju namenski broj i mesečnu količinu potrošnje.",
+    "compareDescription": "Paket Free Vam daje 30 minuta razgovora i broj iz SAD ili Kanade na 14 dana. Starter i Pro uključuju namenski broj i mesečnu količinu potrošnje.",
     "featureHeader": "Funkcija",
     "billingInterval": {
       "label": "Period naplate",
@@ -182,176 +231,9 @@
       "annual": "Godišnje",
       "save": "Uštedite 20%"
     },
-    "tiers": {
-      "free_cloud": {
-        "name": "Free",
-        "price": "0 $",
-        "period": "",
-        "description": "Isprobajte LobbyStack uz dovoljno potrošnje da vidite kako radi.",
-        "cta": "Počnite besplatno",
-        "highlights": {
-          "voiceMinutes": "30 minuta razgovora u pregledaču",
-          "bookingContacts": "Bez broja telefona",
-          "support": "Podrška zajednice"
-        }
-      },
-      "starter": {
-        "name": "Starter",
-        "price": {
-          "monthly": "30 $",
-          "annual": "24 $"
-        },
-        "period": "/mes.",
-        "description": {
-          "monthly": "Naplaćuje se mesečno. Uključuje 150 minuta razgovora koji se obnavljaju svakog meseca.",
-          "annual": "Naplaćuje se godišnje. Uključuje 150 minuta razgovora koji se obnavljaju svakog meseca."
-        },
-        "cta": {
-          "monthly": "Počnite mesečno",
-          "annual": "Počnite godišnje"
-        },
-        "highlights": {
-          "voiceMinutes": "150 minuta razgovora uključeno\nZatim 0,20 $/min",
-          "dedicatedNumber": "1 namenski poslovni broj",
-          "alertSms": "50 SMS segmenata za obaveštenja",
-          "support": "Podrška putem imejla"
-        }
-      },
-      "pro": {
-        "name": "Pro",
-        "price": {
-          "monthly": "100 $",
-          "annual": "80 $"
-        },
-        "period": "/mes.",
-        "description": {
-          "monthly": "Naplaćuje se mesečno. Više uključene potrošnje za rastući broj poziva.",
-          "annual": "Naplaćuje se godišnje. Više uključene potrošnje za rastući broj poziva."
-        },
-        "cta": {
-          "monthly": "Pro mesečno",
-          "annual": "Pro godišnje"
-        },
-        "highlights": {
-          "voiceMinutes": "500 minuta razgovora uključeno\nZatim 0,18 $/min",
-          "dedicatedNumber": "1 namenski poslovni broj",
-          "alertSms": "200 SMS segmenata za obaveštenja",
-          "support": "Prioritetna podrška putem imejla"
-        }
-      },
-      "enterprise": {
-        "name": "Enterprise",
-        "price": "Po dogovoru",
-        "period": "",
-        "description": "Za veći obim poziva, više brojeva ili posebne zahteve za postavljanje.",
-        "cta": "Kontaktirajte nas",
-        "highlights": {
-          "phoneNumbers": "Više namenskih brojeva",
-          "selfHosted": "Mogućnost samostalnog hostovanja",
-          "support": "Namenska podrška pri uvođenju"
-        }
-      }
-    },
     "comparison": {
-      "groups": {
-        "usage": "Potrošnja i ograničenja",
-        "core": "Osnovne funkcije recepcionera",
-        "booking": "Zakazivanje",
-        "routing": "Usmeravanje i preusmeravanje",
-        "notifications": "Obaveštenja",
-        "data": "Podaci i kontrolna tabla",
-        "deployment": "Postavljanje i podrška"
-      },
-      "features": {
-        "voiceMinutes": "Minuti razgovora",
-        "outboundCalls": "Pokušaji preusmeravanja",
-        "alertSms": "SMS segmenti za obaveštenja",
-        "knowledgeStorage": "Baza znanja",
-        "phoneNumbers": "Brojevi telefona",
-        "callAnswering": "Javljanje na pozive 24/7",
-        "callerDetails": "Podaci o pozivaocu i primanje poruka",
-        "knowledgeAnswers": "Odgovori iz baze znanja",
-        "workflows": "Tokovi rada opisani običnim jezikom",
-        "spamFiltering": "Filtriranje neželjenih poziva",
-        "shortCalls": "Pozivi kraći od 10 s se ne naplaćuju",
-        "concurrentCalls": "Više poziva istovremeno",
-        "multilingual": "Odgovara na jeziku pozivaoca",
-        "appointmentBooking": "Zakazivanje termina",
-        "confirmationTexts": "SMS potvrde termina",
-        "googleCalendar": "Integracija sa Google Calendar",
-        "urgentHandoff": "Prosleđivanje hitnih poziva",
-        "callTransfers": "Preusmeravanje poziva",
-        "afterHours": "Javljanje van radnog vremena",
-        "emailNotifications": "Obaveštenja imejlom",
-        "smsNotifications": "SMS obaveštenja",
-        "summaries": "Rezimei poziva",
-        "history": "Istorija poziva",
-        "contentRetention": "Čuvanje transkripata i snimaka",
-        "callerProfiles": "Profili i beleške o pozivaocima",
-        "contacts": "Kontakti",
-        "websiteImport": "Uvoz znanja sa sajta",
-        "hosting": "Hosting",
-        "usageBilling": "Naplata prekoračenja po potrošnji",
-        "support": "Podrška"
-      },
-      "values": {
-        "common": {
-          "custom": "Po dogovoru",
-          "included": "Uključeno",
-          "notIncluded": "Nije uključeno",
-          "multiple": "Više",
-          "unlimited": "Neograničeno",
-          "browserTesting": "Testiranje u pregledaču"
-        },
-        "usage": {
-          "voiceMinutes": {
-            "freeIncluded": "{{minutes}} minuta u pregledaču",
-            "starterIncluded": "150 uključeno",
-            "starterThen": "zatim 0,20 $/min",
-            "proIncluded": "500 uključeno",
-            "proThen": "zatim 0,18 $/min"
-          },
-          "outboundCalls": {
-            "starterIncluded": "20 uključeno",
-            "starterThen": "zatim 0,02 $/pokušaj",
-            "proIncluded": "100 uključeno",
-            "proThen": "zatim 0,02 $/pokušaj"
-          },
-          "alertSms": {
-            "starterIncluded": "50 uključeno",
-            "starterThen": "zatim 0,02 $/segment",
-            "proIncluded": "200 uključeno",
-            "proThen": "zatim 0,02 $/segment"
-          },
-          "knowledgeStorage": {
-            "free": "1 MB",
-            "starter": "5 MB",
-            "pro": "20 MB"
-          },
-          "phoneNumbers": {
-            "starter": "1 namenski",
-            "pro": "1 namenski"
-          }
-        },
-        "data": {
-          "contentRetention": {
-            "free": "{{days}} dana",
-            "paid": "{{days}} dana"
-          }
-        },
-        "deployment": {
-          "hosting": {
-            "managed": "Upravljani cloud",
-            "enterprise": "Cloud ili samostalno hostovanje"
-          },
-          "support": {
-            "community": "Zajednica",
-            "email": "Imejl",
-            "priority": "Prioritetni imejl",
-            "dedicated": "Namenska podrška pri uvođenju"
-          }
-        }
-      }
+      "included": "Uključeno",
+      "notIncluded": "Nije uključeno"
     },
     "continue": "Nastavi",
     "continuing": "Nastavljanje...",

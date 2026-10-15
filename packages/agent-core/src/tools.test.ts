@@ -1,4 +1,4 @@
-import { demoSnapshot, type BookingMode, type BusinessContextSnapshot, type KnowledgeSnippet } from "@lobbystack/shared";
+import { demoSnapshot, type BusinessContextSnapshot, type KnowledgeSnippet } from "@lobbystack/shared";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@lobbystack/domain", async () => ({
@@ -6,61 +6,37 @@ vi.mock("@lobbystack/domain", async () => ({
   KNOWLEDGE_SEARCH_TOKEN_BUDGET: 3000,
   knowledgeQueryTerms: (await import("../../domain/src/knowledgeRanking")).knowledgeQueryTerms,
   searchKnowledgeEvidence: vi.fn(),
-  checkOpening: vi.fn(async () => ({ ok: true, available: true })),
-  findCallerBooking: vi.fn(async () => undefined),
   bookForCaller: vi.fn(async () => ({ ok: true })),
+  requestCancellationForCaller: vi.fn(async () => ({ ok: true, inboxItemId: "inbox_1" })),
+  resolveEmployee: vi.fn(),
 }));
 
-import { bookForCaller, checkOpening, findCallerBooking, searchKnowledgeEvidence } from "@lobbystack/domain";
-import { createReceptionistTools, type AgentToolContext } from "./tools";
-
-function toolNames(overrides: Partial<AgentToolContext> & { bookingMode?: BookingMode; snapshot?: Partial<BusinessContextSnapshot> } = {}): string[] {
-  const { bookingMode, snapshot, ...context } = overrides;
-  return Object.keys(createReceptionistTools({
-    domain: { db: {} as never },
-    channel: "web_chat",
-    ...context,
-    snapshot: { ...demoSnapshot, ...snapshot, ...(bookingMode ? { bookingMode } : {}) },
-  })).sort();
-}
+import { bookForCaller, requestCancellationForCaller, resolveEmployee, searchKnowledgeEvidence } from "@lobbystack/domain";
+import { receptionistCapabilities, type Conversation } from "./capabilities";
+import { createReceptionistTools, type AgentChannel } from "./tools";
 
 const callControl = { transfer: vi.fn(async () => true), hangup: vi.fn(async () => undefined) };
 
+// The booking fixtures use early October 2026: keep those times in the future.
+vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
+
 describe("createReceptionistTools", () => {
-  it("books directly by default", () => {
-    expect(toolNames()).toEqual(["bookAppointment", "findAvailability", "getBusinessHours", "getBusinessServices", "searchKnowledge", "takeMessage"]);
+  it("creates exactly the tools capabilities.ts offers", () => {
+    const phoneCall: Conversation = { channel: "voice", callerPhone: "+14165550100", callId: "call_1", callControl };
+    for (const [snapshot, conversation] of [
+      [demoSnapshot, { channel: "web_chat" }],
+      [demoSnapshot, phoneCall],
+      [{ ...demoSnapshot, bookingMode: "request" }, phoneCall],
+      [demoSnapshot, { channel: "web_voice", intakeOnly: true, callControl }],
+    ] as Array<[BusinessContextSnapshot, Conversation]>) {
+      expect(Object.keys(createReceptionistTools({ domain: { db: {} as never }, snapshot, ...conversation }))).toEqual(receptionistCapabilities(snapshot, conversation).tools);
+    }
   });
 
-  it("takes requests instead of booking in request mode", () => {
-    const names = toolNames({ bookingMode: "request" });
-    expect(names).toContain("requestAppointment");
-    expect(names).not.toContain("bookAppointment");
-    expect(names).not.toContain("findAvailability");
-  });
-
-  it("offers no booking actions when booking is off", () => {
-    const names = toolNames({ bookingMode: "off", channel: "voice", callerPhone: "+14165550100" });
-    expect(names).toEqual(["getBusinessHours", "getBusinessServices", "searchKnowledge", "takeMessage"]);
-  });
-
-  it("offers appointment changes only when the call carries the caller's number", () => {
-    expect(toolNames({ channel: "web_voice" })).not.toContain("cancelAppointment");
-    expect(toolNames({ channel: "voice", callerPhone: "+14165550100" })).toEqual(expect.arrayContaining(["lookupAppointmentForChange", "verifyAppointmentForChange", "cancelAppointment", "rescheduleAppointment"]));
-  });
-
-  it("offers transfer and hang-up only on calls it can control", () => {
-    expect(toolNames({ channel: "web_voice" })).not.toContain("transferCall");
-    expect(toolNames({ channel: "voice", callControl })).toEqual(expect.arrayContaining(["transferCall", "endCall"]));
-  });
-
-  it("limits prospect demos to answering questions and taking messages", () => {
-    expect(toolNames({ channel: "web_voice", intakeOnly: true, callControl })).toEqual(["endCall", "getBusinessHours", "getBusinessServices", "searchKnowledge", "takeMessage"]);
-  });
-
-  it("offers hang-up but not transfer on browser calls", () => {
-    const names = toolNames({ channel: "web_voice", callControl: { hangup: vi.fn() } });
-    expect(names).toContain("endCall");
-    expect(names).not.toContain("transferCall");
+  // GPT-Live said goodbye before it handed the call over, so a reply would be a second one.
+  it("tells the agent a caller who is done gets no reply", () => {
+    const endCall = createReceptionistTools({ domain: { db: {} as never }, channel: "voice", snapshot: demoSnapshot, callControl: { hangup: vi.fn() } }).endCall!;
+    expect(endCall.description).toBe("End the call. Use the reason caller_finished when the caller is done or is saying goodbye: the voice model says goodbye when it hears the call is ending, so don't write a reply. Use spam or abuse for a spam or abusive call.");
   });
 
   it("refuses a transfer the rules don't allow", async () => {
@@ -78,27 +54,114 @@ describe("createReceptionistTools", () => {
   });
 });
 
+describe("transferCall to an employee", () => {
+  const transferTo = (snapshot: Partial<BusinessContextSnapshot> = {}) => {
+    callControl.transfer.mockClear();
+    const tools = createReceptionistTools({
+      domain: { db: {} as never },
+      channel: "voice",
+      callControl,
+      snapshot: { ...demoSnapshot, transferPolicy: { mode: "on_request", transferNumber: "+14165550199" }, ...snapshot },
+    });
+    return tools.transferCall!.execute! as (input: object, options: object) => Promise<Record<string, unknown>>;
+  };
+  const ask = (employeeName: string) => ({ callerRequested: true, urgent: false, employeeName });
+
+  it("transfers to the employee's own number", async () => {
+    vi.mocked(resolveEmployee).mockResolvedValueOnce({ ok: true, staffId: "staff-ana", name: "Ana Petrović", phone: "+381641234567", services: [], vacation: null });
+    await expect(transferTo()(ask("Ana"), { toolCallId: "1", messages: [] })).resolves.toEqual({ ok: true, transferring: true, employeeName: "Ana Petrović" });
+    expect(callControl.transfer).toHaveBeenCalledWith("+381641234567");
+  });
+
+  it("falls back to the business's transfer number when the employee has none", async () => {
+    vi.mocked(resolveEmployee).mockResolvedValueOnce({ ok: true, staffId: "staff-marko", name: "Marko", phone: null, services: [], vacation: null });
+    await expect(transferTo()(ask("Marko"), { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: true, employeeName: "Marko" });
+    expect(callControl.transfer).toHaveBeenCalledWith("+14165550199");
+  });
+
+  it("follows the business's transfer rules, even for an employee with a number", async () => {
+    vi.mocked(resolveEmployee).mockResolvedValue({ ok: true, staffId: "staff-ana", name: "Ana Petrović", phone: "+381641234567", services: [], vacation: null });
+    for (const transferPolicy of [{ mode: "on_request" as const }, { mode: "never" as const, transferNumber: "+14165550199" }]) {
+      expect(createReceptionistTools({ domain: { db: {} as never }, channel: "voice", callControl, snapshot: { ...demoSnapshot, transferPolicy } }).transferCall).toBeUndefined();
+    }
+    await expect(transferTo()({ callerRequested: false, urgent: false, employeeName: "Ana" }, { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: false });
+    expect(callControl.transfer).not.toHaveBeenCalled();
+    vi.mocked(resolveEmployee).mockReset();
+  });
+
+  it("doesn't transfer to an employee who is on vacation today", async () => {
+    vi.mocked(resolveEmployee).mockResolvedValueOnce({ ok: true, staffId: "staff-ana", name: "Ana Petrović", phone: "+381641234567", services: [], vacation: { startsOn: "2026-09-28", endsOn: "2026-10-09" } });
+    await expect(transferTo({ timezone: "UTC" })(ask("Ana"), { toolCallId: "1", messages: [] })).resolves.toEqual({ ok: false, reason: expect.stringContaining("Ana Petrović is on vacation until Friday, October 9.") });
+    expect(callControl.transfer).not.toHaveBeenCalled();
+  });
+
+  it("asks which employee the caller means when the name matches none or several", async () => {
+    vi.mocked(resolveEmployee).mockResolvedValueOnce({ ok: false, employees: ["Ana Petrović", "Ana Ilić"] });
+    const result = await transferTo()(ask("Ana"), { toolCallId: "1", messages: [] });
+    expect(result).toEqual({ ok: false, reason: expect.stringContaining("The employees are: Ana Petrović, Ana Ilić") });
+    expect(callControl.transfer).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestAppointmentCancellation", () => {
+  const operatorOnly = { appointmentChangePolicy: { enabled: true, allowCancel: true, allowReschedule: true, verificationMode: "operator_only" as const } };
+
+  it("saves the caller's details as a request and says the appointment isn't cancelled", async () => {
+    const tools = createReceptionistTools({ domain: { db: {} as never }, channel: "web_voice", callId: "call_1", conversationId: "conversation_1", snapshot: { ...demoSnapshot, timezone: "America/Toronto" } });
+    const execute = tools.requestAppointmentCancellation!.execute! as (input: object, options: object) => Promise<unknown>;
+    await expect(execute({ callerName: "Milan", appointmentStartsAt: "2026-10-14T15:00", serviceName: "General Checkup", callbackPhone: "+14165550100" }, { toolCallId: "1", messages: [] }))
+      .resolves.toMatchObject({ ok: true, inboxItemId: "inbox_1", cancelled: false, status: expect.stringContaining("still booked") });
+    expect(vi.mocked(requestCancellationForCaller).mock.lastCall?.[1]).toEqual({
+      businessId: demoSnapshot.businessId, channel: "web_voice", timezone: "America/Toronto", callerName: "Milan",
+      appointmentStartsAt: "2026-10-14T15:00", serviceName: "General Checkup", callbackPhone: "+14165550100", callId: "call_1", conversationId: "conversation_1",
+    });
+  });
+
+  it("uses the trusted caller number and asks for a name before saving", async () => {
+    vi.mocked(requestCancellationForCaller).mockClear();
+    const tools = createReceptionistTools({ domain: { db: {} as never }, channel: "voice", callerPhone: "+14165550100", snapshot: { ...demoSnapshot, ...operatorOnly } });
+    const execute = tools.requestAppointmentCancellation!.execute! as (input: object, options: object) => Promise<unknown>;
+    await expect(execute({ callerName: " " }, { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: false });
+    expect(requestCancellationForCaller).not.toHaveBeenCalled();
+    await execute({ callerName: "Milan", callbackPhone: "" }, { toolCallId: "2", messages: [] });
+    expect(vi.mocked(requestCancellationForCaller).mock.lastCall?.[1]).toMatchObject({ callerName: "Milan", callbackPhone: "+14165550100", channel: "voice" });
+  });
+});
+
 describe("bookAppointment", () => {
   const book = (startsAt: string) => {
     const tools = createReceptionistTools({ domain: { db: {} as never }, channel: "voice", callerPhone: "+14165550100", snapshot: { ...demoSnapshot, timezone: "America/Toronto" } });
     const execute = tools.bookAppointment!.execute! as (input: object, options: object) => Promise<unknown>;
-    return execute({ serviceName: "General Checkup", startsAt, contactName: "Milan", smsConsentGranted: false }, { toolCallId: "1", messages: [] });
+    return execute({ serviceName: "General Checkup", startsAt, contactName: "Milan" }, { toolCallId: "1", messages: [] });
   };
 
   it("books a time the caller accepted from the conversation, in the business's timezone", async () => {
     await expect(book("2026-10-06T10:00")).resolves.toMatchObject({ ok: true });
-    expect(vi.mocked(checkOpening).mock.lastCall?.[1]).toMatchObject({ startsAt: "2026-10-06T10:00:00.000-04:00" });
-    expect(vi.mocked(bookForCaller).mock.lastCall?.[1]).toMatchObject({ startsAt: "2026-10-06T10:00:00.000-04:00" });
+    expect(vi.mocked(bookForCaller).mock.lastCall?.[1]).toMatchObject({ service: { name: "General Checkup" }, startsAt: "2026-10-06T10:00:00.000-04:00", contactName: "Milan", channel: "voice" });
   });
 
-  it("returns the caller's existing booking for a repeated request instead of calling the slot taken", async () => {
-    vi.mocked(findCallerBooking).mockResolvedValueOnce({ ok: true, appointmentId: "appt_1", serviceName: "General Checkup", startsAt: "2026-10-06T10:00:00.000-04:00", alreadyBooked: true });
-    vi.mocked(checkOpening).mockClear();
-    vi.mocked(bookForCaller).mockClear();
+  it("returns the caller's existing booking for a repeated request, found by the call's own number", async () => {
+    vi.mocked(bookForCaller).mockResolvedValueOnce({ ok: true, appointmentId: "appt_1", serviceName: "General Checkup", startsAt: "2026-10-06T10:00:00.000-04:00", alreadyBooked: true });
     await expect(book("2026-10-06T10:00")).resolves.toMatchObject({ ok: true, appointmentId: "appt_1", alreadyBooked: true });
-    expect(vi.mocked(findCallerBooking).mock.lastCall?.[1]).toMatchObject({ serviceName: "General Checkup", startsAt: "2026-10-06T10:00:00.000-04:00", contactPhone: "+14165550100" });
-    expect(checkOpening).not.toHaveBeenCalled();
-    expect(bookForCaller).not.toHaveBeenCalled();
+    expect(vi.mocked(bookForCaller).mock.lastCall?.[1]).toMatchObject({ contactPhone: "+14165550100", callerPhone: "+14165550100" });
+  });
+
+  it("never treats a typed or spoken number as the call's own", async () => {
+    const run = (channel: AgentChannel, callId?: string) => {
+      const tools = createReceptionistTools({ domain: { db: {} as never }, channel, ...(callId ? { callId } : {}), snapshot: demoSnapshot });
+      return (tools.bookAppointment!.execute! as (input: object, options: object) => Promise<unknown>)({ serviceName: "General Checkup", startsAt: "2026-10-06T10:00", contactName: "Milan", contactPhone: "+14165550199", smsConsent: "not_asked" }, { toolCallId: "1", messages: [] });
+    };
+    await run("web_chat");
+    expect(vi.mocked(bookForCaller).mock.lastCall?.[1]).not.toHaveProperty("callerPhone");
+    // A browser call finds only its own booking.
+    await run("web_voice", "call_1");
+    expect(vi.mocked(bookForCaller).mock.lastCall?.[1]).toMatchObject({ callId: "call_1", contactPhone: "+14165550199" });
+    expect(vi.mocked(bookForCaller).mock.lastCall?.[1]).not.toHaveProperty("callerPhone");
+  });
+
+  it("says the booking couldn't be completed when it fails unexpectedly", async () => {
+    vi.mocked(bookForCaller).mockRejectedValueOnce(new Error("database is down"));
+    await expect(book("2026-10-06T10:00")).resolves.toEqual({ ok: false, reason: "The booking could not be completed." });
   });
 
   it("keeps the instant of a findAvailability startsAt", async () => {
@@ -109,22 +172,15 @@ describe("bookAppointment", () => {
   it("uses the caller's number when the model sends an empty phone", async () => {
     const tools = createReceptionistTools({ domain: { db: {} as never }, channel: "voice", callerPhone: "+14165550100", snapshot: demoSnapshot });
     const execute = tools.bookAppointment!.execute! as (input: object, options: object) => Promise<unknown>;
-    await expect(execute({ serviceName: "General Checkup", startsAt: "2026-10-06T10:00", contactName: "Milan", contactPhone: "", smsConsentGranted: true }, { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: true });
+    await expect(execute({ serviceName: "General Checkup", startsAt: "2026-10-06T10:00", contactName: "Milan", contactPhone: "" }, { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: true });
     expect(vi.mocked(bookForCaller).mock.lastCall?.[1]).toMatchObject({ contactPhone: "+14165550100" });
-  });
-
-  it("books without text consent when the business can't text the number, and says so", async () => {
-    const tools = createReceptionistTools({ domain: { db: {} as never }, channel: "web_voice", snapshot: { ...demoSnapshot, contactChannels: { smsNumber: "+18445550100" } } });
-    const execute = tools.bookAppointment!.execute! as (input: object, options: object) => Promise<unknown>;
-    await expect(execute({ serviceName: "General Checkup", startsAt: "2026-10-06T10:00", contactName: "Milan", contactPhone: "+381695021111", smsConsentGranted: true }, { toolCallId: "1", messages: [] })).resolves.toMatchObject({ ok: true, textConfirmation: expect.stringContaining("won't get a text") });
-    expect(vi.mocked(bookForCaller).mock.lastCall?.[1]).toMatchObject({ contactPhone: "+381695021111", smsConsentGranted: false });
   });
 
   it("asks for the caller's name before booking", async () => {
     vi.mocked(bookForCaller).mockClear();
     const tools = createReceptionistTools({ domain: { db: {} as never }, channel: "voice", callerPhone: "+14165550100", snapshot: demoSnapshot });
     const execute = tools.bookAppointment!.execute! as (input: object, options: object) => Promise<unknown>;
-    await expect(execute({ serviceName: "General Checkup", startsAt: "2026-10-06T10:00", contactName: " ", smsConsentGranted: false }, { toolCallId: "1", messages: [] })).resolves.toEqual({ ok: false, reason: "Ask for the caller's name before booking." });
+    await expect(execute({ serviceName: "General Checkup", startsAt: "2026-10-06T10:00", contactName: " " }, { toolCallId: "1", messages: [] })).resolves.toEqual({ ok: false, reason: "Ask for the caller's name before booking." });
     expect(bookForCaller).not.toHaveBeenCalled();
   });
 
@@ -132,6 +188,17 @@ describe("bookAppointment", () => {
     vi.mocked(bookForCaller).mockClear();
     await expect(book("tomorrow at ten")).resolves.toMatchObject({ ok: false });
     expect(bookForCaller).not.toHaveBeenCalled();
+  });
+});
+
+describe("getBusinessHours", () => {
+  it("gives closures in the business's local time, like its hours", async () => {
+    const closures = [{ startsAt: "2026-12-24T23:00:00.000Z", endsAt: "2026-12-25T23:00:00.000Z", reason: "Christmas Day" }];
+    const tools = createReceptionistTools({ domain: { db: {} as never }, channel: "web_chat", snapshot: { ...demoSnapshot, timezone: "Europe/Belgrade", closures } });
+    const execute = tools.getBusinessHours!.execute! as (input: object, options: object) => Promise<unknown>;
+    await expect(execute({}, { toolCallId: "1", messages: [] })).resolves.toMatchObject({
+      upcomingClosures: [{ from: "2026-12-25T00:00:00.000+01:00", to: "2026-12-26T00:00:00.000+01:00", reason: "Christmas Day" }],
+    });
   });
 });
 

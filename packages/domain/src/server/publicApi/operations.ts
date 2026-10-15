@@ -1,7 +1,7 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { DateTime } from "luxon";
 
-import { apiKeys, appointments, auditLogs, businessHours, businesses, calendarConnections, contacts, enqueueOutbox, receptionistProfiles, services, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
+import { apiKeys, appointments, auditLogs, businesses, calendarConnections, contacts, receptionistProfiles, services, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
 import {
   PUBLIC_API_AVAILABILITY_MAX_DAYS,
   isApiKeyScope,
@@ -25,12 +25,14 @@ import {
   type ApiStaff,
 } from "@lobbystack/shared";
 
-import { bookAppointment, cancelAppointmentInTransaction, findAvailability, rescheduleAppointmentInTransaction, type ApiAudit } from "../booking";
+import { BookingUnavailableError, type UnavailableReason } from "../../availability";
+import { cancelAppointmentInTransaction, findOpeningsInTransaction, rescheduleAppointmentInTransaction, type ApiAudit } from "../booking";
 import { replaceBusinessHoursInTransaction } from "../catalog";
 import type { DomainContext } from "../context";
 import { createKnowledgeSnippetInTransaction } from "../knowledge";
-import { bookingFailureReason, candidateStartTimes, unavailableReasonOf } from "../receptionistActions";
-import { updateBusinessInTransaction } from "../tenancy";
+import { bookForCaller } from "../receptionistActions";
+import { isSharedSmsSender, resolveSmsSender } from "../smsSender";
+import { ianaTimeZone, updateBusinessInTransaction } from "../tenancy";
 import { conflict, invalidRequest, notFound, PublicApiError } from "./errors";
 import {
   clockToMinutes,
@@ -100,9 +102,7 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function assertTimeZone(value: string, field: string): void {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value });
-  } catch {
+  if (!ianaTimeZone(value)) {
     throw invalidRequest(`${field} is not a valid IANA time zone.`, [{ path: field, message: "Use an IANA time zone such as America/Toronto." }]);
   }
 }
@@ -139,9 +139,6 @@ export async function updateBusinessForApi(context: DomainContext, caller: ApiCa
       } catch (error) {
         throw invalidRequest(error instanceof Error ? error.message : "hours are invalid.", [{ path: "hours", message: error instanceof Error ? error.message : "Invalid hours." }]);
       }
-    }
-    if (Object.keys(fields).length && input.hours === undefined) {
-      await enqueueOutbox(tx, { topic: "snapshot.refresh", businessId: caller.businessId, aggregateType: "business", aggregateId: caller.businessId, dedupeKey: `snapshot:${caller.businessId}:api-business:${Date.now()}`, payload: { businessId: caller.businessId, reason: "business_updated" } });
     }
     await audit(tx, caller, { eventType: "api.business.updated", entityType: "business", entityId: caller.businessId, payload: { fields: Object.keys(input) } });
     const business = await loadBusinessResource(tx, caller.businessId);
@@ -235,7 +232,13 @@ export async function updateContactForApi(context: DomainContext, caller: ApiCal
   if (!Object.keys(patch).length) throw invalidRequest("Send at least one field to update.");
   try {
     return await inBusiness(context, caller, async (tx) => {
-      const [row] = await tx.update(contacts).set({ ...patch, updatedAt: new Date() }).where(and(eq(contacts.businessId, caller.businessId), eq(contacts.id, contactId))).returning();
+      // Consent belongs to the number that gave it: a new number starts without it. An opt-out stays.
+      // The database clock dates the change, so texts the old number sent stop counting as consent (see loadSmsReach).
+      const consent = input.phone !== undefined ? {
+        smsConsentStatus: sql<string | null>`case when ${contacts.phone} is distinct from ${input.phone} and ${contacts.smsConsentStatus} = 'subscribed' then null else ${contacts.smsConsentStatus} end`,
+        smsConsentUpdatedAt: sql<Date | null>`case when ${contacts.phone} is distinct from ${input.phone} then now() else ${contacts.smsConsentUpdatedAt} end`,
+      } : {};
+      const [row] = await tx.update(contacts).set({ ...patch, ...consent, updatedAt: new Date() }).where(and(eq(contacts.businessId, caller.businessId), eq(contacts.id, contactId))).returning();
       if (!row) throw notFound("Contact");
       await audit(tx, caller, { eventType: "api.contact.updated", entityType: "contact", entityId: row.id, payload: { fields: Object.keys(patch) } });
       return serializeContact(row);
@@ -273,41 +276,30 @@ function assertInstantBooking(bookingMode: "instant" | "request" | "off"): void 
   if (bookingMode === "request") throw new PublicApiError(409, "booking_requires_confirmation", "This business takes appointment requests that the team confirms. It does not accept direct bookings.");
 }
 
-function bookingError(error: unknown): never {
-  if (error instanceof PublicApiError) throw error;
-  const reason = bookingFailureReason(error);
-  if (unavailableReasonOf(error) === "no_hours") throw new PublicApiError(409, "slot_unavailable", "The business has no opening hours, so no time is available. Set hours with PATCH /business first.");
-  if (unavailableReasonOf(error) || reason === "no_staff_available") throw new PublicApiError(409, "slot_unavailable", "That time is not available. Pick another time from GET /availability.");
-  if (reason === "service_unavailable") throw invalidRequest("service_id is not an active service.", [{ path: "service_id", message: "Not an active service." }]);
-  if (reason === "invalid_request") throw invalidRequest(error instanceof Error ? error.message : "The request is invalid.");
-  throw error;
+function slotUnavailable(reason: UnavailableReason): PublicApiError {
+  return reason === "no_hours"
+    ? new PublicApiError(409, "slot_unavailable", "The business has no opening hours, so no time is available. Set hours with PATCH /business first.")
+    : new PublicApiError(409, "slot_unavailable", "That time is not available. Pick another time from GET /availability.");
 }
 
+const inactiveService = () => invalidRequest("service_id is not an active service.", [{ path: "service_id", message: "Not an active service." }]);
+
 export async function getAvailabilityForApi(context: DomainContext, caller: ApiCaller, input: { serviceId: string; startDate: string; endDate?: string | undefined; staffId?: string | undefined }): Promise<ApiAvailabilitySlot[]> {
-  const loaded = await inBusiness(context, caller, async (tx) => {
-    const [service] = await tx.select({ id: services.id, durationMinutes: services.durationMinutes }).from(services).where(and(eq(services.businessId, caller.businessId), eq(services.id, input.serviceId), eq(services.active, true))).limit(1);
-    if (!service) throw invalidRequest("service_id is not an active service.", [{ path: "service_id", message: "Not an active service." }]);
-    const { timezone } = await bookingContext(tx, caller.businessId);
-    const hours = await tx.select({ dayOfWeek: businessHours.dayOfWeek, openMinutes: businessHours.openMinutes, closeMinutes: businessHours.closeMinutes }).from(businessHours).where(eq(businessHours.businessId, caller.businessId));
+  return await inBusiness(context, caller, async (tx) => {
+    const [service] = await tx.select({ id: services.id }).from(services).where(and(eq(services.businessId, caller.businessId), eq(services.id, input.serviceId), eq(services.active, true))).limit(1);
+    if (!service) throw inactiveService();
     if (input.staffId) await assertBookableStaff(tx, caller.businessId, input.staffId, service.id);
-    return { service, timezone, hours };
+    // Whole calendar dates: the business's timezone doesn't change how many days a range spans.
+    const start = DateTime.fromISO(input.startDate, { zone: "UTC" });
+    const end = DateTime.fromISO(input.endDate ?? input.startDate, { zone: "UTC" });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) || !start.isValid) throw invalidRequest("start_date must be a date as YYYY-MM-DD.", [{ path: "start_date", message: "Use YYYY-MM-DD." }]);
+    if ((input.endDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(input.endDate)) || !end.isValid) throw invalidRequest("end_date must be a date as YYYY-MM-DD.", [{ path: "end_date", message: "Use YYYY-MM-DD." }]);
+    const days = Math.round(end.diff(start, "days").days) + 1;
+    if (days < 1) throw invalidRequest("end_date must be on or after start_date.");
+    if (days > PUBLIC_API_AVAILABILITY_MAX_DAYS) throw invalidRequest(`The date range can span up to ${PUBLIC_API_AVAILABILITY_MAX_DAYS} days.`);
+    const { openings, durationMinutes } = await findOpeningsInTransaction(tx, { businessId: caller.businessId, serviceId: service.id, dates: Array.from({ length: days }, (_, index) => start.plus({ days: index }).toISODate()!), ...(input.staffId ? { staffId: input.staffId } : {}) });
+    return openings.map((startsAt) => ({ starts_at: new Date(startsAt).toISOString(), ends_at: new Date(new Date(startsAt).getTime() + durationMinutes * 60_000).toISOString() }));
   });
-  const start = DateTime.fromISO(input.startDate, { zone: loaded.timezone });
-  const end = DateTime.fromISO(input.endDate ?? input.startDate, { zone: loaded.timezone });
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) || !start.isValid) throw invalidRequest("start_date must be a date as YYYY-MM-DD.", [{ path: "start_date", message: "Use YYYY-MM-DD." }]);
-  if ((input.endDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(input.endDate)) || !end.isValid) throw invalidRequest("end_date must be a date as YYYY-MM-DD.", [{ path: "end_date", message: "Use YYYY-MM-DD." }]);
-  const days = Math.round(end.diff(start, "days").days) + 1;
-  if (days < 1) throw invalidRequest("end_date must be on or after start_date.");
-  if (days > PUBLIC_API_AVAILABILITY_MAX_DAYS) throw invalidRequest(`The date range can span up to ${PUBLIC_API_AVAILABILITY_MAX_DAYS} days.`);
-  const candidates = Array.from({ length: days }, (_, index) => start.plus({ days: index }).toISODate()!).flatMap((date) => candidateStartTimes({ date, timezone: loaded.timezone, hours: loaded.hours, durationMinutes: loaded.service.durationMinutes })).sort();
-  const open: string[] = [];
-  // Same check the receptionist uses for each opening, a few at a time.
-  for (let index = 0; index < candidates.length; index += 6) {
-    const batch = candidates.slice(index, index + 6);
-    const results = await Promise.all(batch.map(async (startsAt) => (await findAvailability(context, { businessId: caller.businessId, serviceId: loaded.service.id, startsAt, timezone: loaded.timezone, ...(input.staffId ? { staffIds: [input.staffId] } : {}) })).length > 0));
-    batch.forEach((startsAt, position) => { if (results[position]) open.push(startsAt); });
-  }
-  return open.map((startsAt) => ({ starts_at: new Date(startsAt).toISOString(), ends_at: new Date(new Date(startsAt).getTime() + loaded.service.durationMinutes * 60_000).toISOString() }));
 }
 
 export async function createAppointmentForApi(context: DomainContext, caller: ApiCaller, input: ApiAppointmentCreate): Promise<ApiAppointment> {
@@ -325,26 +317,27 @@ export async function createAppointmentForApi(context: DomainContext, caller: Ap
       contactPhone = contact.phone;
     }
     if (input.staff_id) await assertBookableStaff(tx, caller.businessId, input.staff_id, input.service_id);
-    return { timezone, contactPhone: contactPhone! };
+    // The shared number's toll-free verification covers consent the receptionist
+    // collects on a call, not consent a business asserts through the API or MCP.
+    // A business that texts from the shared number (cloud) can't opt customers in here.
+    const consentCounts = !isSharedSmsSender(await resolveSmsSender(tx, caller.businessId));
+    return { timezone, contactPhone: contactPhone!, consentCounts };
   });
-  let appointmentId: string;
-  try {
-    ({ appointmentId } = await bookAppointment(context, {
-      businessId: caller.businessId,
-      serviceId: input.service_id,
-      startsAt: startsAt.toISOString(),
-      timezone: prepared.timezone,
-      contactPhone: prepared.contactPhone,
-      sourceChannel: "api",
-      apiAudit: callerAudit(caller),
-      ...(input.contact_name ? { contactName: input.contact_name } : {}),
-      ...(input.staff_id ? { preferredStaffId: input.staff_id } : {}),
-      ...(input.sms_consent ? { smsConsentGranted: true } : {}),
-    }));
-  } catch (error) {
-    bookingError(error);
-  }
-  return await getAppointmentForApi(context, caller, appointmentId);
+  const booked = await bookForCaller(context, {
+    businessId: caller.businessId,
+    service: { id: input.service_id },
+    startsAt: startsAt.toISOString(),
+    timezone: prepared.timezone,
+    contactPhone: prepared.contactPhone,
+    channel: "api",
+    apiAudit: callerAudit(caller),
+    ...(input.contact_name ? { contactName: input.contact_name } : {}),
+    ...(input.staff_id ? { preferredStaffId: input.staff_id } : {}),
+    ...(input.sms_consent && prepared.consentCounts ? { smsConsent: "agreed" as const } : {}),
+  });
+  if (!booked.ok) throw booked.reason === "unknown_service" ? inactiveService() : slotUnavailable(booked.reason);
+  // Only a caller's own number or call finds an earlier booking, and the API sends neither.
+  return await getAppointmentForApi(context, caller, booked.appointmentId!);
 }
 
 export async function cancelAppointmentForApi(context: DomainContext, caller: ApiCaller, appointmentId: string): Promise<ApiAppointment> {
@@ -381,7 +374,7 @@ export async function rescheduleAppointmentForApi(context: DomainContext, caller
       return appointment;
     });
   } catch (error) {
-    bookingError(error);
+    throw error instanceof BookingUnavailableError ? slotUnavailable(error.reason) : error;
   }
 }
 

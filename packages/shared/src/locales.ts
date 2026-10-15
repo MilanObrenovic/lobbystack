@@ -3,8 +3,8 @@
  * website widget, the landing site and transactional email. The short codes
  * are the identifiers used in URLs, cookies, storage and locale folders.
  *
- * This is separate from {@link RuntimeLocale}, which is the language the AI
- * receptionist speaks and only covers English and French.
+ * This is separate from {@link RuntimeLocale}, the business's caller language
+ * that calls open in; the receptionist then follows the caller's language.
  */
 export const interfaceLocales = ["en", "fr", "es", "sr"] as const;
 
@@ -31,6 +31,34 @@ export function normalizeInterfaceLocale(value: string | null | undefined): Inte
   if (!value) return null;
   const primary = value.trim().toLowerCase().split(/[-_]/)[0];
   return isInterfaceLocale(primary) ? primary : null;
+}
+
+/**
+ * Caller languages: the business's choice, which calls open in and the AI
+ * receptionist speaks until the caller switches. `pt` is Brazilian Portuguese;
+ * Serbian is written in Latin script.
+ * Interface languages (dashboard, widget UI, email) are {@link InterfaceLocale}.
+ */
+export const runtimeLocales = ["en", "fr", "es", "sr", "de", "pt", "it", "nl"] as const;
+
+export type RuntimeLocale = (typeof runtimeLocales)[number];
+
+// Language names for model prompts. Serbian is written in Latin script, never Cyrillic.
+const RUNTIME_LOCALE_NAMES: Record<RuntimeLocale, string> = { en: "English", fr: "French", es: "Spanish", sr: "Serbian (Latin script)", de: "German", pt: "Brazilian Portuguese", it: "Italian", nl: "Dutch" };
+
+/** A caller language named for a model prompt. */
+export function runtimeLocaleName(locale: RuntimeLocale): string {
+  return RUNTIME_LOCALE_NAMES[locale];
+}
+
+export function isRuntimeLocale(value: unknown): value is RuntimeLocale {
+  return typeof value === "string" && (runtimeLocales as ReadonlyArray<string>).includes(value);
+}
+
+/** Reduces a language tag such as `pt-BR` to a caller language, or English when it isn't one. */
+export function normalizeRuntimeLocale(value: string | null | undefined): RuntimeLocale {
+  const primary = value?.trim().toLowerCase().split(/[-_]/)[0];
+  return isRuntimeLocale(primary) ? primary : "en";
 }
 
 /**

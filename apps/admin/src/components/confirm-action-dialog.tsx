@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,8 @@ type ConfirmActionDialogProps = {
   confirmLabel: string;
   confirmVariant?: "default" | "destructive";
   description: string;
+  /** For example "ph-mask" when the description names a customer. */
+  descriptionClassName?: string;
   onConfirm: () => Promise<void> | void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -30,12 +32,14 @@ export function ConfirmActionDialog({
   confirmLabel,
   confirmVariant = "default",
   description,
+  descriptionClassName,
   onConfirm,
   onOpenChange,
   open,
   pending = false,
   title,
 }: ConfirmActionDialogProps) {
+  const confirmRef = useRef<HTMLButtonElement>(null);
   const handleConfirm = useCallback(async () => {
     try {
       await onConfirm();
@@ -47,10 +51,10 @@ export function ConfirmActionDialog({
 
   return (
     <AlertDialog onOpenChange={onOpenChange} open={open}>
-      <AlertDialogContent>
+      <AlertDialogContent initialFocus={confirmRef} onOverlayClick={() => { if (!pending) onOpenChange(false); }}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <AlertDialogDescription className={descriptionClassName}>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogClose
@@ -63,6 +67,7 @@ export function ConfirmActionDialog({
             onClick={() => {
               void handleConfirm();
             }}
+            ref={confirmRef}
             type="button"
             variant={confirmVariant}
           >

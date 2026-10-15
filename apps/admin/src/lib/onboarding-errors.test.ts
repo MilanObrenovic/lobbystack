@@ -5,10 +5,10 @@ import { getSafeOnboardingErrorMessage } from "./onboarding-errors";
 const t = (key: string): string => key;
 
 describe("getSafeOnboardingErrorMessage", () => {
-  it("maps workspace creation rate limits", () => {
+  it("maps the owned workspace limit", () => {
     expect(
       getSafeOnboardingErrorMessage(
-        new Error("Too many workspace creation attempts."),
+        new Error("Too many workspaces. One account can own up to 10."),
         t,
         "businessName.submitFailed",
       ),
@@ -25,6 +25,11 @@ describe("getSafeOnboardingErrorMessage", () => {
     ).toBe("number.tooManySearches");
   });
 
+  it("maps an expired offer and the claim limits by code", () => {
+    expect(getSafeOnboardingErrorMessage(Object.assign(new Error("This number offer expired."), { code: "number_offer_expired" }), t, "number.claimFailed")).toBe("number.offerExpired");
+    expect(getSafeOnboardingErrorMessage(Object.assign(new Error("Daily limit."), { code: "daily_claim_quota_reached" }), t, "number.claimFailed")).toBe("number.claimRateLimited");
+  });
+
   it("preserves actionable Twilio trial-account guidance", () => {
     expect(
       getSafeOnboardingErrorMessage(
@@ -35,13 +40,11 @@ describe("getSafeOnboardingErrorMessage", () => {
     ).toBe("number.trialAccountPurchaseLimit");
   });
 
-  it("falls back for retired phone-verification errors instead of returning stale copy", () => {
-    expect(
-      getSafeOnboardingErrorMessage(
-        Object.assign(new Error("A valid mobile phone number is required."), { code: "phone_number_invalid" }),
-        t,
-        "number.searchFailed",
-      ),
-    ).toBe("number.searchFailed");
+  it("explains the phone step's refusals in the owner's language", () => {
+    const refusal = (code: string) => getSafeOnboardingErrorMessage(Object.assign(new Error("server text"), { code }), t, "verifyPhone.sendFailed");
+    expect(refusal("phone_number_invalid")).toBe("verifyPhone.errors.invalidNumber");
+    expect(refusal("phone_voip_refused")).toBe("verifyPhone.errors.voip");
+    expect(refusal("phone_country_mismatch")).toBe("verifyPhone.errors.countryMismatch");
+    expect(refusal("something_else")).toBe("verifyPhone.sendFailed");
   });
 });

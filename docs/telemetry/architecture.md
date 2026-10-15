@@ -11,7 +11,7 @@ LobbyStack uses PostHog for product analytics and error tracking, and OpenTeleme
 
 ## Record durable events
 
-Business outcomes are written through `recordProductEvent` to PostgreSQL after the authoritative operation commits. The worker's `telemetry.flush` job delivers pending rows to PostHog and retries failed delivery. A tenant-scoped `outbox.backlogSample` job samples each business's publishable outbox backlog every 60 seconds. Scheduler-created envelopes explicitly mark recurring work, whose ticks do not emit `workflow.started`; delayed event-driven jobs still emit starts, and recurring failures still emit `workflow.failed`. The hourly retention sweep deletes tenant-scoped sent product events older than seven days in indexed, lock-skipping batches. When one run reaches its batch cap, it schedules a bounded continuation through the transactional outbox until the fixed cutoff is drained, so cleanup converges without monopolizing one worker execution. In-process telemetry is reserved for diagnostics where loss during a crash is acceptable.
+Business outcomes are written through `recordProductEvent` to PostgreSQL after the authoritative operation commits. The worker's `telemetry.flush` job delivers pending rows to PostHog and retries failed delivery. A tenant-scoped `outbox.backlogSample` job samples each active business's publishable outbox backlog every 60 seconds. A business is dormant when it has no active member, or hasn't finished onboarding and has had no call, message or member sign-in in 30 days. A dormant business gets no backlog samples, and its `telemetry.flush` runs hourly. Scheduler-created envelopes explicitly mark recurring work, whose ticks do not emit `workflow.started`; delayed event-driven jobs still emit starts, and recurring failures still emit `workflow.failed`. The hourly retention sweep deletes tenant-scoped sent product events older than seven days in indexed, lock-skipping batches. When one run reaches its batch cap, it schedules a bounded continuation through the transactional outbox until the fixed cutoff is drained, so cleanup converges without monopolizing one worker execution. In-process telemetry is reserved for diagnostics where loss during a crash is acceptable.
 
 ## Use one declared transport
 
@@ -27,6 +27,8 @@ Both transports validate required properties. Development and self-hosted runtim
 ## Propagate traces
 
 Admin and worker requests propagate W3C trace context. Queue jobs retain correlation identifiers without storing customer content in telemetry fields.
+
+`enqueueOutbox` saves the active `traceparent` and `tracestate` on the outbox row. The dispatcher copies both onto the job, and the worker starts the job span inside that trace. You can then follow a request into each job it queued.
 
 ## Privacy
 
