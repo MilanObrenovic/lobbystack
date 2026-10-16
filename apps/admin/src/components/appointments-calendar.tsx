@@ -11,7 +11,7 @@ import { addDays, addMonths, dayKey, firstDayOfWeek, keyToDate, monthGrid, weekD
 import { formatDateTime, intlLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
-type CalendarView = "week" | "month";
+export type CalendarView = "week" | "month";
 
 const WEEK_PREVIEW = 4;
 
@@ -19,19 +19,20 @@ const WEEK_PREVIEW = 4;
  * Upcoming appointments on a week or month grid. Selecting a day hands it to
  * the page, which lists that day's appointments under the grid.
  */
-export function AppointmentsCalendar({ appointments, onSelectDay, selectedDay, timeZone, today, contactName }: {
+export function AppointmentsCalendar({ appointments, onSelectDay, onViewChange, selectedDay, timeZone, today, contactName, view }: {
   appointments: Appointment[];
   onSelectDay: (day: string) => void;
+  onViewChange: (view: CalendarView) => void;
   selectedDay: string;
   timeZone: string;
   today: string;
   contactName: (appointment: Appointment) => string;
+  view: CalendarView;
 }) {
   const { i18n, t } = useTranslation("common");
   const locale = intlLocale(i18n.language);
   const firstDay = firstDayOfWeek(locale);
-  const [view, setView] = useState<CalendarView>("week");
-  const [anchor, setAnchor] = useState(today);
+  const [anchor, setAnchor] = useState(selectedDay);
 
   const byDay = useMemo(() => {
     const days = new Map<string, Appointment[]>();
@@ -60,7 +61,7 @@ export function AppointmentsCalendar({ appointments, onSelectDay, selectedDay, t
           <Button onClick={() => { setAnchor(today); onSelectDay(today); }} size="sm" variant="outline">{t("appointments.calendarView.today")}</Button>
           <h2 aria-live="polite" className="type-section-title ml-1 capitalize">{title}</h2>
         </div>
-        <Tabs onValueChange={(value) => { setView(value as CalendarView); setAnchor(selectedDay); }} value={view}>
+        <Tabs onValueChange={(value) => { onViewChange(value as CalendarView); setAnchor(selectedDay); }} value={view}>
           <TabsList>
             <TabsTrigger value="week">{t("appointments.calendarView.week")}</TabsTrigger>
             <TabsTrigger value="month">{t("appointments.calendarView.month")}</TabsTrigger>

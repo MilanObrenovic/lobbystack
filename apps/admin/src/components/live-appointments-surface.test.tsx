@@ -9,7 +9,11 @@ import en from "../../public/locales/en/common.json";
 import fr from "../../public/locales/fr/common.json";
 import { LiveAppointmentsSurface } from "./live-appointments-surface";
 
+const route = vi.hoisted(() => ({ search: "", replace: vi.fn() }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/appointments", useRouter: () => ({ replace: route.replace }), useSearchParams: () => new URLSearchParams(route.search) }));
+
 const clients: QueryClient[] = [];
+beforeEach(() => { route.search = ""; route.replace.mockReset(); });
 beforeEach(() => { vi.stubGlobal("localStorage", { getItem: () => null, setItem: vi.fn() }); });
 afterEach(() => { cleanup(); clients.forEach(client => client.clear()); clients.length = 0; vi.unstubAllGlobals(); });
 async function setup(locale: "en" | "fr", populated: boolean, role?: string) {
@@ -43,10 +47,20 @@ describe("new appointments locale baseline", () => {
     await setup("en", true, "viewer");
     expect(screen.queryByRole("button", { name: /Cancel appointment/ })).toBeNull();
   });
-  it("shows today's appointments under the calendar", async () => {
+  it("keeps the chosen view and range in the URL", async () => {
+    await setup("en", false);
+    await userEvent.click(screen.getByRole("tab", { name: en.appointments.views.calendar }));
+    expect(route.replace).toHaveBeenLastCalledWith("/appointments?view=calendar", { scroll: false });
+    cleanup();
+    route.search = "view=calendar&range=month";
+    await setup("en", false);
+    await userEvent.click(screen.getByRole("tab", { name: en.appointments.views.list }));
+    expect(route.replace).toHaveBeenLastCalledWith("/appointments?range=month", { scroll: false });
+  });
+  it("opens the calendar from the URL and shows today's appointments under it", async () => {
+    route.search = "view=calendar";
     await setup("en", false);
     clients[0]!.setQueryData(["appointments", "business"], { appointments: [{ id: "today", startsAt: new Date().toISOString(), timezone: "UTC", status: "confirmed", sourceChannel: "voice", calendarSyncState: "synced", contactName: "Rosa", serviceName: "Haircut", staffName: "Ana" }] });
-    await userEvent.click(await screen.findByRole("tab", { name: en.appointments.views.calendar }));
     expect(await screen.findByRole("button", { name: en.appointments.calendarView.today })).toBeTruthy();
     expect(screen.getAllByText("Rosa").length).toBeGreaterThan(0);
     expect(screen.getByText("Haircut · Ana")).toBeTruthy();
