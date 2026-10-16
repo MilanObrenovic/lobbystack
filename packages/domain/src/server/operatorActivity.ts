@@ -58,6 +58,7 @@ export async function listCurrentAppointments(tx: DatabaseTransaction, businessI
     contactEmail: contacts.email,
     serviceName: services.name,
     staffName: staff.name,
+    employeeName: sql<string | null>`case when ${staff.isEmployee} then ${staff.name} end`,
   })
     .from(appointments)
     .innerJoin(contacts, eq(contacts.id, appointments.contactId))
