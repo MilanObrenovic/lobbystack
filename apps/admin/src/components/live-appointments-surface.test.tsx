@@ -65,4 +65,24 @@ describe("new appointments locale baseline", () => {
     expect(screen.getAllByText("Rosa").length).toBeGreaterThan(0);
     expect(screen.getByText("Haircut · Ana")).toBeTruthy();
   });
+  it("filters by the employee in the URL, keeps a new choice there, and shows everyone for an unknown one", async () => {
+    const booking = { startsAt: "2026-09-06T12:00:00Z", timezone: "UTC", status: "confirmed", sourceChannel: "voice", calendarSyncState: "synced", contactName: null, serviceName: "Haircut" };
+    const twoEmployees = [{ ...booking, id: "a", staffId: "ana", staffName: "Ana" }, { ...booking, id: "b", staffId: "ivan", staffName: "Ivan" }];
+    route.search = "employee=ana";
+    await setup("en", false);
+    clients[0]!.setQueryData(["appointments", "business"], { appointments: twoEmployees });
+    expect(await screen.findByText("Ana", { selector: "td" })).toBeTruthy();
+    expect(screen.queryByText("Ivan", { selector: "td" })).toBeNull();
+
+    await userEvent.click(screen.getByRole("combobox", { name: en.appointments.filter.label }));
+    await userEvent.click(await screen.findByRole("option", { name: "Ivan" }));
+    expect(route.replace).toHaveBeenLastCalledWith("/appointments?employee=ivan", { scroll: false });
+
+    cleanup();
+    route.search = "employee=gone";
+    await setup("en", false);
+    clients.at(-1)!.setQueryData(["appointments", "business"], { appointments: twoEmployees });
+    expect(await screen.findByText("Ana", { selector: "td" })).toBeTruthy();
+    expect(screen.getByText("Ivan", { selector: "td" })).toBeTruthy();
+  });
 });

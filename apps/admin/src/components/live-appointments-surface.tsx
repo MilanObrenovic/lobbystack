@@ -37,7 +37,7 @@ export function LiveAppointmentsSurface() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  // ?view=calendar and &range=month; the defaults (list, week) stay out of the URL.
+  // ?view=calendar, &range=month and &employee=<staff id>; the defaults (list, week, all) stay out of the URL.
   const view: View = searchParams.get("view") === "calendar" ? "calendar" : "list";
   const range: CalendarView = searchParams.get("range") === "month" ? "month" : "week";
   const setParam = (name: string, value: string, defaultValue: string) => {
@@ -49,7 +49,6 @@ export function LiveAppointmentsSurface() {
   };
   // The calendar needs the browser's clock and time zone, so it isn't rendered on the server.
   const isClient = useSyncExternalStore(subscribeNothing, () => true, () => false);
-  const [employee, setEmployee] = useState(ALL_EMPLOYEES);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const businessId = business?.businessId;
 
@@ -58,6 +57,9 @@ export function LiveAppointmentsSurface() {
 
   const rows = appointments.data?.appointments ?? [];
   const staff = useMemo(() => [...new Map(rows.map((appointment) => [staffKey(appointment), appointment.staffName])).entries()], [rows]);
+  const requestedEmployee = searchParams.get("employee") ?? ALL_EMPLOYEES;
+  // A link to someone with no upcoming bookings left shows everyone rather than an empty page.
+  const employee = appointments.data && !staff.some(([key]) => key === requestedEmployee) ? ALL_EMPLOYEES : requestedEmployee;
   const filtered = employee === ALL_EMPLOYEES ? rows : rows.filter((appointment) => staffKey(appointment) === employee);
   const contactName = (appointment: Appointment) => getContactDisplayName({ name: appointment.contactName, phone: appointment.contactPhone, email: appointment.contactEmail, channels: [appointment.sourceChannel] }, i18n.language, t);
   const timeZone = rows[0]?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -69,7 +71,7 @@ export function LiveAppointmentsSurface() {
     <div className="flex flex-wrap items-center justify-between gap-4">
       <p className="type-section-description">{business ? t("appointments.summary", { name: business.name, count: rows.length }) : t("appointments.chooseWorkspace")}</p>
       <div className="flex flex-wrap items-center gap-2">
-        {staff.length > 1 ? <Select items={[{ value: ALL_EMPLOYEES, label: t("appointments.filter.all") }, ...staff.map(([value, label]) => ({ value, label }))]} onValueChange={(value) => setEmployee(value ?? ALL_EMPLOYEES)} value={employee}>
+        {staff.length > 1 ? <Select items={[{ value: ALL_EMPLOYEES, label: t("appointments.filter.all") }, ...staff.map(([value, label]) => ({ value, label }))]} onValueChange={(value) => setParam("employee", value ?? ALL_EMPLOYEES, ALL_EMPLOYEES)} value={employee}>
           <SelectTrigger aria-label={t("appointments.filter.label")} className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent><SelectGroup><SelectItem value={ALL_EMPLOYEES}>{t("appointments.filter.all")}</SelectItem>{staff.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectGroup></SelectContent>
         </Select> : null}
