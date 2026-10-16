@@ -1,6 +1,6 @@
 "use client";
 
-import type { HoursWindow } from "@lobbystack/shared";
+import { isTransferCountry, type HoursWindow } from "@lobbystack/shared";
 import { requestJson } from "@/lib/request-json";
 import { useActiveBusiness } from "@/hooks/use-active-business";
 
@@ -23,7 +23,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toDays, useBusinessHours, useDayNames, WeeklyHoursEditor, windowsForSave, type HoursWindowInput } from "@/components/business-hours-section";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { DataTablePagination, paginationFeatures } from "@/components/data-table/pagination";
-import { DATA_TABLE_ROW_ACTIONS_CELL_CLASS, DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS, DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS, DataTableRowActions } from "@/components/data-table/row-controls";
+import { DATA_TABLE_ROW_ACTIONS_CELL_CLASS, DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS, DataTableRowActions } from "@/components/data-table/row-controls";
 import { TableCardSkeleton } from "@/components/loading-skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDateTime, intlLocale } from "@/lib/locale";
-import { formatPhoneNumberDisplay, getDefaultPhoneCountry, getPhoneCountryOptions, inferPhoneCountry } from "@/lib/phone";
+import { formatPhoneNumberDisplay, getDefaultTransferCountry, getPhoneCountryOptions, inferPhoneCountry } from "@/lib/phone";
 
 type TimeOff = { startsOn: string; endsOn: string };
 
@@ -169,8 +169,8 @@ export function LiveEmployeesSurface() {
     {
       id: "added",
       accessorKey: "createdAt",
-      header: () => <span className={`relative block text-right ${DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS}`}>{t("table.added")}</span>,
-      cell: ({ row }) => <span className={`relative block truncate text-right text-sm text-muted-foreground ${DATA_TABLE_ROW_TRAILING_VALUE_OFFSET_CLASS}`}>{formatDateTime(row.original.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })}</span>,
+      header: () => t("table.added"),
+      cell: ({ row }) => formatDateTime(row.original.createdAt, locale, { dateStyle: "medium", timeStyle: "short" }),
     },
     {
       id: "actions",
@@ -203,10 +203,10 @@ export function LiveEmployeesSurface() {
         <>
           <TableCard>
             <Table className="min-w-[60rem] w-full table-fixed">
-              <colgroup><col className="w-[15%]" /><col className="w-[14%]" /><col className="w-[21%]" /><col className="w-[25%]" /><col className="w-[19%]" /><col className={DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS} /></colgroup>
+              <colgroup><col className="w-[16%]" /><col className="w-[15%]" /><col className="w-[22%]" /><col className="w-[25%]" /><col className="w-[22%]" /><col className={DATA_TABLE_ROW_ACTIONS_COLGROUP_CLASS} /></colgroup>
               <TableHeader>{table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead className={header.column.id === "added" || header.column.id === "actions" ? "text-right" : undefined} key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row) => <TableRow className={canMutate ? "h-12 cursor-pointer transition-colors hover:bg-muted/40" : "h-12 transition-colors hover:bg-muted/40"} key={row.id} onClick={() => { if (canMutate) openEditor(row.original); }}>{row.getAllCells().map((cell) => <TableCell className={cell.column.id === "added" ? "w-0 max-w-0 text-right whitespace-nowrap" : cell.column.id === "actions" ? DATA_TABLE_ROW_ACTIONS_CELL_CLASS : "max-w-0"} key={cell.id} onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
+                {table.getRowModel().rows.map((row) => <TableRow className={canMutate ? "h-12 cursor-pointer transition-colors hover:bg-muted/40" : "h-12 transition-colors hover:bg-muted/40"} key={row.id} onClick={() => { if (canMutate) openEditor(row.original); }}>{row.getAllCells().map((cell) => <TableCell className={cell.column.id === "added" ? "text-right text-sm text-muted-foreground" : cell.column.id === "actions" ? DATA_TABLE_ROW_ACTIONS_CELL_CLASS : "max-w-0"} key={cell.id} onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}
                 {table.getRowModel().rows.length === 0 ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={6}>{search.trim() ? t("table.empty") : t("table.emptyState")}</TableCell></TableRow> : null}
               </TableBody>
             </Table>
@@ -283,7 +283,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
   const { i18n, t } = useTranslation("employees");
   const locale = i18n.resolvedLanguage ?? i18n.language;
   const queryClient = useQueryClient();
-  const defaultCountry = getDefaultPhoneCountry(locale) as Country;
+  const defaultCountry = getDefaultTransferCountry(locale) as Country;
   const countries = useMemo(() => getPhoneCountryOptions(locale), [locale]);
   const [dayNames] = useDayNames();
   const businessHours = useBusinessHours(businessId);
@@ -298,7 +298,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
   // What was typed, so a blank phone (allowed) can be told apart from an incomplete one.
   const [phoneDraft, setPhoneDraft] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [phoneProblem, setPhoneProblem] = useState<"exists" | "invalid" | "trialLocked" | null>(null);
+  const [phoneProblem, setPhoneProblem] = useState<"exists" | "invalid" | "trialLocked" | "countryUnsupported" | null>(null);
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [serviceInvalid, setServiceInvalid] = useState(false);
   // On: the business's hours. Off: the employee's own days and times.
@@ -339,6 +339,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
       if (code === "employee_phone_exists") setPhoneProblem("exists");
       else if (code === "trial_transfer_locked") setPhoneProblem("trialLocked");
       else if (code === "transfer_number_invalid") setPhoneProblem("invalid");
+      else if (code === "transfer_country_unsupported") setPhoneProblem("countryUnsupported");
       else if (code === "employee_time_off_invalid") setTimeOffInvalid(true);
       else if (code === "employee_service_invalid") { setServiceInvalid(true); void queryClient.invalidateQueries({ queryKey: ["employees", businessId] }); }
       else toast.error(t(employee ? "edit.failed" : "add.failed"));
@@ -374,7 +375,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
               <div className="flex min-w-0">
                 <Select onValueChange={(value) => { if (value && value !== country) { setCountry(value as Country); setPhone(""); setPhoneDraft(""); setPhoneProblem(null); } }} value={country}>
                   <SelectTrigger aria-label={t("add.fields.phone.country")} className="w-20 shrink-0 rounded-r-none px-4 font-medium text-muted-foreground" data-phone-country-prefix><span>{selected?.callingCode ?? ""}</span></SelectTrigger>
-                  <SelectContent className="min-w-72"><SelectGroup>{countries.map((option) => <SelectItem key={option.code} value={option.code}><span>{option.label}</span><span className="text-muted-foreground">{option.callingCode}</span></SelectItem>)}</SelectGroup></SelectContent>
+                  <SelectContent className="min-w-72"><SelectGroup>{countries.filter((option) => isTransferCountry(option.code)).map((option) => <SelectItem key={option.code} value={option.code}><span>{option.label}</span><span className="text-muted-foreground">{option.callingCode}</span></SelectItem>)}</SelectGroup></SelectContent>
                 </Select>
                 <PhoneInput aria-describedby={phoneError ? `${phoneId}-error` : undefined} aria-invalid={phoneError ? true : undefined} className="rounded-l-none border-l-0" containerClassName="min-w-0 flex-1" country={country} id={phoneId} limitNationalDigits locale={locale} onChange={(value) => { setPhone(value ?? ""); setPhoneProblem(null); }} onRawValueChange={(raw) => { setPhoneDraft(raw); if (raw.trim().startsWith("+")) { const inferred = inferPhoneCountry(raw, country); if (inferred && inferred !== country) setCountry(inferred as Country); } }} value={phone} />
               </div>
