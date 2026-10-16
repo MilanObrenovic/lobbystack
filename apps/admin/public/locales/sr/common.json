@@ -151,6 +151,12 @@
       "list": "Lista",
       "calendar": "Kalendar"
     },
+    "when": {
+      "label": "Prikaz",
+      "upcoming": "Predstojeći",
+      "past": "Prošli",
+      "pastEmpty": "Nema prošlih termina u poslednjih mesec dana."
+    },
     "filter": {
       "label": "Zaposleni",
       "all": "Svi zaposleni"

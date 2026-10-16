@@ -27,7 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { Surface } from "@/components/ui/surface";
 import { intlLocale, formatDateTime } from "@/lib/locale";
 import { formatDuration } from "@/lib/duration";
-import { useAppointments } from "@/hooks/use-appointments";
+import { hasEnded, useAppointments } from "@/hooks/use-appointments";
 import { dayKey } from "@/lib/calendar-days";
 
 const OverviewCallChart = dynamic(() => import("./overview-call-chart").then((module) => module.OverviewCallChart), {
@@ -231,12 +231,12 @@ export function LiveOverviewSurface() {
 }
 
 /** Appointments still to come today in the business's time zone, and the next one; null until the list loads. */
-function todaysAppointments(rows: Array<{ startsAt: string; timezone: string; status: string }> | undefined, fallbackTimeZone: string | undefined): { count: number; next: { startsAt: string; timezone: string } | undefined } | null {
+function todaysAppointments(rows: Array<{ startsAt: string; endsAt: string; timezone: string; status: string }> | undefined, fallbackTimeZone: string | undefined): { count: number; next: { startsAt: string; timezone: string } | undefined } | null {
   if (!rows) return null;
   const now = Date.now();
   const timeZone = rows[0]?.timezone ?? fallbackTimeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const today = dayKey(new Date(now), timeZone);
-  const todays = rows.filter((row) => row.status !== "canceled" && dayKey(row.startsAt, timeZone) === today);
+  const todays = rows.filter((row) => row.status !== "canceled" && !hasEnded(row, now) && dayKey(row.startsAt, timeZone) === today);
   return { count: todays.length, next: todays.find((row) => Date.parse(row.startsAt) > now) };
 }
 

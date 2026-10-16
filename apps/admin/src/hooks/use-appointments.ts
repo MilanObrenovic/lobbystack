@@ -26,7 +26,12 @@ export type Appointment = {
   employeeName?: string | null;
 };
 
-/** Appointments that haven't ended, kept live: the sidebar badge, Home and the appointments page share this one cached list. */
+/** Ended appointments stay listed for a while, faded and without a Cancel button. */
+export function hasEnded(appointment: Pick<Appointment, "endsAt">, now = Date.now()): boolean {
+  return Date.parse(appointment.endsAt) < now;
+}
+
+/** Upcoming and recently ended appointments, kept live: the sidebar badge, Home and the appointments page share this one cached list. */
 export function useAppointments() {
   const queryClient = useQueryClient();
   const { businesses, business } = useActiveBusiness();

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDuration } from "@/components/ui/duration-picker";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import type { Appointment } from "@/hooks/use-appointments";
+import { hasEnded, type Appointment } from "@/hooks/use-appointments";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getChannelLabel, hasDisplayablePhone } from "@/lib/contact-display";
 import { formatDateTime, intlLocale } from "@/lib/locale";
@@ -72,7 +72,7 @@ function AppointmentDetails({ appointment, contactName, showClose }: { appointme
           ))}
         </dl>
         <DrawerFooter className="flex-row">
-          <CancelAppointmentButton appointment={{ ...appointment, contactName }} className="flex-1" size="default" variant="destructive" />
+          {hasEnded(appointment) ? null : <CancelAppointmentButton appointment={{ ...appointment, contactName }} className="flex-1" size="default" variant="destructive" />}
           <DrawerClose render={<Button className="flex-1" variant="outline" />}>{t("accessibility.close")}</DrawerClose>
         </DrawerFooter>
       </DrawerContent>

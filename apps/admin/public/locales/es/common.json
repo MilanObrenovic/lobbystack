@@ -145,6 +145,12 @@
       "list": "Lista",
       "calendar": "Calendario"
     },
+    "when": {
+      "label": "Mostrar",
+      "upcoming": "Próximas",
+      "past": "Pasadas",
+      "pastEmpty": "No hay citas pasadas en el último mes."
+    },
     "filter": {
       "label": "Empleado",
       "all": "Todos los empleados"

@@ -144,6 +144,12 @@
       "list": "List",
       "calendar": "Calendar"
     },
+    "when": {
+      "label": "Show",
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "pastEmpty": "No past appointments in the last month."
+    },
     "filter": {
       "label": "Employee",
       "all": "All employees"

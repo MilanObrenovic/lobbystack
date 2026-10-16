@@ -6,7 +6,7 @@ import { CalendarCheck2, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Appointment } from "@/hooks/use-appointments";
+import { hasEnded, type Appointment } from "@/hooks/use-appointments";
 import { addDays, addMonths, dayKey, firstDayOfWeek, keyToDate, monthGrid, weekDays } from "@/lib/calendar-days";
 import { formatDateTime, intlLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -139,7 +139,7 @@ export function AppointmentsCalendar({ appointments, onSelectDay, onViewChange, 
                 {view === "week" ? (
                   <span className="flex min-w-0 flex-col gap-1">
                     {dayAppointments.slice(0, WEEK_PREVIEW).map((appointment) => (
-                      <span className="min-w-0 truncate rounded-md bg-muted px-1.5 py-1 text-xs" key={appointment.id}>
+                      <span className={cn("min-w-0 truncate rounded-md bg-muted px-1.5 py-1 text-xs", hasEnded(appointment) && "line-through opacity-50")} key={appointment.id}>
                         <span className="font-medium tabular-nums">{formatDateTime(appointment.startsAt, i18n.language, { hour: "numeric", minute: "2-digit", timeZone })}</span>{" "}
                         <span className="ph-mask text-muted-foreground">{contactName(appointment)}</span>
                       </span>

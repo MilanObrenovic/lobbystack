@@ -17,7 +17,7 @@ beforeEach(() => { route.search = ""; route.replace.mockReset(); });
 // The details panel picks its side from the screen width.
 beforeEach(() => { vi.stubGlobal("matchMedia", vi.fn((query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))); });
 beforeEach(() => { vi.stubGlobal("localStorage", { getItem: () => null, setItem: vi.fn() }); });
-afterEach(() => { cleanup(); clients.forEach(client => client.clear()); clients.length = 0; vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); clients.forEach(client => client.clear()); clients.length = 0; vi.unstubAllGlobals(); vi.useRealTimers(); });
 async function setup(locale: "en" | "fr", populated: boolean, role?: string) {
   vi.stubGlobal("EventSource", class { addEventListener() {} removeEventListener() {} close() {} });
   const i18n = createInstance();
@@ -93,6 +93,7 @@ describe("new appointments locale baseline", () => {
     expect(screen.getByText("Ivan", { selector: "td" })).toBeTruthy();
   });
   it("opens a booking's full details from its row, but not from its Cancel button", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-09-01T00:00:00Z") });
     await setup("en", false, "scheduler");
     clients[0]!.setQueryData(["appointments", "business"], { appointments: [{ id: "a", startsAt: "2026-09-06T12:00:00Z", endsAt: "2026-09-06T12:45:00Z", timezone: "UTC", status: "confirmed", sourceChannel: "voice", calendarSyncState: "synced", contactName: "Rosa", contactPhone: "+14155550100", contactEmail: "rosa@example.invalid", serviceName: "Feniranje na ravno + ampula - nadogradnja", staffName: "Marija", employeeName: "Marija" }] });
 
@@ -107,5 +108,29 @@ describe("new appointments locale baseline", () => {
     expect(within(sheet).getByText("45 min")).toBeTruthy();
     expect(within(sheet).getByRole("link", { name: "rosa@example.invalid" }).getAttribute("href")).toBe("mailto:rosa@example.invalid");
     expect(within(sheet).getByRole("link", { name: /555/ }).getAttribute("href")).toBe("tel:+14155550100");
+  });
+  it("lists ended appointments under Past, without a Cancel button, and out of the upcoming count", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-09-06T13:00:00Z") });
+    const booking = { timezone: "UTC", status: "confirmed", sourceChannel: "voice", calendarSyncState: "synced", contactName: "Rosa", serviceName: "Haircut", staffName: "Ana" };
+    const bookings = [
+      { ...booking, id: "ended", startsAt: "2026-09-06T12:00:00Z", endsAt: "2026-09-06T12:45:00Z" },
+      { ...booking, id: "next", startsAt: "2026-09-06T15:00:00Z", endsAt: "2026-09-06T15:45:00Z" },
+    ];
+    await setup("en", false, "scheduler");
+    clients[0]!.setQueryData(["appointments", "business"], { appointments: bookings });
+
+    expect(within(await screen.findByRole("row", { name: /3:00 PM/ })).getByRole("button", { name: /Cancel appointment/ })).toBeTruthy();
+    expect(screen.queryByRole("row", { name: /12:00 PM/ })).toBeNull();
+    expect(screen.getByText("Clinic · 1 upcoming appointment")).toBeTruthy();
+    await userEvent.click(screen.getByRole("tab", { name: en.appointments.when.past }));
+    expect(route.replace).toHaveBeenLastCalledWith("/appointments?when=past", { scroll: false });
+
+    cleanup();
+    route.search = "when=past";
+    await setup("en", false, "scheduler");
+    clients.at(-1)!.setQueryData(["appointments", "business"], { appointments: bookings });
+    const ended = await screen.findByRole("row", { name: /12:00 PM/ });
+    expect(within(ended).queryByRole("button", { name: /Cancel appointment/ })).toBeNull();
+    expect(screen.queryByRole("row", { name: /3:00 PM/ })).toBeNull();
   });
 });

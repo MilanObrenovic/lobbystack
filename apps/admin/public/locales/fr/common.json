@@ -151,6 +151,12 @@
       "list": "Liste",
       "calendar": "Calendrier"
     },
+    "when": {
+      "label": "Afficher",
+      "upcoming": "À venir",
+      "past": "Passés",
+      "pastEmpty": "Aucun rendez-vous passé au cours du dernier mois."
+    },
     "filter": {
       "label": "Employé",
       "all": "Tous les employés"
