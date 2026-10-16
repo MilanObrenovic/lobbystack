@@ -6,10 +6,10 @@ import { useTranslation } from "react-i18next";
 
 import { Badge } from "./ui/badge";
 import { CancelAppointmentButton } from "./cancel-appointment-button";
+import { AppointmentDetailsSheet } from "./appointment-details-sheet";
 import { AppointmentsCalendar, type CalendarView } from "./appointments-calendar";
 import { PageSurface } from "./page-surface";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Separator } from "./ui/separator";
 import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
@@ -50,12 +50,13 @@ export function LiveAppointmentsSurface() {
   // The calendar needs the browser's clock and time zone, so it isn't rendered on the server.
   const isClient = useSyncExternalStore(subscribeNothing, () => true, () => false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
   const businessId = business?.businessId;
 
   // Looking at the page clears the sidebar's new-bookings badge, including bookings that arrive while it's open.
   useEffect(() => { if (businessId && appointments.data) markAppointmentsSeen(businessId); }, [businessId, appointments.data]);
 
-  const rows = appointments.data?.appointments ?? [];
+  const rows = useMemo(() => appointments.data?.appointments ?? [], [appointments.data]);
   const staff = useMemo(() => [...new Map(rows.map((appointment) => [staffKey(appointment), appointment.staffName])).entries()], [rows]);
   const requestedEmployee = searchParams.get("employee") ?? ALL_EMPLOYEES;
   // A link to someone with no upcoming bookings left shows everyone rather than an empty page.
@@ -66,13 +67,15 @@ export function LiveAppointmentsSurface() {
   const today = dayKey(new Date(), timeZone);
   const day = selectedDay ?? today;
   const dayAppointments = filtered.filter((appointment) => dayKey(appointment.startsAt, timeZone) === day);
+  // Looked up by id, so the panel closes by itself once its appointment is cancelled.
+  const details = detailsId ? rows.find((appointment) => appointment.id === detailsId) : undefined;
 
   return <PageSurface title={t("appointments.title")}><div className="flex w-full flex-col gap-6">
     <div className="flex flex-wrap items-center justify-between gap-4">
       <p className="type-section-description">{business ? t("appointments.summary", { name: business.name, count: rows.length }) : t("appointments.chooseWorkspace")}</p>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
         {staff.length > 1 ? <Select items={[{ value: ALL_EMPLOYEES, label: t("appointments.filter.all") }, ...staff.map(([value, label]) => ({ value, label }))]} onValueChange={(value) => setParam("employee", value ?? ALL_EMPLOYEES, ALL_EMPLOYEES)} value={employee}>
-          <SelectTrigger aria-label={t("appointments.filter.label")} className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label={t("appointments.filter.label")} className="w-full sm:w-44"><SelectValue /></SelectTrigger>
           <SelectContent><SelectGroup><SelectItem value={ALL_EMPLOYEES}>{t("appointments.filter.all")}</SelectItem>{staff.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectGroup></SelectContent>
         </Select> : null}
         <Tabs onValueChange={(value) => setParam("view", value as View, "list")} value={view}>
@@ -87,19 +90,38 @@ export function LiveAppointmentsSurface() {
       <AppointmentsCalendar appointments={filtered} contactName={contactName} onSelectDay={setSelectedDay} onViewChange={(next) => setParam("range", next, "week")} selectedDay={day} timeZone={timeZone} today={today} view={range} />
       <section aria-live="polite" className="flex flex-col gap-3">
         <h2 className="type-section-title px-1 first-letter:uppercase">{formatDateTime(keyToDate(day).toISOString(), i18n.language, { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}</h2>
-        {dayAppointments.length ? <Surface className="flex flex-col gap-4 p-5">
-          {dayAppointments.map((appointment, index) => <div key={appointment.id}>
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1">
-              <p className="type-item-title tabular-nums">{formatDateTime(appointment.startsAt, i18n.language, { hour: "numeric", minute: "2-digit", timeZone: appointment.timezone })}</p>
-              <div className="flex min-w-0 flex-wrap items-center gap-2"><p className="type-item-title ph-mask">{contactName(appointment)}</p><Badge variant="secondary">{t(`appointments.statuses.${appointment.status}`, { defaultValue: appointment.status })}</Badge></div>
-              <div className="row-span-2 flex justify-end"><CancelAppointmentButton appointment={{ ...appointment, contactName: contactName(appointment) }} /></div>
-              <span />
-              <p className="type-body-muted min-w-0 truncate">{appointment.serviceName} · {appointment.staffName}</p>
-            </div>
-            {index < dayAppointments.length - 1 ? <Separator className="mt-4" /> : null}
-          </div>)}
+        {dayAppointments.length ? <Surface className="p-0">
+          <ul className="divide-y">
+            {dayAppointments.map((appointment) => {
+              const name = contactName(appointment);
+              const time = (value: string) => formatDateTime(value, i18n.language, { hour: "numeric", minute: "2-digit", timeZone: appointment.timezone });
+              return <li className="p-1" key={appointment.id}>
+                {/* The button's ::after stretches over the row; Cancel sits above it. */}
+                <div className="relative flex items-center gap-4 rounded-lg px-3 py-3 transition-colors hover:bg-muted/50 has-[>button:focus-visible]:ring-[3px] has-[>button:focus-visible]:ring-ring/50">
+                <button className="flex min-w-0 flex-1 items-start gap-4 text-left outline-none after:absolute after:inset-0 after:rounded-lg" onClick={() => setDetailsId(appointment.id)} type="button">
+                {/* Wide enough for "11:30 AM" in 12-hour locales; times never wrap. */}
+                <div className="flex w-20 shrink-0 flex-col whitespace-nowrap tabular-nums">
+                  <span className="type-item-title">{time(appointment.startsAt)}</span>
+                  <span className="text-sm leading-6 text-muted-foreground">{time(appointment.endsAt)}</span>
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="type-item-title ph-mask truncate">{name}</p>
+                    {/* Confirmed is the normal state; only flag the others. */}
+                    {appointment.status !== "confirmed" ? <Badge className="shrink-0" variant="secondary">{t(`appointments.statuses.${appointment.status}`, { defaultValue: appointment.status })}</Badge> : null}
+                  </div>
+                  <p className="type-body-muted truncate">{appointment.serviceName}</p>
+                  {appointment.employeeName ? <p className="type-body-muted truncate">{t("appointments.calendarView.with", { name: appointment.employeeName })}</p> : null}
+                </div>
+                </button>
+                <div className="relative shrink-0"><CancelAppointmentButton appointment={{ ...appointment, contactName: name }} variant="destructive" /></div>
+                </div>
+              </li>;
+            })}
+          </ul>
         </Surface> : <div className="rounded-xl border border-dashed p-10 text-center"><p className="type-empty-description">{t("appointments.calendarView.dayEmpty")}</p></div>}
       </section>
-    </> : null : <TableCard><Table className="min-w-[60rem] w-full table-fixed"><colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[13%]" /><col className="w-[11%]" /><col className="w-[11%]" /><col className="w-[9%]" /></colgroup><TableHeader><TableRow><TableHead>{t("appointments.time")}</TableHead><TableHead>{t("appointments.customer")}</TableHead><TableHead>{t("appointments.service")}</TableHead><TableHead>{t("appointments.staff")}</TableHead><TableHead>{t("appointments.status")}</TableHead><TableHead>{t("appointments.calendar")}</TableHead><TableHead><span className="sr-only">{t("appointments.actions")}</span></TableHead></TableRow></TableHeader><TableBody>{businesses.isLoading || appointments.isLoading ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.loading")}</TableCell></TableRow> : businesses.isError || appointments.isError ? <TableRow><TableCell className="h-24 text-center text-destructive" colSpan={7}>{t("appointments.unavailable")}</TableCell></TableRow> : filtered.length ? filtered.map((appointment) => { const name = contactName(appointment); return <TableRow className="h-12" key={appointment.id}><TableCell className="font-medium">{formatDate(appointment, i18n.language)}</TableCell><TableCell className="ph-mask max-w-0 truncate text-muted-foreground" title={name}>{name}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.serviceName}>{appointment.serviceName}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.staffName}>{appointment.staffName}</TableCell><TableCell><Badge variant="secondary">{t(`appointments.statuses.${appointment.status}`, { defaultValue: appointment.status })}</Badge></TableCell><TableCell className="capitalize text-muted-foreground">{t(`appointments.calendarStates.${appointment.calendarSyncState}`, { defaultValue: appointment.calendarSyncState.replaceAll("_", " ") })}</TableCell><TableCell className="text-right"><CancelAppointmentButton appointment={{ ...appointment, contactName: name }} /></TableCell></TableRow>; }) : <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.empty")}</TableCell></TableRow>}</TableBody></Table></TableCard>}
+    </> : null : <TableCard><Table className="min-w-[60rem] w-full table-fixed"><colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[13%]" /><col className="w-[11%]" /><col className="w-[11%]" /><col className="w-[9%]" /></colgroup><TableHeader><TableRow><TableHead>{t("appointments.time")}</TableHead><TableHead>{t("appointments.customer")}</TableHead><TableHead>{t("appointments.service")}</TableHead><TableHead>{t("appointments.staff")}</TableHead><TableHead>{t("appointments.status")}</TableHead><TableHead>{t("appointments.calendar")}</TableHead><TableHead><span className="sr-only">{t("appointments.actions")}</span></TableHead></TableRow></TableHeader><TableBody>{businesses.isLoading || appointments.isLoading ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.loading")}</TableCell></TableRow> : businesses.isError || appointments.isError ? <TableRow><TableCell className="h-24 text-center text-destructive" colSpan={7}>{t("appointments.unavailable")}</TableCell></TableRow> : filtered.length ? filtered.map((appointment) => { const name = contactName(appointment); return <TableRow className="h-12 cursor-pointer" key={appointment.id} onClick={() => setDetailsId(appointment.id)}><TableCell className="font-medium"><button className="text-left underline-offset-4 outline-none hover:underline focus-visible:underline" onClick={() => setDetailsId(appointment.id)} type="button">{formatDate(appointment, i18n.language)}</button></TableCell><TableCell className="ph-mask max-w-0 truncate text-muted-foreground" title={name}>{name}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.serviceName}>{appointment.serviceName}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.staffName}>{appointment.staffName}</TableCell><TableCell><Badge variant="secondary">{t(`appointments.statuses.${appointment.status}`, { defaultValue: appointment.status })}</Badge></TableCell><TableCell className="capitalize text-muted-foreground">{t(`appointments.calendarStates.${appointment.calendarSyncState}`, { defaultValue: appointment.calendarSyncState.replaceAll("_", " ") })}</TableCell><TableCell className="text-right" onClick={(event) => event.stopPropagation()}><CancelAppointmentButton appointment={{ ...appointment, contactName: name }} /></TableCell></TableRow>; }) : <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.empty")}</TableCell></TableRow>}</TableBody></Table></TableCard>}
+    <AppointmentDetailsSheet appointment={details} contactName={details ? contactName(details) : ""} onOpenChange={(open) => { if (!open) setDetailsId(null); }} />
   </div></PageSurface>;
 }

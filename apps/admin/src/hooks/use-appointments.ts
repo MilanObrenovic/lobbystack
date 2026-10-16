@@ -22,6 +22,8 @@ export type Appointment = {
   contactEmail?: string | null;
   serviceName: string;
   staffName: string;
+  /** Null for the default staff member that stands for the business itself. */
+  employeeName?: string | null;
 };
 
 /** Appointments that haven't ended, kept live: the sidebar badge, Home and the appointments page share this one cached list. */

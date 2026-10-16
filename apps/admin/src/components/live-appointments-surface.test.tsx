@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createInstance } from "i18next";
@@ -14,6 +14,8 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/appointments", useRoute
 
 const clients: QueryClient[] = [];
 beforeEach(() => { route.search = ""; route.replace.mockReset(); });
+// The details panel picks its side from the screen width.
+beforeEach(() => { vi.stubGlobal("matchMedia", vi.fn((query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))); });
 beforeEach(() => { vi.stubGlobal("localStorage", { getItem: () => null, setItem: vi.fn() }); });
 afterEach(() => { cleanup(); clients.forEach(client => client.clear()); clients.length = 0; vi.unstubAllGlobals(); });
 async function setup(locale: "en" | "fr", populated: boolean, role?: string) {
@@ -60,10 +62,15 @@ describe("new appointments locale baseline", () => {
   it("opens the calendar from the URL and shows today's appointments under it", async () => {
     route.search = "view=calendar";
     await setup("en", false);
-    clients[0]!.setQueryData(["appointments", "business"], { appointments: [{ id: "today", startsAt: new Date().toISOString(), timezone: "UTC", status: "confirmed", sourceChannel: "voice", calendarSyncState: "synced", contactName: "Rosa", serviceName: "Haircut", staffName: "Ana" }] });
-    expect(await screen.findByRole("button", { name: en.appointments.calendarView.today })).toBeTruthy();
+    clients[0]!.setQueryData(["appointments", "business"], { appointments: [{ id: "today", startsAt: new Date().toISOString(), endsAt: new Date(Date.now() + 45 * 60_000).toISOString(), timezone: "UTC", status: "confirmed", sourceChannel: "voice", calendarSyncState: "synced", contactName: "Rosa", serviceName: "Haircut", staffName: "Ana", employeeName: "Ana" }] });
+    expect((await screen.findAllByRole("button", { name: en.appointments.calendarView.today })).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Rosa").length).toBeGreaterThan(0);
-    expect(screen.getByText("Haircut · Ana")).toBeTruthy();
+    expect(screen.getByText("Haircut")).toBeTruthy();
+    expect(screen.getByText("with Ana")).toBeTruthy();
+    // A confirmed booking needs no status badge.
+    expect(screen.queryByText(en.appointments.statuses.confirmed)).toBeNull();
+    // Both the phone and the desktop grid label today's cell with its booking count.
+    expect(screen.getAllByRole("gridcell", { name: /1 appointment$/ })).toHaveLength(2);
   });
   it("filters by the employee in the URL, keeps a new choice there, and shows everyone for an unknown one", async () => {
     const booking = { startsAt: "2026-09-06T12:00:00Z", timezone: "UTC", status: "confirmed", sourceChannel: "voice", calendarSyncState: "synced", contactName: null, serviceName: "Haircut" };
@@ -84,5 +91,21 @@ describe("new appointments locale baseline", () => {
     clients.at(-1)!.setQueryData(["appointments", "business"], { appointments: twoEmployees });
     expect(await screen.findByText("Ana", { selector: "td" })).toBeTruthy();
     expect(screen.getByText("Ivan", { selector: "td" })).toBeTruthy();
+  });
+  it("opens a booking's full details from its row, but not from its Cancel button", async () => {
+    await setup("en", false, "scheduler");
+    clients[0]!.setQueryData(["appointments", "business"], { appointments: [{ id: "a", startsAt: "2026-09-06T12:00:00Z", endsAt: "2026-09-06T12:45:00Z", timezone: "UTC", status: "confirmed", sourceChannel: "voice", calendarSyncState: "synced", contactName: "Rosa", contactPhone: "+14155550100", contactEmail: "rosa@example.invalid", serviceName: "Feniranje na ravno + ampula - nadogradnja", staffName: "Marija", employeeName: "Marija" }] });
+
+    await userEvent.click(await screen.findByRole("button", { name: /Cancel appointment/ }));
+    expect(screen.queryByRole("dialog", { name: "Rosa" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: en.appointments.cancel.keep }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Sun, Sep 6, 12:00 PM" }));
+    const sheet = await screen.findByRole("dialog", { name: "Rosa" });
+    expect(within(sheet).getByText("Feniranje na ravno + ampula - nadogradnja")).toBeTruthy();
+    expect(within(sheet).getByText("Marija")).toBeTruthy();
+    expect(within(sheet).getByText("45 min")).toBeTruthy();
+    expect(within(sheet).getByRole("link", { name: "rosa@example.invalid" }).getAttribute("href")).toBe("mailto:rosa@example.invalid");
+    expect(within(sheet).getByRole("link", { name: /555/ }).getAttribute("href")).toBe("tel:+14155550100");
   });
 });

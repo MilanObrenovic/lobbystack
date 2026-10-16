@@ -134,6 +134,13 @@
   },
   "appointments": {
     "title": "Citas",
+    "details": {
+      "employee": "Empleado",
+      "duration": "Duración",
+      "phone": "Teléfono",
+      "email": "Correo electrónico",
+      "channel": "Reservado por"
+    },
     "views": {
       "list": "Lista",
       "calendar": "Calendario"
@@ -152,7 +159,8 @@
       "count_many": "{{count}} citas",
       "count_other": "{{count}} citas",
       "more": "+{{count}} más",
-      "dayEmpty": "No hay citas este día."
+      "dayEmpty": "No hay citas este día.",
+      "with": "con {{name}}"
     },
     "summary_one": "{{name}} · {{count}} cita próxima",
     "summary_many": "{{name}} · {{count}} citas próximas",

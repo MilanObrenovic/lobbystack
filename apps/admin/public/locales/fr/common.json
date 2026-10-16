@@ -140,6 +140,13 @@
   },
   "appointments": {
     "title": "Rendez-vous",
+    "details": {
+      "employee": "Employé",
+      "duration": "Durée",
+      "phone": "Téléphone",
+      "email": "E-mail",
+      "channel": "Réservé via"
+    },
     "views": {
       "list": "Liste",
       "calendar": "Calendrier"
@@ -158,7 +165,8 @@
       "count_many": "{{count}} rendez-vous",
       "count_other": "{{count}} rendez-vous",
       "more": "+{{count}} de plus",
-      "dayEmpty": "Aucun rendez-vous ce jour-là."
+      "dayEmpty": "Aucun rendez-vous ce jour-là.",
+      "with": "avec {{name}}"
     },
     "summary_one": "{{name}} · {{count}} rendez-vous à venir",
     "summary_many": "{{name}} · {{count}} rendez-vous à venir",

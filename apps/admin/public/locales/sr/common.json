@@ -140,6 +140,13 @@
   },
   "appointments": {
     "title": "Termini",
+    "details": {
+      "employee": "Zaposleni",
+      "duration": "Trajanje",
+      "phone": "Telefon",
+      "email": "E-pošta",
+      "channel": "Zakazano putem"
+    },
     "views": {
       "list": "Lista",
       "calendar": "Kalendar"
@@ -158,7 +165,8 @@
       "count_few": "{{count}} termina",
       "count_other": "{{count}} termina",
       "more": "+{{count}} još",
-      "dayEmpty": "Nema termina za ovaj dan."
+      "dayEmpty": "Nema termina za ovaj dan.",
+      "with": "Zaposleni: {{name}}"
     },
     "summary_one": "{{name}} · {{count}} predstojeći termin",
     "summary_few": "{{name}} · {{count}} predstojeća termina",
