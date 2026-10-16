@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
@@ -26,7 +27,6 @@ describe("new appointments locale baseline", () => {
     const copy = locale === "fr" ? fr : en;
     expect(screen.getByRole("heading", { name: copy.appointments.title })).toBeTruthy();
     expect(screen.getByText(copy.appointments.empty)).toBeTruthy();
-    expect(screen.getByRole("button", { name: copy.appointments.refresh })).toBeTruthy();
   });
   it("uses the chosen French locale for dates and enum display labels", async () => {
     await setup("fr", true);
@@ -42,5 +42,13 @@ describe("new appointments locale baseline", () => {
     cleanup();
     await setup("en", true, "viewer");
     expect(screen.queryByRole("button", { name: /Cancel appointment/ })).toBeNull();
+  });
+  it("shows today's appointments under the calendar", async () => {
+    await setup("en", false);
+    clients[0]!.setQueryData(["appointments", "business"], { appointments: [{ id: "today", startsAt: new Date().toISOString(), timezone: "UTC", status: "confirmed", sourceChannel: "voice", calendarSyncState: "synced", contactName: "Rosa", serviceName: "Haircut", staffName: "Ana" }] });
+    await userEvent.click(await screen.findByRole("tab", { name: en.appointments.views.calendar }));
+    expect(await screen.findByRole("button", { name: en.appointments.calendarView.today })).toBeTruthy();
+    expect(screen.getAllByText("Rosa").length).toBeGreaterThan(0);
+    expect(screen.getByText("Haircut · Ana")).toBeTruthy();
   });
 });

@@ -51,6 +51,8 @@ export async function listCurrentAppointments(tx: DatabaseTransaction, businessI
     status: appointments.status,
     sourceChannel: appointments.sourceChannel,
     calendarSyncState: appointments.calendarSyncState,
+    createdAt: appointments.createdAt,
+    staffId: appointments.staffId,
     contactName: contacts.name,
     contactPhone: contacts.phone,
     contactEmail: contacts.email,

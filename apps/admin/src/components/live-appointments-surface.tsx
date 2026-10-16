@@ -1,42 +1,86 @@
 "use client";
 
-import { requestJson } from "@/lib/request-json";
-import { useActiveBusiness } from "@/hooks/use-active-business";
-import { subscribeRealtimeQuery } from "@/lib/realtime-query";
-
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { RefreshCw } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { CancelAppointmentButton } from "./cancel-appointment-button";
+import { AppointmentsCalendar } from "./appointments-calendar";
 import { PageSurface } from "./page-surface";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Separator } from "./ui/separator";
+import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
+import { useAppointments, type Appointment } from "@/hooks/use-appointments";
+import { markAppointmentsSeen } from "@/lib/appointments-seen";
+import { dayKey, keyToDate } from "@/lib/calendar-days";
 import { getContactDisplayName } from "@/lib/contact-display";
 import { formatDateTime } from "@/lib/locale";
 
-type Appointment = { id: string; startsAt: string; endsAt: string; timezone: string; status: string; sourceChannel: string; calendarSyncState: string; contactName: string | null; contactPhone?: string | null; contactEmail?: string | null; serviceName: string; staffName: string };
+type View = "list" | "calendar";
+
+const ALL_EMPLOYEES = "all";
 
 function formatDate(appointment: Appointment, locale: string): string {
   return formatDateTime(appointment.startsAt, locale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: appointment.timezone });
 }
 
+const staffKey = (appointment: Appointment) => appointment.staffId ?? appointment.staffName;
+
 export function LiveAppointmentsSurface() {
   const { t, i18n } = useTranslation("common");
-  const queryClient = useQueryClient();
-  const { businesses, business } = useActiveBusiness();
-  const appointments = useQuery({ queryKey: ["appointments", business?.businessId], queryFn: () => requestJson<{ appointments: Appointment[] }>(`/api/appointments?businessId=${encodeURIComponent(business!.businessId)}`), enabled: Boolean(business) });
+  const { businesses, business, appointments } = useAppointments();
+  const [view, setView] = useState<View>("list");
+  const [employee, setEmployee] = useState(ALL_EMPLOYEES);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const businessId = business?.businessId;
 
-  useEffect(() => {
-    if (!business?.businessId) return;
-    return subscribeRealtimeQuery(queryClient, business?.businessId, ["appointments", business?.businessId], ["appointment.updated"]);
-  }, [business?.businessId, queryClient]);
+  // Looking at the page clears the sidebar's new-bookings badge, including bookings that arrive while it's open.
+  useEffect(() => { if (businessId && appointments.data) markAppointmentsSeen(businessId); }, [businessId, appointments.data]);
 
   const rows = appointments.data?.appointments ?? [];
+  const staff = useMemo(() => [...new Map(rows.map((appointment) => [staffKey(appointment), appointment.staffName])).entries()], [rows]);
+  const filtered = employee === ALL_EMPLOYEES ? rows : rows.filter((appointment) => staffKey(appointment) === employee);
+  const contactName = (appointment: Appointment) => getContactDisplayName({ name: appointment.contactName, phone: appointment.contactPhone, email: appointment.contactEmail, channels: [appointment.sourceChannel] }, i18n.language, t);
+  const timeZone = rows[0]?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const today = dayKey(new Date(), timeZone);
+  const day = selectedDay ?? today;
+  const dayAppointments = filtered.filter((appointment) => dayKey(appointment.startsAt, timeZone) === day);
+
   return <PageSurface title={t("appointments.title")}><div className="flex w-full flex-col gap-6">
-    <div className="flex items-center justify-between gap-4"><p className="type-section-description">{business ? t("appointments.summary", { name: business.name, count: rows.length }) : t("appointments.chooseWorkspace")}</p><Button disabled={!business || appointments.isFetching} onClick={() => void appointments.refetch()} variant="outline"><RefreshCw className={appointments.isFetching ? "animate-spin" : ""} />{t("appointments.refresh")}</Button></div>
-    <TableCard><Table className="min-w-[60rem] w-full table-fixed"><colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[13%]" /><col className="w-[11%]" /><col className="w-[11%]" /><col className="w-[9%]" /></colgroup><TableHeader><TableRow><TableHead>{t("appointments.time")}</TableHead><TableHead>{t("appointments.customer")}</TableHead><TableHead>{t("appointments.service")}</TableHead><TableHead>{t("appointments.staff")}</TableHead><TableHead>{t("appointments.status")}</TableHead><TableHead>{t("appointments.calendar")}</TableHead><TableHead><span className="sr-only">{t("appointments.actions")}</span></TableHead></TableRow></TableHeader><TableBody>{businesses.isLoading || appointments.isLoading ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.loading")}</TableCell></TableRow> : businesses.isError || appointments.isError ? <TableRow><TableCell className="h-24 text-center text-destructive" colSpan={7}>{t("appointments.unavailable")}</TableCell></TableRow> : rows.length ? rows.map((appointment) => { const contactName = getContactDisplayName({ name: appointment.contactName, phone: appointment.contactPhone, email: appointment.contactEmail, channels: [appointment.sourceChannel] }, i18n.language, t); return <TableRow className="h-12" key={appointment.id}><TableCell className="font-medium">{formatDate(appointment, i18n.language)}</TableCell><TableCell className="ph-mask text-muted-foreground">{contactName}</TableCell><TableCell className="text-muted-foreground">{appointment.serviceName}</TableCell><TableCell className="text-muted-foreground">{appointment.staffName}</TableCell><TableCell><Badge variant="secondary">{t(`appointments.statuses.${appointment.status}`, { defaultValue: appointment.status })}</Badge></TableCell><TableCell className="capitalize text-muted-foreground">{t(`appointments.calendarStates.${appointment.calendarSyncState}`, { defaultValue: appointment.calendarSyncState.replaceAll("_", " ") })}</TableCell><TableCell className="text-right"><CancelAppointmentButton appointment={{ ...appointment, contactName }} /></TableCell></TableRow>; }) : <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.empty")}</TableCell></TableRow>}</TableBody></Table></TableCard>
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <p className="type-section-description">{business ? t("appointments.summary", { name: business.name, count: rows.length }) : t("appointments.chooseWorkspace")}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {staff.length > 1 ? <Select items={[{ value: ALL_EMPLOYEES, label: t("appointments.filter.all") }, ...staff.map(([value, label]) => ({ value, label }))]} onValueChange={(value) => setEmployee(value ?? ALL_EMPLOYEES)} value={employee}>
+          <SelectTrigger aria-label={t("appointments.filter.label")} className="w-44"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectGroup><SelectItem value={ALL_EMPLOYEES}>{t("appointments.filter.all")}</SelectItem>{staff.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectGroup></SelectContent>
+        </Select> : null}
+        <Tabs onValueChange={(value) => setView(value as View)} value={view}>
+          <TabsList>
+            <TabsTrigger value="list">{t("appointments.views.list")}</TabsTrigger>
+            <TabsTrigger value="calendar">{t("appointments.views.calendar")}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+    </div>
+    {view === "calendar" ? <>
+      <AppointmentsCalendar appointments={filtered} contactName={contactName} onSelectDay={setSelectedDay} selectedDay={day} timeZone={timeZone} today={today} />
+      <section aria-live="polite" className="flex flex-col gap-3">
+        <h2 className="type-section-title px-1 first-letter:uppercase">{formatDateTime(keyToDate(day).toISOString(), i18n.language, { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}</h2>
+        {dayAppointments.length ? <Surface className="flex flex-col gap-4 p-5">
+          {dayAppointments.map((appointment, index) => <div key={appointment.id}>
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1">
+              <p className="type-item-title tabular-nums">{formatDateTime(appointment.startsAt, i18n.language, { hour: "numeric", minute: "2-digit", timeZone: appointment.timezone })}</p>
+              <div className="flex min-w-0 flex-wrap items-center gap-2"><p className="type-item-title ph-mask">{contactName(appointment)}</p><Badge variant="secondary">{t(`appointments.statuses.${appointment.status}`, { defaultValue: appointment.status })}</Badge></div>
+              <div className="row-span-2 flex justify-end"><CancelAppointmentButton appointment={{ ...appointment, contactName: contactName(appointment) }} /></div>
+              <span />
+              <p className="type-body-muted min-w-0 truncate">{appointment.serviceName} · {appointment.staffName}</p>
+            </div>
+            {index < dayAppointments.length - 1 ? <Separator className="mt-4" /> : null}
+          </div>)}
+        </Surface> : <div className="rounded-xl border border-dashed p-10 text-center"><p className="type-empty-description">{t("appointments.calendarView.dayEmpty")}</p></div>}
+      </section>
+    </> : <TableCard><Table className="min-w-[60rem] w-full table-fixed"><colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[13%]" /><col className="w-[11%]" /><col className="w-[11%]" /><col className="w-[9%]" /></colgroup><TableHeader><TableRow><TableHead>{t("appointments.time")}</TableHead><TableHead>{t("appointments.customer")}</TableHead><TableHead>{t("appointments.service")}</TableHead><TableHead>{t("appointments.staff")}</TableHead><TableHead>{t("appointments.status")}</TableHead><TableHead>{t("appointments.calendar")}</TableHead><TableHead><span className="sr-only">{t("appointments.actions")}</span></TableHead></TableRow></TableHeader><TableBody>{businesses.isLoading || appointments.isLoading ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.loading")}</TableCell></TableRow> : businesses.isError || appointments.isError ? <TableRow><TableCell className="h-24 text-center text-destructive" colSpan={7}>{t("appointments.unavailable")}</TableCell></TableRow> : filtered.length ? filtered.map((appointment) => { const name = contactName(appointment); return <TableRow className="h-12" key={appointment.id}><TableCell className="font-medium">{formatDate(appointment, i18n.language)}</TableCell><TableCell className="ph-mask max-w-0 truncate text-muted-foreground" title={name}>{name}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.serviceName}>{appointment.serviceName}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.staffName}>{appointment.staffName}</TableCell><TableCell><Badge variant="secondary">{t(`appointments.statuses.${appointment.status}`, { defaultValue: appointment.status })}</Badge></TableCell><TableCell className="capitalize text-muted-foreground">{t(`appointments.calendarStates.${appointment.calendarSyncState}`, { defaultValue: appointment.calendarSyncState.replaceAll("_", " ") })}</TableCell><TableCell className="text-right"><CancelAppointmentButton appointment={{ ...appointment, contactName: name }} /></TableCell></TableRow>; }) : <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.empty")}</TableCell></TableRow>}</TableBody></Table></TableCard>}
   </div></PageSurface>;
 }
