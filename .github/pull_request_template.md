@@ -1,16 +1,17 @@
 ## Summary
 
-<!-- What changes and why. -->
+What changed and why:
 -
+
+## Acceptance criteria
+
+All of the following must be completed before this PR gets merged:
+- [ ]
 
 ## How to test
 
-<!-- Steps a reviewer can follow. -->
+Steps to reproduce:
 1.
-
-## Screenshots
-
-<!-- For visible UI changes; delete otherwise. -->
 
 ## Testing
 
@@ -18,7 +19,7 @@
 - [ ] `pnpm lint`
 - [ ] `pnpm test`
 
-## Documentation
+## Docs
 
-- [ ] Documentation updated if architecture or behavior changed.
+- [ ] Docs updated if architecture or behavior changed.
 - [ ] Architecture Decision Record (ADR) updated or added if needed.
