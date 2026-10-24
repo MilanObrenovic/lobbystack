@@ -313,15 +313,15 @@ export function AuthCard({ mode, google = false }: { mode: "login" | "signup"; g
   const passwordInvalid = Boolean(passwordError) || (submitted && Boolean(password) && isPasswordWeak);
   const invalidInputClassName = "border-destructive text-destructive focus-visible:border-destructive focus-visible:ring-destructive/20";
   const marketingLocale = resolveLocale(i18n.resolvedLanguage, i18n.language);
-  const legalFooter = !login ? (
+  const legalFooter = (
     <p className="max-w-full text-center text-xs leading-5 text-muted-foreground sm:whitespace-nowrap">
-      {t("signup.legal.prefix")} {" "}
+      {login ? t("login.legalPrefix") : t("signup.legal.prefix")} {" "}
       <a className="underline underline-offset-4 hover:text-foreground" href={termsHref(marketingLocale)} rel="noreferrer" target="_blank">{t("signup.legal.terms")}</a>{" "}
       {t("signup.legal.and")} {" "}
       <a className="underline underline-offset-4 hover:text-foreground" href={privacyHref(marketingLocale)} rel="noreferrer" target="_blank">{t("signup.legal.privacy")}</a>
       {t("signup.legal.suffix")}
     </p>
-  ) : undefined;
+  );
   return (
     <ReplacementOnboardingShell legalFooter={legalFooter} progress={login ? null : { current: 1, total: 9 }} title={login ? t("login.title") : t("signup.title")} width="sm">
       <div className="flex w-full flex-col gap-6">
