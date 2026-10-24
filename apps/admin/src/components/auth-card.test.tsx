@@ -177,10 +177,15 @@ describe("original login and signup behavior", () => {
     const password = screen.getByLabelText("signup.password");
     await userEvent.type(password, "abcdefgh");
     expect(screen.getByText("signup.passwordCriteria.minimumLength")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "signup.submit" }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.submit(password.closest("form")!); expect(fetch).not.toHaveBeenCalled();
+    const submit = screen.getByRole("button", { name: "signup.submit" }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
+    await userEvent.click(submit);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(password.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(password);
     await userEvent.type(password, "1!");
-    expect((screen.getByRole("button", { name: "signup.submit" }) as HTMLButtonElement).disabled).toBe(false);
+    await userEvent.click(submit);
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/auth/sign-up/email", expect.anything()));
   });
   it("keeps duplicate-account signup responses generic", async () => {
     vi.mocked(fetch).mockResolvedValue(Response.json({ token: null, user: { id: "synthetic" } }));
