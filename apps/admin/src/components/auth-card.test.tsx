@@ -133,6 +133,20 @@ describe("original login and signup behavior", () => {
     await userEvent.tab(); expect(screen.getByText(`${mode}.emailInvalid`)).toBeTruthy();
     await userEvent.type(email, "@example.invalid"); expect(screen.queryByText(`${mode}.emailInvalid`)).toBeNull();
   });
+  it("shows inline errors for an empty or invalid login and doesn't sign in", async () => {
+    render(<AuthCard mode="login" />);
+    await userEvent.click(screen.getByRole("button", { name: "login.submit" }));
+    expect(screen.getByText("login.emailRequired")).toBeTruthy();
+    expect(screen.getByText("login.passwordRequired")).toBeTruthy();
+    expect(screen.getByLabelText("login.email").getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(screen.getByLabelText("login.email"));
+    await userEvent.type(screen.getByLabelText("login.email"), "owner");
+    await userEvent.type(screen.getByLabelText("login.password"), "password1!");
+    await userEvent.click(screen.getByRole("button", { name: "login.submit" }));
+    expect(screen.getByText("login.emailInvalid")).toBeTruthy();
+    expect(screen.queryByText("login.passwordRequired")).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it.each(["login", "signup"] as const)("preserves returnTo in the %s switch link", mode => {
     window.history.replaceState(null, "", "/?returnTo=%2Fclaim-demo%3Ftoken%3Dfixture");
     render(<AuthCard mode={mode} />);
