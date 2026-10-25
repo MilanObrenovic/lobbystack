@@ -177,7 +177,7 @@ export function Solution() {
                       </p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
+                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
                     Active
                   </span>
                 </div>

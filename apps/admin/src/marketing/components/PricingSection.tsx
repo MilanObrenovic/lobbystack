@@ -280,7 +280,7 @@ export function PricingSection({ locale = "en" }: PricingSectionProps) {
               >
                 {interval === "monthly" ? copy.monthly : copy.annual}
                 {interval === "annual" ? (
-                  <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                     {copy.save}
                   </span>
                 ) : null}

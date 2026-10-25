@@ -8,6 +8,8 @@ import {
   type WebVoiceErrorKey,
   type WebVoiceWidgetStatus,
 } from "@lobbystack/web-voice"
+import { useTheme } from "next-themes"
+import { useSyncExternalStore } from "react"
 
 import { Button, buttonVariants } from "@/marketing/components/ui/button"
 import { appSignupUrl } from "@/marketing/lib/app-links"
@@ -210,6 +212,8 @@ function landingEventName(event: WebVoiceCallEvent) {
     : `landing.web_voice_call_${event}`
 }
 
+const subscribe = () => () => {}
+
 export function LobbyStackAuraVoiceDemo({
   locale = "en",
   businessSlug,
@@ -217,6 +221,10 @@ export function LobbyStackAuraVoiceDemo({
   widgetId,
   onEvent,
 }: LobbyStackAuraVoiceDemoProps) {
+  const { resolvedTheme } = useTheme()
+  // The prerendered HTML is the light tone for everyone, and next-themes already
+  // knows the saved theme while hydrating, so the dark tone waits until after it.
+  const hydrated = useSyncExternalStore(subscribe, () => true, () => false)
   const call = useWebVoiceCall({
     businessSlug,
     endpoint,
@@ -234,6 +242,7 @@ export function LobbyStackAuraVoiceDemo({
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col items-center text-center">
       <AuraVoiceOrb
+        auraTone={hydrated && resolvedTheme === "dark" ? "dark" : "light"}
         call={call}
         statusLabel={
           errorKey

@@ -1,6 +1,7 @@
 import { buttonVariants } from "@/marketing/components/ui/button"
 import { appLoginUrl, appSignupUrl } from "@/marketing/lib/app-links"
 import { GithubIcon } from "@/marketing/components/GithubIcon"
+import { ThemeSwitcher } from "@/marketing/components/ThemeSwitcher"
 import { localizeHref, localizePath, type Locale } from "@/marketing/i18n"
 import { cn } from "@/marketing/lib/utils"
 import {
@@ -392,7 +393,7 @@ export function Navbar({ locale = "en" }: NavbarProps) {
             width={155}
             height={43}
             decoding="async"
-            className="h-7 w-auto"
+            className="h-7 w-auto dark:invert"
           />
         </a>
 
@@ -509,6 +510,7 @@ export function Navbar({ locale = "en" }: NavbarProps) {
 
         {/* Desktop CTAs */}
         <div className="hidden items-center gap-1 md:flex">
+          <ThemeSwitcher locale={locale} />
           <a
             href="https://github.com/lobbystack/lobbystack"
             target="_blank"
@@ -662,6 +664,7 @@ export function Navbar({ locale = "en" }: NavbarProps) {
               )}
             </nav>
             <div className="flex flex-col gap-2 px-6 pt-2 pb-4">
+              <ThemeSwitcher locale={locale} withLabel />
               <a
                 href="https://github.com/lobbystack/lobbystack"
                 target="_blank"
