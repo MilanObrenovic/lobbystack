@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { billingPlanCatalog } from "@lobbystack/shared";
 import { useActiveBusiness } from "@/hooks/use-active-business";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useBusinessCan } from "./business-capabilities-provider";
 import { PhoneNumberChooser, phoneNumberChooserApi, type ClaimResult } from "./phone-number-chooser";
+import { TrialPhoneVerification } from "./trial-phone-verification";
 import { useOpenUpgradePlanDialog } from "./upgrade-plan-dialog-context";
 import { useOpenNumberStep } from "@/lib/number-step";
 import { formatPhoneNumberDisplay } from "@/lib/phone";
@@ -18,7 +19,17 @@ import { requestJson } from "@/lib/request-json";
 import type { BillingUsageViewModel, PhoneNumberViewModel } from "@/lib/page-view-models";
 import { formatDateTime } from "@/lib/locale";
 
-type NumbersResponse = { phoneNumbers: PhoneNumberViewModel[]; activeClaim?: { id: string; status: string } | null; replacement: { usedAt: string | null; activeClaim?: { id: string; status: string } | null } };
+type NumbersResponse = {
+  phoneNumbers: PhoneNumberViewModel[];
+  activeClaim?: { id: string; status: string } | null;
+  replacement: { usedAt: string | null; activeClaim?: { id: string; status: string } | null };
+  /**
+   * For a partner's business, whether its partner's tier lets it get a new number now, whether that number is its partner's
+   * 14-day trial, and why it can't get one; null for a direct business. With the trial, whether this person verified a mobile
+   * in the business, which the trial needs.
+   */
+  partnerNumbers?: { available: boolean; trial?: boolean; refusal?: string | null; phoneVerified?: boolean } | null;
+};
 function getSettingsPhoneNumberErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
@@ -45,10 +56,13 @@ export function LivePhoneNumberSettingsSurface() {
   const openNumberStep = useOpenNumberStep();
   const canManageTenant = Boolean(business && ["business_owner", "business_admin"].includes(business.role));
   const numbers = useQuery({ queryKey: ["phone-numbers", businessId], refetchInterval: query => query.state.data?.activeClaim || query.state.data?.replacement.activeClaim ? 1000 : false, enabled: Boolean(businessId), queryFn: () => requestJson<NumbersResponse>(`/api/phone-numbers?businessId=${encodeURIComponent(businessId)}`) });
-  const billing = useQuery({ queryKey: ["billing", businessId], enabled: Boolean(businessId), queryFn: () => requestJson<BillingUsageViewModel>(`/api/billing?businessId=${encodeURIComponent(businessId)}`) });
+  const can = useBusinessCan();
+  const billing = useQuery({ queryKey: ["billing", businessId], enabled: Boolean(businessId) && can("billing"), queryFn: () => requestJson<BillingUsageViewModel>(`/api/billing?businessId=${encodeURIComponent(businessId)}`) });
   const primaryPhoneNumber = numbers.data ? numbers.data.phoneNumbers.find(number => number.status === "active" && !number.reclaimScheduledAt) ?? numbers.data.phoneNumbers[0] ?? null : undefined;
   const phoneNumberReplacementUsedAt = numbers.data?.replacement.usedAt;
-  const billingStatus = billing.data ? { includedBusinessNumbers: billingPlanCatalog[billing.data.effectivePlan].includedBusinessNumbers, phoneNumberReclaimScheduledAt: null } : null;
+  const billingStatus = billing.data ? { includedBusinessNumbers: billing.data.entitlement.includedNumbers, phoneNumberReclaimScheduledAt: null } : null;
+  // A partner's business has no plan of its own: its partner's tier decides whether it gets a new number, and a replacement adds none.
+  const partnerNumbers = numbers.data?.partnerNumbers ?? null;
   const isReplacement = Boolean(primaryPhoneNumber);
   const numberApi = useMemo(() => phoneNumberChooserApi(isReplacement), [isReplacement]);
   const displayPhoneNumber = primaryPhoneNumber
@@ -56,9 +70,17 @@ export function LivePhoneNumberSettingsSurface() {
     : null;
   const hasPhoneNumber = Boolean(primaryPhoneNumber);
   const hasUsedPhoneNumberChange = Boolean(phoneNumberReplacementUsedAt);
-  const canClaimDedicatedNumber =
-    billingStatus != null &&
-    (billingStatus.includedBusinessNumbers === null || billingStatus.includedBusinessNumbers > 0);
+  const canClaimDedicatedNumber = partnerNumbers
+    ? partnerNumbers.available || hasPhoneNumber
+    : billingStatus != null &&
+      (billingStatus.includedBusinessNumbers === null || billingStatus.includedBusinessNumbers > 0);
+  // A paid tier gets the business a number only when its partner's tier refused one. Otherwise no number is available yet,
+  // as on the cloud without tier billing, or before the owner finishes onboarding.
+  const partnerNumberMessage = Boolean(partnerNumbers) && !canClaimDedicatedNumber
+    ? partnerNumbers?.refusal === "partner_number_limit_reached" ? "phoneNumber.partnerTierRequired.description" : "phoneNumber.partnerNumbersUnavailable.description"
+    : null;
+  // The partner's trial number transfers calls only to the claimer's verified mobile, so the dialog asks for it first.
+  const needsTrialPhone = Boolean(partnerNumbers?.trial && partnerNumbers.phoneVerified === false && !hasPhoneNumber);
   // A trial number's release date isn't the owner's deadline: the trial banner says when it ends,
   // and keeping or changing the number takes a paid plan.
   const isTrialNumber = primaryPhoneNumber?.reclaimReason === "trial";
@@ -67,7 +89,7 @@ export function LivePhoneNumberSettingsSurface() {
     billingStatus?.phoneNumberReclaimScheduledAt ??
     null;
   const showReclaimBanner = Boolean(hasPhoneNumber && reclaimScheduledAt);
-  const showPaidPlanRequired = (!hasPhoneNumber || isTrialNumber) && billingStatus != null && !canClaimDedicatedNumber;
+  const showPaidPlanRequired = !partnerNumbers && (!hasPhoneNumber || isTrialNumber) && billingStatus != null && !canClaimDedicatedNumber;
   // Only a free workspace without a number can start a trial. The number step runs the claim, and offers the plans if the claim refuses.
   const trial = useQuery({ queryKey: ["number-trial", businessId], enabled: Boolean(businessId) && showPaidPlanRequired && !hasPhoneNumber, queryFn: () => requestJson<{ trial: { status: string } }>(`/api/number-trial?businessId=${encodeURIComponent(businessId)}`) });
   const offersFreeTrial = showPaidPlanRequired && !hasPhoneNumber && trial.data?.trial?.status === "available";
@@ -119,8 +141,10 @@ export function LivePhoneNumberSettingsSurface() {
                 <p className="text-[15px] leading-6 text-foreground">{displayPhoneNumber}</p>
               ) : (
                 <p className="text-[15px] leading-6 text-muted-foreground">
-                  {offersFreeTrial
+                  {offersFreeTrial || partnerNumbers?.trial
                     ? t("phoneNumber.freeTrial.description")
+                    : partnerNumberMessage
+                    ? t(partnerNumberMessage)
                     : showPaidPlanRequired
                     ? t("phoneNumber.requiresPaidPlan.description")
                     : t("phoneNumber.current.empty")}
@@ -163,24 +187,36 @@ export function LivePhoneNumberSettingsSurface() {
                       <DialogHeader>
                         <DialogTitle>
                           {t(
-                            hasPhoneNumber
+                            needsTrialPhone
+                              ? "phoneNumber.trialPhone.title"
+                              : hasPhoneNumber
                               ? "phoneNumber.dialog.title"
                               : "phoneNumber.dialog.getNumberTitle",
                           )}
                         </DialogTitle>
                         <DialogDescription>
                           {t(
-                            hasPhoneNumber
+                            needsTrialPhone
+                              ? "phoneNumber.trialPhone.description"
+                              : hasPhoneNumber
                               ? "phoneNumber.dialog.description"
                               : "phoneNumber.dialog.getNumberDescription",
                           )}
                         </DialogDescription>
                       </DialogHeader>
-                      {isDialogOpen ? (
+                      {isDialogOpen && needsTrialPhone ? (
+                        <TrialPhoneVerification businessId={businessId} onVerified={() => queryClient.invalidateQueries({ queryKey: ["phone-numbers", businessId] })} />
+                      ) : isDialogOpen ? (
                         <PhoneNumberChooser
                           businessId={businessId}
                           claimNumber={numberApi.claimNumber}
-                          getErrorMessage={getSettingsPhoneNumberErrorMessage}
+                          getErrorMessage={(error, fallback) => {
+                            const code = (error as { code?: string } | null)?.code;
+                            if (code === "partner_number_limit_reached") return t("phoneNumber.partnerTierRequired.description");
+                            if (code === "partner_numbers_unavailable") return t("phoneNumber.partnerNumbersUnavailable.description");
+                            if (code === "phone_numbers_unavailable") return t("phoneNumber.numbersUnavailable");
+                            return getSettingsPhoneNumberErrorMessage(error, fallback);
+                          }}
                           getInitialNumberSuggestion={numberApi.getInitialNumberSuggestion}
                           labels={{
                             countryLabel: t("phoneNumber.picker.countryLabel"),

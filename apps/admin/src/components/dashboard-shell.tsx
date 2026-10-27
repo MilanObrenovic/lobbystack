@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { AnimatedNavigationIcon } from "@/components/animated-navigation-icon";
 import { AppWindowIcon } from "@/components/ui/app-window";
 import { BookTextIcon } from "@/components/ui/book-text";
 import { BlocksIcon } from "@/components/ui/blocks";
@@ -20,8 +21,10 @@ import { PhoneAnimatedIcon } from "@/components/ui/phone-animated";
 import { SettingsIcon } from "@/components/ui/settings";
 import { UsersIcon } from "@/components/ui/users";
 import { WorkflowIcon } from "@/components/ui/workflow";
+import type { Capability } from "@lobbystack/domain";
 import { useActiveBusiness } from "@/hooks/use-active-business";
 import { useAppointments } from "@/hooks/use-appointments";
+import { firstSettingsPage, pageCapability } from "@/lib/dashboard-pages";
 import { useNewAppointmentCount } from "@/lib/appointments-seen";
 import { useSignOut } from "@/hooks/use-sign-out";
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
@@ -42,6 +45,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { ALL_CAPABILITIES, BusinessCapabilitiesProvider, useBusinessCan } from "./business-capabilities-provider";
 import { LiveUpgradePlanProvider } from "./live-upgrade-plan-provider";
 import { BillingPastDueBanner, type BillingPermissions } from "./billing-past-due-banner";
 import { NumberTrialBanner } from "./number-trial-banner";
@@ -52,9 +56,13 @@ import { useOpenUpgradePlanDialog } from "./upgrade-plan-dialog-context";
 
 type DashboardShellProps = {
   children: React.ReactNode;
+  /** What the business the server opened lets the person do, until the workspace list loads. A direct business gives everything. */
+  capabilities?: readonly Capability[];
   sidebarOpen?: boolean;
   /** Shows Messages and the website widget in the menu on every page (`WIDGET_KEY_ISSUANCE_ENABLED`). */
   widgetsEnabled?: boolean;
+  /** The person is on a partner's team, so the account menu links to the partner console. */
+  partnerConsole?: boolean;
   user: {
     email: string;
     name: string;
@@ -75,7 +83,7 @@ function getSidebarDefaultOpen(): boolean {
   return value?.split("=")[1] !== "false";
 }
 
-export function DashboardShell({ children, sidebarOpen, user, widgetsEnabled = false }: DashboardShellProps) {
+export function DashboardShell({ capabilities = ALL_CAPABILITIES, children, partnerConsole = false, sidebarOpen, user, widgetsEnabled = false }: DashboardShellProps) {
   const { t } = useTranslation("common");
   const pathname = usePathname();
   const contentScrollRef = useRef<HTMLElement>(null);
@@ -88,6 +96,7 @@ export function DashboardShell({ children, sidebarOpen, user, widgetsEnabled = f
   }, [pathname]);
 
   return (
+    <BusinessCapabilitiesProvider initial={capabilities}>
     <LiveUpgradePlanProvider>
     <div className="flex h-svh w-full flex-col overflow-hidden bg-background">
       <a href="#dashboard-main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded-xl focus:bg-background focus:p-4">{t("accessibility.skipToContent")}</a>
@@ -99,7 +108,7 @@ export function DashboardShell({ children, sidebarOpen, user, widgetsEnabled = f
         defaultOpen={sidebarOpen ?? getSidebarDefaultOpen()}
         style={{ "--sidebar-width": "16rem" } as React.CSSProperties}
       >
-        <ReplacementSidebar user={user} widgetsEnabled={widgetsEnabled} />
+        <ReplacementSidebar partnerConsole={partnerConsole} user={user} widgetsEnabled={widgetsEnabled} />
         <SidebarInset
           ref={contentScrollRef}
           className="@container/content min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain has-data-[layout=fixed]:h-full peer-data-[variant=inset]:has-data-[layout=fixed]:h-[calc(100%-(var(--spacing)*4))]"
@@ -108,33 +117,52 @@ export function DashboardShell({ children, sidebarOpen, user, widgetsEnabled = f
           <div className="hidden h-16 shrink-0 border-b md:block" />
           <DashboardUtilityBar />
           <Main id="dashboard-main-content" tabIndex={-1} className="flex flex-1 flex-col" fixed={pathname === "/messages"}>
-            {children}
+            <PageAccess>{children}</PageAccess>
           </Main>
         </SidebarInset>
       </SidebarProvider>
     </div>
     </LiveUpgradePlanProvider>
+    </BusinessCapabilitiesProvider>
   );
+}
+
+/**
+ * Sends someone who opens a page the business doesn't let them use, such as
+ * billing at a partner's business, back Home. The menu never links there, and
+ * the server refuses the page's requests anyway.
+ */
+function PageAccess({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const can = useBusinessCan();
+  const allowed = can(pageCapability(pathname));
+  useEffect(() => { if (!allowed) router.replace("/"); }, [allowed, router]);
+  return allowed ? children : null;
 }
 
 function BillingBanner() {
   const { business } = useActiveBusiness();
+  const can = useBusinessCan();
   const billing = useQuery({ queryKey: ["billing", business?.businessId], queryFn: async () => {
     const response = await fetch(`/api/billing?businessId=${encodeURIComponent(business!.businessId)}`, { credentials: "include" });
     if (!response.ok) throw new Error("Billing unavailable");
     return await response.json() as { account: { plan: string | null; subscriptionState: string | null } | null; permissions: BillingPermissions };
-  }, enabled: Boolean(business?.businessId) });
-  if (!business || !billing.data?.account || !billing.data.permissions) return null;
+  }, enabled: Boolean(business?.businessId) && can("billing") });
+  if (!business || !can("billing") || !billing.data?.account || !billing.data.permissions) return null;
   return <BillingPastDueBanner businessId={business.businessId} plan={billing.data.account.plan} subscriptionState={billing.data.account.subscriptionState} permissions={billing.data.permissions} />;
 }
 
-function ReplacementSidebar({ user, widgetsEnabled }: Pick<DashboardShellProps, "user" | "widgetsEnabled">) {
+function ReplacementSidebar({ partnerConsole = false, user, widgetsEnabled }: Pick<DashboardShellProps, "partnerConsole" | "user" | "widgetsEnabled">) {
   const pathname = usePathname();
   const showWidgets = widgetsEnabled || ["/messages", "/widget"].some(route => pathname === route || pathname.startsWith(`${route}/`));
   const { isMobile, setOpenMobile } = useSidebar();
   const { t } = useTranslation(["nav", "settings", "agent"]);
+  const can = useBusinessCan();
   const { business, appointments } = useAppointments();
   const newAppointments = useNewAppointmentCount(business?.businessId, appointments.data?.appointments ?? []);
+  // Only what the business lets the person use: a partner's business may leave out its setup, billing, API keys and MCP.
+  const allowed = (items: NavigationItem[]) => items.filter((item) => can(pageCapability(item.href)));
   const general: NavigationItem[] = [
     { label: t("nav:items.home"), href: "/", icon: HomeIcon },
     { label: t("nav:items.appointments"), href: "/appointments", icon: CalendarDaysIcon as typeof HomeIcon, badge: newAppointments },
@@ -153,8 +181,13 @@ function ReplacementSidebar({ user, widgetsEnabled }: Pick<DashboardShellProps, 
     { label: t("nav:items.analytics"), href: "/analytics", icon: ChartColumnIncreasingIcon },
     { label: t("settings:sections.integrations"), href: "/integrations", icon: BlocksIcon },
     ...(showWidgets ? [{ label: t("settings:sections.widget"), href: "/widget", icon: AppWindowIcon }] : []),
-    { label: t("nav:items.settings"), href: "/settings/usage", icon: SettingsIcon },
+    { label: t("nav:items.settings"), href: firstSettingsPage(can), icon: SettingsIcon },
   ];
+  const groups = [
+    { title: t("nav:sidebar.general"), items: allowed(general) },
+    { title: t("nav:sidebar.agent"), items: allowed(receptionist) },
+    { title: t("nav:sidebar.other"), items: allowed(other) },
+  ].filter((group) => group.items.length > 0);
 
   return (
     <Sidebar className="absolute inset-y-0 h-full" collapsible="icon" variant="sidebar">
@@ -162,29 +195,15 @@ function ReplacementSidebar({ user, widgetsEnabled }: Pick<DashboardShellProps, 
         <WorkspaceSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        <NavigationGroup items={general} pathname={pathname} title={t("nav:sidebar.general")} />
-        <NavigationGroup items={receptionist} pathname={pathname} title={t("nav:sidebar.agent")} />
-        <NavigationGroup items={other} pathname={pathname} title={t("nav:sidebar.other")} />
+        {groups.map((group) => <NavigationGroup items={group.items} key={group.title} pathname={pathname} title={group.title} />)}
       </SidebarContent>
       <SidebarFooter>
         <DashboardSetupGuideCard onNavigate={() => { if (isMobile) setOpenMobile(false); }} />
-        <UserMenu user={user} />
+        <UserMenu partnerConsole={partnerConsole} user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
-}
-
-function AnimatedNavigationIcon({ icon: Icon, hovered }: { icon: typeof HomeIcon; hovered: boolean }) {
-  const iconRef = useRef<{ startAnimation: () => void; stopAnimation: () => void } | null>(null);
-  const wasHovered = useRef(false);
-  useEffect(() => {
-    if (hovered) iconRef.current?.startAnimation();
-    // An icon that never animated is already at rest, and has no opacity yet to animate back from.
-    else if (wasHovered.current) iconRef.current?.stopAnimation();
-    wasHovered.current = hovered;
-  }, [hovered]);
-  return <Icon ref={iconRef} className="size-4 shrink-0 [&_svg]:size-4" size={16} />;
 }
 
 function NavigationGroup({ items, pathname, title }: { items: NavigationItem[]; pathname: string; title: string }) {
@@ -199,7 +218,7 @@ function NavigationGroup({ items, pathname, title }: { items: NavigationItem[]; 
         {items.map((item) => {
           const active = item.href === "/"
             ? pathname === "/"
-            : item.href === "/settings/usage"
+            : item.href.startsWith("/settings/")
               ? pathname.startsWith("/settings")
               : pathname === item.href;
           return (
@@ -233,11 +252,21 @@ function NavigationGroup({ items, pathname, title }: { items: NavigationItem[]; 
 }
 
 
-function UserMenu({ user }: Pick<DashboardShellProps, "user">) {
+function UserMenu({ partnerConsole = false, user }: Pick<DashboardShellProps, "partnerConsole" | "user">) {
   const openUpgradePlanDialog = useOpenUpgradePlanDialog();
   const signOut = useSignOut();
   const { business } = useActiveBusiness();
-  const billing = useQuery({ queryKey: ["billing", business?.businessId], enabled: Boolean(business?.businessId), queryFn: () => requestJson<{ account: { plan: string | null } | null; permissions: BillingPermissions; availableCheckoutPlans: Array<"starter" | "pro">; availableCheckoutIntervals: Record<"starter" | "pro", string[]> }>(`/api/billing?businessId=${encodeURIComponent(business!.businessId)}`) });
-  const showUpgradeToPro = billing.data?.permissions.hasCheckoutAccess === true && (billing.data.account?.plan ?? "free_cloud") === "free_cloud" && (billing.data.availableCheckoutPlans ?? []).some(plan => billing.data?.availableCheckoutIntervals[plan].length);
-  return <NavUser user={user} onSignOut={() => void signOut()} onUpgradeToPro={openUpgradePlanDialog} showUpgradeToPro={showUpgradeToPro} />;
+  const can = useBusinessCan();
+  const billing = useQuery({ queryKey: ["billing", business?.businessId], enabled: Boolean(business?.businessId) && can("billing"), queryFn: () => requestJson<{ account: { plan: string | null } | null; permissions: BillingPermissions; availableCheckoutPlans: Array<"starter" | "pro">; availableCheckoutIntervals: Record<"starter" | "pro", string[]> }>(`/api/billing?businessId=${encodeURIComponent(business!.businessId)}`) });
+  const showUpgradeToPro = can("billing") && billing.data?.permissions.hasCheckoutAccess === true && (billing.data.account?.plan ?? "free_cloud") === "free_cloud" && (billing.data.availableCheckoutPlans ?? []).some(plan => billing.data?.availableCheckoutIntervals[plan].length);
+  // Someone working in a partner's business through an open ends it as they go back to the console or sign out,
+  // and the business's audit log records it. The tab reads when its open began once, as it loads, so leaving here
+  // doesn't end a newer open another tab started. A tab closed without either leaves the open to expire.
+  const visiting = business?.via === "partner" ? business.businessId : null;
+  const visit = useQuery({ queryKey: ["partner-visit", visiting], enabled: Boolean(visiting), staleTime: Infinity, gcTime: Infinity, refetchOnWindowFocus: false, refetchOnReconnect: false, queryFn: () => requestJson<{ openedAt: string | null }>(`/api/partner/businesses/leave?businessId=${encodeURIComponent(visiting!)}`) });
+  const leave = async () => {
+    if (!visiting || !visit.data?.openedAt) return;
+    await fetch("/api/partner/businesses/leave", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ businessId: visiting, openedAt: visit.data.openedAt }), keepalive: true }).catch(() => undefined);
+  };
+  return <NavUser user={user} onLeaveBusiness={visiting ? () => void leave() : undefined} onSignOut={() => void leave().then(() => signOut())} onUpgradeToPro={openUpgradePlanDialog} showPartnerConsole={partnerConsole} showUpgradeToPro={showUpgradeToPro} />;
 }

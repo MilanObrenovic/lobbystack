@@ -2,23 +2,25 @@ import { randomUUID } from "node:crypto";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 
-import { isUuid, ONBOARDING_CRAWL_PAGE_LIMIT, weekdays } from "@lobbystack/shared";
+import { applyBusinessDetails, applyKnowledgeEntries, applyReceptionist, applyRules, applyServices, applyWebsites, isUnreadableSource, isUuid, ONBOARDING_CRAWL_PAGE_LIMIT, sameName, sameValue, sourceFailureReason, type ApiKnowledgeSource, type SetupRun } from "@lobbystack/shared";
 
 import { createClient, type Client } from "./client";
 import { stringValue, type Command, type CommandContext, type Values } from "./command";
 import { ApiError, CliError, exitCodes, type ExitCode } from "./errors";
-import { nameKey, readManifest, readManifestFiles, websiteKey, type Manifest, type ManifestFile } from "./manifest";
+import { nameKey, readManifest, readManifestFiles, type Manifest, type ManifestFile } from "./manifest";
 import { defaultSleep, listAll, waitUntilDone, type Row } from "./operations";
+import { httpSetupPort } from "./setupPort";
 import { completeUpload, uploadKnowledgeFile } from "./upload";
 import { userAgent } from "./version";
 import { checkoutWait, claimWait, sourceWait } from "./waits";
 
 // lobbystack onboard acme.yaml: one file describes a business, and each run
 // makes the business match it. Every step reads first and changes only what
-// differs. What a run makes, and the key of each request whose answer it
-// hasn't saved yet, go to a state file next to the manifest before the next
-// step, so a rerun after a failure picks up where it stopped and a rerun
-// after success changes nothing.
+// differs; the steps a partner's templates share live in packages/shared. What
+// a run makes, and the key of each request whose answer it hasn't saved yet,
+// go to a state file next to the manifest before the next step, so a rerun
+// after a failure picks up where it stopped and a rerun after success changes
+// nothing.
 
 /** What a run made, and the requests it sent but hasn't seen land. */
 export type OnboardState = {
@@ -90,11 +92,13 @@ type Run = {
   /** Acts on the business once there is one. */
   client: Client;
   /**
-   * The key's reach. An operator's platform key ("all") keeps reaching a
-   * business after its owner claims it; a partner's ("partner") and the
-   * business's own key don't.
+   * The key's reach. A platform key with access to every business ("all")
+   * keeps reaching a business after its owner claims it; one with group
+   * access ("group") and the business's own key don't. A partner's key
+   * ("partner") reaches the partner's businesses, which nobody claims: they
+   * stay with the partner.
    */
-  access: "all" | "partner" | "business";
+  access: "all" | "group" | "partner" | "business";
   state: OnboardState;
   statePath: string;
   /** The business's plan, when the key may read it. */
@@ -116,22 +120,7 @@ type Run = {
   handedOver: boolean;
 };
 
-const sameName = (left: unknown, right: string) => typeof left === "string" && nameKey(left) === nameKey(right);
-
-function sameValue(left: unknown, right: unknown): boolean {
-  if (Array.isArray(left) && Array.isArray(right)) return left.length === right.length && left.every((item, index) => sameValue(item, right[index]));
-  if (left && right && typeof left === "object" && typeof right === "object") {
-    const keys = Object.keys(left as Row);
-    return keys.every((key) => sameValue((left as Row)[key], (right as Row)[key]));
-  }
-  return left === right;
-}
-
 const sameTags = (left: readonly string[] | undefined, right: readonly string[] | undefined) => sameValue([...(left ?? [])].sort(), [...(right ?? [])].sort());
-
-function sortedHours(hours: ReadonlyArray<{ day: string; open: string; close: string }>) {
-  return [...hours].sort((left, right) => weekdays.indexOf(left.day as never) - weekdays.indexOf(right.day as never) || left.open.localeCompare(right.open)).map(({ day, open, close }) => ({ day, open, close }));
-}
 
 function fail(run: Run, reason: string): void {
   if (!run.failed.includes(reason)) run.failed.push(reason);
@@ -173,12 +162,23 @@ async function sendOnce<T>(run: Run, step: string, send: (key: string) => Promis
   }
 }
 
-/** Logs a step's changes, and makes them unless --plan. */
-async function apply(run: Run, step: string, fields: string[], change: () => Promise<void>): Promise<void> {
-  if (!fields.length) return run.log({ step, action: "unchanged", detail: "" });
-  if (run.plan) return run.log({ step, action: "would update", detail: fields.join(", ") });
-  await change();
-  run.log({ step, action: "updated", detail: fields.join(", ") });
+/**
+ * The run as the shared setup steps see it: the API on the run's business,
+ * --plan, the log, and an Idempotency-Key saved before each request that
+ * makes something, with the state saved once it's made.
+ */
+function setupRun(run: Run): SetupRun {
+  return {
+    port: httpSetupPort(run.client),
+    plan: run.plan,
+    log: run.log,
+    async create(step, make) {
+      const made = await sendOnce(run, step, make);
+      await run.save();
+      return made;
+    },
+    found(step) { delete run.state.keys[step]; },
+  };
 }
 
 /**
@@ -196,8 +196,11 @@ function namedBusiness(values: Values): string | undefined {
 /** Refuses, before anything changes, what the manifest asks for that this key can never do. */
 function checkKey(run: Run): void {
   const { plan, phone_number: phoneNumber } = run.manifest;
-  if (run.access === "partner" && (plan || phoneNumber)) {
-    throw new CliError("A partner's platform key can't buy a plan or a number: the business's owner pays for them, and once they claim the business your key can't reach it. Leave plan and phone_number out of the manifest, and the owner picks both in the dashboard after claiming it.");
+  if (run.manifest.business.access_level !== undefined && run.access !== "partner") throw new CliError("business.access_level is only for a partner's platform key, which sets what the business's own team can use. Leave it out of the manifest.");
+  if (run.access === "partner" && plan) throw new CliError("A partner's businesses don't buy the host's plans, so a partner's key can't pick one. Leave plan out of the manifest.");
+  if (run.access === "partner" && phoneNumber) throw new CliError("A partner's platform key can't claim phone numbers. Leave phone_number out of the manifest.");
+  if (run.access === "group" && (plan || phoneNumber)) {
+    throw new CliError("A platform key with group access can't buy a plan or a number: the business's owner pays for them, and once they claim the business your key can't reach it. Leave plan and phone_number out of the manifest, and the owner picks both in the dashboard after claiming it.");
   }
   if (plan && "managed" in plan && run.access !== "all") throw new CliError("Only an operator's platform key, one with access to every business, can set a managed plan. Use plan.checkout, or leave plan out.");
 }
@@ -215,7 +218,7 @@ async function ensureBusiness(run: Run, make: (business?: string) => Client, nam
   const given = sources.flatMap(([source, id]) => (id ? [[source, id.toLowerCase()] as const] : []));
   const disagreeing = given.find(([, id]) => id !== given[0]![1]);
   if (disagreeing) throw new CliError(`${given[0]![0]} names business ${given[0]![1]}, and ${disagreeing[0]} names ${disagreeing[1]}. Make them the same, or pass --state with another file.`);
-  // Accepting a claim link revokes the keys of the account that sent it, and takes the business away from a partner's platform key.
+  // Accepting a claim link revokes the keys of the account that sent it, and takes the business away from a platform key with group access.
   const handedOver = (error: ApiError) => new CliError(`${run.state.handed_over_to} has a claim link for this business, and this key can't reach it any more (${error.message}), most likely because they accepted it. Its owner manages it in the dashboard now.`, exitCodes.auth);
   let me;
   try {
@@ -224,7 +227,8 @@ async function ensureBusiness(run: Run, make: (business?: string) => Client, nam
     if (run.state.handed_over_to && businessKey && error instanceof ApiError && error.status === 401) throw handedOver(error);
     throw error;
   }
-  run.access = me.platform ? me.platform.access : "business";
+  // GET /me names the partner of a partner's key. A server from before reach sends only access, which reads "partner" for group access.
+  run.access = me.platform ? (me.platform.partner_id ? "partner" : (me.platform.reach ?? me.platform.access) === "all" ? "all" : "group") : "business";
   checkKey(run);
   // A per-business key sets up its own business; only a platform key makes one.
   const id = given[0]?.[1] ?? (me.platform ? undefined : me.business?.id);
@@ -233,7 +237,7 @@ async function ensureBusiness(run: Run, make: (business?: string) => Client, nam
     try {
       business = (await make(id).call("getBusiness")).data;
     } catch (error) {
-      if (run.state.handed_over_to && run.access === "partner" && error instanceof ApiError && error.status === 404) throw handedOver(error);
+      if (run.state.handed_over_to && run.access === "group" && error instanceof ApiError && error.status === 404) throw handedOver(error);
       throw error;
     }
     // With nothing but --business or the key itself to say which business this is, the wrong profile or a typo would rename another business and fill it with this manifest.
@@ -248,11 +252,14 @@ async function ensureBusiness(run: Run, make: (business?: string) => Client, nam
     return id;
   }
   if (fresh) {
-    // With no state file to say which business is this one, a business the partner already onboarded under this name most likely is.
+    // With no state file to say which business is this one, a business the key's group already onboarded under this name most likely is.
     const onboarded = await listAll(async (cursor) => await root.call("listBusinesses", { query: cursor ? { cursor } : {} }));
     const same = onboarded.find((business) => sameName(business.name, wanted.name));
     if (same) throw new CliError(`You already onboarded ${String(same.name)} (${String(same.id)}), and there's no state file to say it's this one. To set it up, put id: ${String(same.id)} under business in the manifest. To make another business, give it another name.`);
   }
+  // A partner's key invites the owner as it creates the business, and can't later.
+  const owner = run.access === "partner" ? run.manifest.owner?.email : undefined;
+  if (run.access === "partner" && !owner) throw new CliError("A partner's platform key invites the business's owner as it creates the business. Add owner to the manifest.");
   if (run.plan) {
     run.log({ step: "business", action: "would create", detail: wanted.name });
     return undefined;
@@ -260,26 +267,18 @@ async function ensureBusiness(run: Run, make: (business?: string) => Client, nam
   // The run id is on disk before the business exists, so a rerun after a crash sends the same key and gets the same business.
   await run.save();
   const created = (await root.call("createBusiness", {
-    body: { name: wanted.name, timezone: wanted.timezone, ...(wanted.locale ? { locale: wanted.locale } : {}), ...(wanted.website_url ? { website_url: wanted.website_url } : {}), ...(wanted.business_type ? { business_type: wanted.business_type } : {}), ...(wanted.slug ? { slug: wanted.slug } : {}) },
+    body: { name: wanted.name, timezone: wanted.timezone, ...(wanted.locale ? { locale: wanted.locale } : {}), ...(wanted.website_url ? { website_url: wanted.website_url } : {}), ...(wanted.business_type ? { business_type: wanted.business_type } : {}), ...(wanted.slug ? { slug: wanted.slug } : {}), ...(owner ? { owner_email: owner } : {}), ...(wanted.access_level ? { access_level: wanted.access_level } : {}) },
     idempotencyKey: `onboard-${run.state.run_id}-business`,
   })).data;
   run.state.business_id = created.id;
   await run.save();
-  // Once the owner claims it, a partner can't see the business to find it again.
+  // Once the owner claims it, GET /businesses stops listing the business, so a rerun can't find it again.
   run.log({ step: "business", action: "created", detail: `${created.name} (${created.id}). Keep ${basename(run.statePath)} with the manifest, or put id: ${created.id} under business in it.` });
-  return created.id;
-}
-
-async function syncBusinessDetails(run: Run): Promise<void> {
-  const wanted = run.manifest.business;
-  const current = (await run.client.call("getBusiness")).data;
-  const changes: Row = {};
-  for (const field of ["name", "timezone", "locale", "business_type"] as const) {
-    if (wanted[field] !== undefined && wanted[field] !== current[field]) changes[field] = wanted[field];
+  if (owner) {
+    run.handedOver = true;
+    run.log({ step: "owner", action: "invited", detail: `${owner}, who signs in on your dashboard` });
   }
-  if (wanted.website_url !== undefined && !(current.website_url && websiteKey(wanted.website_url) === websiteKey(current.website_url))) changes.website_url = wanted.website_url;
-  if (wanted.hours && !sameValue(sortedHours(wanted.hours), sortedHours(current.hours))) changes.hours = sortedHours(wanted.hours);
-  await apply(run, "details", Object.keys(changes), async () => { await run.client.call("updateBusiness", { body: changes }); });
+  return created.id;
 }
 
 const paidPlans = new Set(["starter", "pro", "enterprise", "self_host"]);
@@ -308,76 +307,6 @@ async function syncManagedPlan(run: Run, billing: Billing): Promise<Billing> {
   return updated;
 }
 
-async function syncReceptionist(run: Run): Promise<void> {
-  const wanted = run.manifest.receptionist;
-  if (!wanted) return;
-  const current = (await run.client.call("getReceptionist")).data as Row;
-  const changes = Object.fromEntries(Object.entries(wanted).filter(([field, value]) => value !== undefined && !sameValue(value, current[field])));
-  await apply(run, "receptionist", Object.keys(changes), async () => { await run.client.call("updateReceptionist", { body: changes }); });
-}
-
-async function syncServices(run: Run): Promise<void> {
-  const wanted = run.manifest.services;
-  if (!wanted?.length) return;
-  const current = (await run.client.call("listServices", { query: { include_inactive: true } })).data as Row[];
-  for (const service of wanted) {
-    const step = `service:${nameKey(service.name)}`;
-    const existing = current.find((row) => sameName(row.name, service.name));
-    if (!existing) {
-      if (run.plan) { run.log({ step: "services", action: "would add", detail: service.name }); continue; }
-      await sendOnce(run, step, async (key) => await run.client.call("createService", { body: service, idempotencyKey: key }));
-      await run.save();
-      run.log({ step: "services", action: "added", detail: service.name });
-      continue;
-    }
-    delete run.state.keys[step];
-    const changes = Object.fromEntries(Object.entries(service).filter(([field, value]) => {
-      if (field === "staff_ids") return !sameValue([...(value as string[])].sort(), [...((existing.staff_ids as string[] | undefined) ?? [])].sort());
-      return !sameValue(value, existing[field]);
-    }));
-    await apply(run, `service ${service.name}`, Object.keys(changes), async () => { await run.client.call("updateService", { params: { service_id: String(existing.id) }, body: changes }); });
-  }
-}
-
-async function syncRules(run: Run): Promise<void> {
-  const wanted = run.manifest.rules;
-  if (!wanted?.length) return;
-  const current = (await run.client.call("listRules")).data as Row[];
-  for (const rule of wanted) {
-    const step = `rule:${nameKey(rule.title)}`;
-    const existing = current.find((row) => sameName(row.title, rule.title));
-    if (!existing) {
-      if (run.plan) { run.log({ step: "rules", action: "would add", detail: rule.title }); continue; }
-      await sendOnce(run, step, async (key) => await run.client.call("createRule", { body: rule, idempotencyKey: key }));
-      await run.save();
-      run.log({ step: "rules", action: "added", detail: rule.title });
-      continue;
-    }
-    delete run.state.keys[step];
-    const changes = Object.fromEntries(Object.entries(rule).filter(([field, value]) => !sameValue(value, existing[field])));
-    await apply(run, `rule ${rule.title}`, Object.keys(changes), async () => { await run.client.call("updateRule", { params: { rule_id: String(existing.id) }, body: changes }); });
-  }
-}
-
-async function syncEntries(run: Run, type: "faq" | "text", wanted: ReadonlyArray<{ title: string; content: string }>): Promise<void> {
-  if (!wanted.length) return;
-  const current = await listAll(async (cursor) => await run.client.call("listKnowledgeEntries", { query: { type, ...(cursor ? { cursor } : {}) } }));
-  const steps = type === "faq" ? "FAQs" : "texts";
-  for (const entry of wanted) {
-    const step = `${type}:${nameKey(entry.title)}`;
-    const existing = current.find((row) => sameName(row.title, entry.title));
-    if (!existing) {
-      if (run.plan) { run.log({ step: steps, action: "would add", detail: entry.title }); continue; }
-      await sendOnce(run, step, async (key) => await run.client.call("createKnowledgeEntry", { body: type === "faq" ? { type, question: entry.title, answer: entry.content } : { type, title: entry.title, content: entry.content }, idempotencyKey: key }));
-      await run.save();
-      run.log({ step: steps, action: "added", detail: entry.title });
-      continue;
-    }
-    delete run.state.keys[step];
-    await apply(run, `${type === "faq" ? "FAQ" : "text"} ${entry.title}`, existing.content === entry.content ? [] : [type === "faq" ? "answer" : "content"], async () => { await run.client.call("updateKnowledgeEntry", { params: { entry_id: String(existing.id) }, body: { content: entry.content } }); });
-  }
-}
-
 /** Deletes the earlier copies of changed documents; one that fails stays in the state file for the next run. */
 async function deleteReplaced(run: Run): Promise<void> {
   if (run.plan) return;
@@ -395,9 +324,6 @@ async function deleteReplaced(run: Run): Promise<void> {
   }
 }
 
-const unreadable = (source: Row | undefined) => source?.status === "error" || source?.status === "cancelled";
-const failureReason = (source: Row) => (typeof source.error === "string" && source.error ? source.error : `reading it was ${String(source.status)}`);
-
 /**
  * Reads a source that failed again, once for each failure: the same reason
  * on the same plan is reported instead, so a document that can't be read
@@ -406,7 +332,7 @@ const failureReason = (source: Row) => (typeof source.error === "string" && sour
  */
 async function retryOnce(run: Run, source: Row, label: string): Promise<Row | undefined> {
   const id = String(source.id);
-  const reason = failureReason(source);
+  const reason = sourceFailureReason(source);
   const attempt = `${run.billing?.plan ?? ""}: ${reason}`;
   if (source.status === "cancelled" || run.state.retried[id] === attempt) {
     run.notes.push(`${label} couldn't be read: ${reason.replace(/\.$/, "")}. lobbystack knowledge retry ${id} reads it again.`);
@@ -468,11 +394,11 @@ async function syncFiles(run: Run): Promise<void> {
     }
     if (known && known.sha256 === file.sha256 && known.title === file.title && sameTags(known.tags, file.tags)) {
       const source = sources.get(known.source_id);
-      if (!unreadable(source)) {
+      if (!isUnreadableSource(source)) {
         run.log({ step: "files", action: "unchanged", detail: file.path });
         continue;
       }
-      const reason = failureReason(source!);
+      const reason = sourceFailureReason(source!);
       // The free plan's room for text runs out while a document is read, so it's read again once the plan is paid.
       if (run.planPending) { run.log({ step: "files", action: "waiting", detail: `${file.path}: ${reason}` }); continue; }
       const retried = await retryOnce(run, source!, file.path);
@@ -528,35 +454,19 @@ async function syncFiles(run: Run): Promise<void> {
 async function syncKnowledge(run: Run): Promise<void> {
   const knowledge = run.manifest.knowledge;
   if (!knowledge && !run.state.replaced.length) return;
-  const websites: Row[] = [];
-  if (knowledge?.websites?.length) {
-    const sources = await listAll(async (cursor) => await run.client.call("listKnowledgeSources", { query: { type: "website", ...(cursor ? { cursor } : {}) } }));
-    for (const url of knowledge.websites) {
-      const existing = sources.find((source) => typeof source.url === "string" && websiteKey(source.url) === websiteKey(url));
-      if (existing && unreadable(existing)) {
-        const reason = failureReason(existing);
-        // A site's first read can fail on the free plan's room too, so it's read again once the plan is paid.
-        if (run.planPending) { run.log({ step: "websites", action: "waiting", detail: `${url}: ${reason}` }); continue; }
-        const retried = await retryOnce(run, existing, url);
-        run.log({ step: "websites", action: retried ? (run.plan ? "would retry" : "retrying") : "not read", detail: `${url}: ${reason}` });
-        if (retried) websites.push(retried);
-        continue;
-      }
-      if (existing) {
-        websites.push(existing);
-        run.log({ step: "websites", action: "unchanged", detail: url });
-        continue;
-      }
-      if (run.plan) { run.log({ step: "websites", action: "would add", detail: url }); continue; }
-      // Adding a site that's already a source returns that source, so this is safe to repeat.
-      const source = (await run.client.call("createKnowledgeSource", { body: { type: "website", url } })).data as Row;
-      websites.push(source);
-      run.log({ step: "websites", action: "added", detail: `${url} (reading a sample of its pages)` });
-    }
-  }
+  const websites = await applyWebsites(setupRun(run), knowledge?.websites, {
+    async unreadable(existing, url) {
+      const reason = sourceFailureReason(existing);
+      // A site's first read can fail on the free plan's room too, so it's read again once the plan is paid.
+      if (run.planPending) { run.log({ step: "websites", action: "waiting", detail: `${url}: ${reason}` }); return undefined; }
+      const retried = await retryOnce(run, existing, url);
+      run.log({ step: "websites", action: retried ? (run.plan ? "would retry" : "retrying") : "not read", detail: `${url}: ${reason}` });
+      return retried as ApiKnowledgeSource | undefined;
+    },
+  });
   await syncFiles(run);
-  await syncEntries(run, "faq", (knowledge?.faqs ?? []).map((faq) => ({ title: faq.question, content: faq.answer })));
-  await syncEntries(run, "text", knowledge?.texts ?? []);
+  await applyKnowledgeEntries(setupRun(run), "faq", (knowledge?.faqs ?? []).map((faq) => ({ title: faq.question, content: faq.answer })));
+  await applyKnowledgeEntries(setupRun(run), "text", knowledge?.texts ?? []);
   if (!knowledge?.read_full_site) return;
   for (const website of websites) {
     // The full read raises the site's page limit past the sample's, which is how a rerun, or a business read in full from the dashboard, knows it's done.
@@ -566,13 +476,13 @@ async function syncKnowledge(run: Run): Promise<void> {
     }
     // Every page read is billed, and a free plan has little room for them, so the full read waits for the paid plan.
     if (run.planPending) { run.log({ step: "full site", action: "waiting", detail: `${String(website.url)}: for the paid plan` }); continue; }
-    // A partner's business stays on the free plan until its owner picks one, after which only the owner can read the rest.
-    if (run.access === "partner") { run.log({ step: "full site", action: "skipped", detail: `${String(website.url)}: the owner reads the whole site from the dashboard once they pick a plan` }); continue; }
+    // A business a key with group access sets up stays on the free plan until its owner picks one, after which only the owner can read the rest.
+    if (run.access === "group") { run.log({ step: "full site", action: "skipped", detail: `${String(website.url)}: the owner reads the whole site from the dashboard once they pick a plan` }); continue; }
     if (run.plan) { run.log({ step: "full site", action: "would read", detail: String(website.url) }); continue; }
     // The whole site is read after the sample, so wait for the sample first.
     run.log({ step: "full site", action: "waiting", detail: `for the first read of ${String(website.url)}` });
     try {
-      const sample = await waitUntilDone(run.client, sourceWait, website, run.sleep);
+      const sample = await waitUntilDone(run.client, sourceWait, website as Row, run.sleep);
       const failure = sourceWait.failed(sample);
       if (failure) {
         const again = run.state.retried[String(website.id)] ? `lobbystack knowledge retry ${String(website.id)} reads it again` : "the next run reads it again";
@@ -594,11 +504,28 @@ async function ownsBusiness(run: Run, email: string): Promise<boolean> {
   return team.members.some((member) => member.role === "business_owner" && sameName(member.email, email));
 }
 
+/**
+ * A partner's business stays with the partner, and its owner was invited when
+ * the business was made, so this only checks that they own it or still have
+ * that invitation.
+ */
+async function checkPartnerOwner(run: Run, email: string): Promise<void> {
+  const team = (await run.client.call("getTeam")).data;
+  if (team.members.some((member) => member.role === "business_owner" && sameName(member.email, email))) return run.log({ step: "owner", action: "unchanged", detail: `${email} owns it` });
+  const invitation = team.invitations.find((candidate) => candidate.role === "business_owner" && !candidate.transfers_ownership && sameName(candidate.email, email));
+  if (invitation?.status === "pending") return run.log({ step: "owner", action: "unchanged", detail: `${email} has an invitation` });
+  run.log({ step: "owner", action: "differs", detail: invitation ? `${email}'s invitation expired` : `${email} isn't invited` });
+  run.notes.push(invitation
+    ? `${email}'s invitation to own the business expired before they accepted it. A partner's key invites the owner only when it creates the business.`
+    : `${email} doesn't own the business and has no invitation to. A partner's key invites the owner only when it creates the business.`);
+}
+
 /** Sends the owner a claim link, unless they own the business or have one already. */
 async function handOver(run: Run): Promise<void> {
   const owner = run.manifest.owner;
   if (!owner || run.handedOver) return;
   run.handedOver = true;
+  if (run.access === "partner") return await checkPartnerOwner(run, owner.email);
   const team = (await run.client.call("getTeam")).data;
   const step = `owner:${nameKey(owner.email)}`;
   if (team.members.some((member) => member.role === "business_owner" && sameName(member.email, owner.email))) {
@@ -755,8 +682,10 @@ async function completeOnboarding(run: Run): Promise<void> {
   const wanted = run.manifest.onboarding;
   if (wanted?.complete === false) return;
   if (run.waiting.length) return run.log({ step: "onboarding", action: "waiting", detail: "for the steps above" });
-  // A partner's key can't pick a plan or a number, so the owner finds those steps open in the dashboard.
-  if (run.access === "partner" && wanted?.complete !== true) return run.log({ step: "onboarding", action: "left open", detail: "for the owner to pick a plan and a number after claiming it" });
+  // A key with group access can't pick a plan or a number, so the owner finds those steps open in the dashboard.
+  if (run.access === "group" && wanted?.complete !== true) return run.log({ step: "onboarding", action: "left open", detail: "for the owner to pick a plan and a number after claiming it" });
+  // A partner's business ends its owner's onboarding once they verify their phone, the first time they sign in.
+  if (run.access === "partner" && wanted?.complete !== true) return run.log({ step: "onboarding", action: "left open", detail: "for the owner to finish when they first sign in" });
   const current = (await run.client.call("getOnboarding")).data;
   if (current.complete) return run.log({ step: "onboarding", action: "unchanged", detail: "complete" });
   const missing = current.missing.filter((item) => !(item === "phone_number" && wanted?.skip_number));
@@ -781,7 +710,7 @@ export const onboard: Command = {
   notes: [
     "The business is the one in the state file, business.id in the manifest or --business, which have to agree.",
     "LOBBYSTACK_BUSINESS and a profile's business are never used. With none of them, a platform key makes the",
-    "business and a per-business key sets up its own.",
+    "business and a per-business key sets up its own. A partner's key invites the owner as it makes the business.",
     "",
     "Exit codes: 0 the business matches the manifest. 4 not finished: the rest waits on a payment or the owner's",
     "claim, so run it again once that's done. 1, 2 and 3 as for every command.",
@@ -835,7 +764,7 @@ export const onboard: Command = {
         }
       } else {
         run.client = make(businessId);
-        await syncBusinessDetails(run);
+        await applyBusinessDetails(setupRun(run), manifest.business);
         // The plan decides what can happen now. Only a manifest with a plan needs a key that may read it.
         run.billing = manifest.plan
           ? (await run.client.call("getBilling")).data as Billing
@@ -844,17 +773,18 @@ export const onboard: Command = {
           run.billing = await syncManagedPlan(run, run.billing);
           run.planPending = checkoutNeeded(manifest, run.billing);
         }
-        await syncReceptionist(run);
-        await syncServices(run);
-        await syncRules(run);
+        await applyReceptionist(setupRun(run), manifest.receptionist);
+        await applyServices(setupRun(run), manifest.services);
+        await applyRules(setupRun(run), manifest.rules);
         await syncKnowledge(run);
         // An operator's checkout goes to the business's owner, so the claim link goes out first; the operator's key keeps reaching the business.
         if (run.access === "all" && run.planPending) await handOver(run);
         if (run.billing && manifest.plan) await syncCheckout(run, run.billing);
         await syncPhoneNumber(run, run.billing);
         await completeOnboarding(run);
-        // Once the owner accepts, the business's own key, and a partner's, can't reach it, so nothing could finish or retry what's left: the hand-over waits for it.
-        if (run.access !== "all" && manifest.owner && (run.waiting.length || run.failed.length)) run.log({ step: "owner", action: "waiting", detail: "for the steps above" });
+        // Once the owner accepts, the business's own key, and one with group access, can't reach it, so nothing could finish or retry what's left: the hand-over waits for it.
+        // A partner's key keeps its businesses, and only checks on the owner.
+        if ((run.access === "group" || run.access === "business") && manifest.owner && (run.waiting.length || run.failed.length)) run.log({ step: "owner", action: "waiting", detail: "for the steps above" });
         else await handOver(run);
         await run.save();
       }

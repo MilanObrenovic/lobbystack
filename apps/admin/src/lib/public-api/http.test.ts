@@ -18,7 +18,7 @@ vi.mock("@lobbystack/domain", async () => ({
   ...domain,
 }));
 
-import { PlatformKeyConfigError, PublicApiError, type ResolvedApiKey, type ResolvedPlatformKey } from "@lobbystack/domain";
+import { generatePlatformKey, PlatformKeyConfigError, PublicApiError, type PartnerPlatformKey, type ResolvedApiKey, type ResolvedPlatformKey } from "@lobbystack/domain";
 
 import { handleApiRequest } from "./http";
 
@@ -143,7 +143,7 @@ describe("v1 request pipeline", () => {
 
 describe("platform keys in the v1 request pipeline", () => {
   const token = `lsp_1a2b3c4d_${"x".repeat(32)}`;
-  const platformKey: ResolvedPlatformKey = { platformKeyId: "8b0c3f8e-1d2a-4b5c-9e6f-7a8b9c0d1e2f", prefix: "lsp_1a2b3c4d", name: "AlloPlace CLI", partnerId: "alloplace", ownerEmail: "ops@alloplace.example", access: "partner", scopes: ["contacts:read", "contacts:write"], createdAt: "2026-10-11T20:00:00.000Z" };
+  const platformKey: ResolvedPlatformKey = { platformKeyId: "8b0c3f8e-1d2a-4b5c-9e6f-7a8b9c0d1e2f", prefix: "lsp_1a2b3c4d", name: "AlloPlace CLI", group: "alloplace", ownerEmail: "ops@alloplace.example", access: "group", scopes: ["contacts:read", "contacts:write"], createdAt: "2026-10-11T20:00:00.000Z" };
   const ownerId = "0b7c1d2e-3f40-4a51-8b62-7c83d94ea5b6";
 
   function platform(init: { scopes?: ResolvedPlatformKey["scopes"]; owner?: string | null; requireBusiness?: () => Promise<void>; rateLimit?: typeof allow } = {}) {
@@ -158,28 +158,28 @@ describe("platform keys in the v1 request pipeline", () => {
 
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it("acts on the header's business as the key's owner, with its partner", async () => {
+  it("acts on the header's business as the key's owner, with its group", async () => {
     const dependencies = platform();
     const handler = vi.fn(async (_input: unknown) => ({ body: { data: [] } }));
     const response = await handleApiRequest(request("/contacts", { headers: { authorization: `Bearer ${token}`, "LobbyStack-Business": businessB } }), "listContacts", handler, dependencies);
     expect(response.status).toBe(200);
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({
-      caller: { businessId: businessB, platformKeyId: platformKey.platformKeyId, partnerId: "alloplace", actingUserId: ownerId, actor: "platform_key" },
-      credential: expect.objectContaining({ kind: "platform_key", partnerId: "alloplace" }),
+      caller: { businessId: businessB, platformKeyId: platformKey.platformKeyId, groupId: "alloplace", actingUserId: ownerId, actor: "platform_key" },
+      credential: expect.objectContaining({ kind: "platform_key", group: "alloplace" }),
     }));
     expect(dependencies.resolvePlatformKey).toHaveBeenCalledWith(token);
     expect(dependencies.resolveKey).not.toHaveBeenCalled();
     expect(dependencies.resolvePlatformOwner).toHaveBeenCalledWith("ops@alloplace.example");
-    expect(dependencies.requirePlatformBusiness).toHaveBeenCalledWith({ businessId: businessB, partnerId: "alloplace", access: "partner" });
+    expect(dependencies.requirePlatformBusiness).toHaveBeenCalledWith({ businessId: businessB, groupId: "alloplace", access: "group" });
     expect(dependencies.rateLimit).toHaveBeenCalledWith(`platform:${platformKey.platformKeyId}`);
   });
 
-  it("logs the key id, partner and business, never the key", async () => {
+  it("logs the key id, group and business, never the key", async () => {
     const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
     try {
       await handleApiRequest(request("/contacts", { headers: { authorization: `Bearer ${token}`, "LobbyStack-Business": businessB } }), "listContacts", async () => ({ body: {} }), platform());
       const line = log.mock.calls.map(([value]) => String(value)).find((value) => value.includes("public_api.request"));
-      expect(JSON.parse(line!)).toMatchObject({ event: "public_api.request", operation: "listContacts", status: 200, platform_key_id: platformKey.platformKeyId, partner_id: "alloplace", business_id: businessB });
+      expect(JSON.parse(line!)).toMatchObject({ event: "public_api.request", operation: "listContacts", status: 200, platform_key_id: platformKey.platformKeyId, group_id: "alloplace", business_id: businessB });
       expect(line).not.toContain(token);
     } finally {
       log.mockRestore();
@@ -274,7 +274,7 @@ describe("platform keys in the v1 request pipeline", () => {
     const response = await handleApiRequest(request("/businesses", { method: "POST", body: "{}", headers: { authorization: `Bearer ${token}`, "idempotency-key": "onboard-acme", "LobbyStack-Business": "not-a-uuid" } }), "createBusiness", handler, dependencies);
     expect(response.status).toBe(201);
     expect(response.headers.get("idempotent-replayed")).toBe("true");
-    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ actingUserId: ownerId, idempotencyKey: "onboard-acme", credential: expect.objectContaining({ kind: "platform_key", partnerId: "alloplace" }) }));
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ actingUserId: ownerId, idempotencyKey: "onboard-acme", credential: expect.objectContaining({ kind: "platform_key", group: "alloplace" }) }));
     expect(dependencies.requirePlatformBusiness).not.toHaveBeenCalled();
     expect(domain.runIdempotent).not.toHaveBeenCalled();
   });
@@ -287,6 +287,44 @@ describe("platform keys in the v1 request pipeline", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  it("reads an entry written before the rename from PLATFORM_API_KEYS as its group", async () => {
+    const { key: legacyToken, entry } = generatePlatformKey({ name: "AlloPlace CLI", group: "alloplace", ownerEmail: "ops@alloplace.example" });
+    const { group: _group, ...rest } = entry;
+    vi.stubEnv("PLATFORM_API_KEYS", JSON.stringify([{ ...rest, partner: "alloplace", access: "partner" }]));
+    try {
+      const { resolvePlatformKey: _resolve, ...dependencies } = platform();
+      const handler = vi.fn(async (_input: unknown) => ({ body: { data: [] } }));
+      const response = await handleApiRequest(request("/contacts", { headers: { authorization: `Bearer ${legacyToken}`, "LobbyStack-Business": businessB } }), "listContacts", handler, dependencies);
+      expect(response.status).toBe(200);
+      expect(dependencies.requirePlatformBusiness).toHaveBeenCalledWith({ businessId: businessB, groupId: "alloplace", access: "group" });
+      expect(handler).toHaveBeenCalledWith(expect.objectContaining({ caller: { businessId: businessB, platformKeyId: entry.id, groupId: "alloplace", actingUserId: ownerId, actor: "platform_key" } }));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("refuses every platform key when an entry sets both group and partner", async () => {
+    const { key: bothToken, entry } = generatePlatformKey({ name: "AlloPlace CLI", group: "alloplace", ownerEmail: "ops@alloplace.example" });
+    vi.stubEnv("PLATFORM_API_KEYS", JSON.stringify([{ ...entry, partner: "alloplace" }]));
+    try {
+      const { resolvePlatformKey: _resolve, ...dependencies } = platform();
+      const response = await handleApiRequest(request("/contacts", { headers: { authorization: `Bearer ${bothToken}`, "LobbyStack-Business": businessB } }), "listContacts", vi.fn(), dependencies);
+      expect(response.status).toBe(500);
+      await vi.waitFor(() => expect(reporting.reportServerError).toHaveBeenCalledWith(expect.objectContaining({ name: "PlatformKeyConfigError", message: expect.stringContaining("entry 0 sets both group and partner") }), expect.anything()));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("asks the database for a key that isn't in PLATFORM_API_KEYS, and answers 401 when it has none", async () => {
+    const execute = vi.fn(async () => ({ rows: [] }));
+    const { resolvePlatformKey: _resolve, ...dependencies } = platform();
+    const response = await handleApiRequest(request("/contacts", { headers: { authorization: `Bearer ${token}`, "LobbyStack-Business": businessB } }), "listContacts", vi.fn(), { ...dependencies, context: () => ({ db: { execute } } as never) });
+    expect(response.status).toBe(401);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(dependencies.resolvePlatformOwner).not.toHaveBeenCalled();
+  });
+
   it("keeps serving per-business keys when PLATFORM_API_KEYS is malformed", async () => {
     vi.stubEnv("PLATFORM_API_KEYS", "{not json");
     try {
@@ -295,5 +333,71 @@ describe("platform keys in the v1 request pipeline", () => {
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+});
+
+describe("a partner's platform keys in the v1 request pipeline", () => {
+  const token = `lsp_5e6f7a8b_${"y".repeat(32)}`;
+  const partnerId = "3c2b1a09-8f7e-4d6c-9b5a-4f3e2d1c0b9a";
+  const partnerPlatformKey: PartnerPlatformKey = { platformKeyId: "6d5c4b3a-2918-4f7e-8d6c-5b4a39281706", prefix: "lsp_5e6f7a8b", name: "Acme Zapier", group: partnerId, partnerId, access: "group", scopes: ["contacts:read", "businesses:create"], createdAt: "2026-10-26T12:00:00.000Z" };
+
+  function partner() {
+    return {
+      resolveKey: vi.fn(async () => { throw new Error("A platform key must not reach the per-business key lookup."); }),
+      resolvePlatformKey: vi.fn(async () => partnerPlatformKey),
+      resolvePlatformOwner: vi.fn(async () => { throw new Error("A partner's key acts as the partner and has no owner_email."); }),
+      requirePlatformBusiness: vi.fn(async () => undefined),
+      touchPlatformKey: vi.fn(async () => undefined),
+      rateLimit: vi.fn(allow),
+    };
+  }
+
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it("acts on the header's business as the partner, within the partner's businesses, and records the key's use", async () => {
+    const dependencies = partner();
+    const handler = vi.fn(async (_input: unknown) => ({ body: { data: [] } }));
+    const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    try {
+      const response = await handleApiRequest(request("/contacts", { headers: { authorization: `Bearer ${token}`, "LobbyStack-Business": businessB } }), "listContacts", handler, dependencies);
+      expect(response.status).toBe(200);
+      expect(handler).toHaveBeenCalledWith(expect.objectContaining({ caller: { businessId: businessB, platformKeyId: partnerPlatformKey.platformKeyId, groupId: partnerId, partnerId, actor: "platform_key" } }));
+      expect(dependencies.requirePlatformBusiness).toHaveBeenCalledWith({ businessId: businessB, groupId: partnerId, access: "group", partnerId });
+      expect(dependencies.resolvePlatformOwner).not.toHaveBeenCalled();
+      expect(dependencies.rateLimit).toHaveBeenCalledWith(`platform:${partnerPlatformKey.platformKeyId}`);
+      await vi.waitFor(() => expect(dependencies.touchPlatformKey).toHaveBeenCalledWith(expect.objectContaining({ platformKeyId: partnerPlatformKey.platformKeyId, partnerId })));
+      const line = log.mock.calls.map(([value]) => String(value)).find((value) => value.includes("public_api.request"));
+      expect(JSON.parse(line!)).toMatchObject({ platform_key_id: partnerPlatformKey.platformKeyId, group_id: partnerId, partner_id: partnerId, business_id: businessB });
+      expect(line).not.toContain(token);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("answers 404 for a business outside the partner", async () => {
+    const dependencies = { ...partner(), requirePlatformBusiness: vi.fn(async () => { throw new PublicApiError(404, "not_found", "Business not found."); }) };
+    const handler = vi.fn();
+    const response = await handleApiRequest(request("/contacts", { headers: { authorization: `Bearer ${token}`, "LobbyStack-Business": businessA } }), "listContacts", handler, dependencies);
+    expect(response.status).toBe(404);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("gives a business-less operation the key and no acting account", async () => {
+    const dependencies = partner();
+    const handler = vi.fn(async (_input: unknown) => ({ status: 201, body: { data: { id: "b1" } } }));
+    const response = await handleApiRequest(request("/businesses", { method: "POST", body: "{}", headers: { authorization: `Bearer ${token}`, "idempotency-key": "onboard-acme" } }), "createBusiness", handler, dependencies);
+    expect(response.status).toBe(201);
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ actingUserId: null, idempotencyKey: "onboard-acme", credential: expect.objectContaining({ kind: "platform_key", partnerId }) }));
+    expect(dependencies.requirePlatformBusiness).not.toHaveBeenCalled();
+  });
+
+  it("answers 401 once the key is revoked", async () => {
+    const dependencies = { ...partner(), resolvePlatformKey: vi.fn(async () => null) };
+    const handler = vi.fn();
+    const response = await handleApiRequest(request("/contacts", { headers: { authorization: `Bearer ${token}`, "LobbyStack-Business": businessB } }), "listContacts", handler, dependencies);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ error: { code: "unauthorized", message: "The API key is invalid or has been revoked." } });
+    expect(handler).not.toHaveBeenCalled();
+    expect(dependencies.touchPlatformKey).not.toHaveBeenCalled();
   });
 });

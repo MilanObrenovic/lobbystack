@@ -1,13 +1,16 @@
 import { DateTime } from "luxon";
 import { and, desc, eq, gt, gte, inArray, isNull, lte, ne, sql } from "drizzle-orm";
 
-import { billingAccounts, businesses, calls, enqueueOutbox, numberTrials, numberWaitlist, onboardingPhoneVerifications, phoneNumbers, receptionistProfiles, users, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
-import { isPaidSubscription, isTransferPhone, normalizeInterfaceLocale, type InterfaceLocale } from "@lobbystack/shared";
+import { businesses, calls, enqueueOutbox, numberTrials, numberWaitlist, onboardingPhoneVerifications, phoneNumbers, receptionistProfiles, users, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
+import { isTransferPhone, normalizeInterfaceLocale, type InterfaceLocale } from "@lobbystack/shared";
 
 import { hasMinimumRole, requireBusinessAdmin, requireBusinessMembership } from "../authz";
 import type { DomainContext } from "./context";
+import { loadEntitlement } from "./entitlement";
+import { businessGetsHostEmails } from "./hostEmails";
+import { loadPartnerNumberStanding } from "./partnerNumbers";
 import { sharedSmsSender } from "./smsSender";
-import { getVoiceSecondsLeftInTransaction } from "./usage";
+import { getVoiceSecondsLeftInTransaction, readEndedVoiceSecondsLeftInTransaction } from "./usage";
 
 export type NumberCountry = "US" | "CA" | "GB" | "AU" | "NZ";
 
@@ -60,7 +63,8 @@ export function numberTrialEmailDueAt(email: Exclude<TrialEmail, "minutes_out">,
 /**
  * Starts the trial clock when the worker has bought the trial number. The
  * number is scheduled for release when its paid month runs out, and calls
- * transfer only to the owner's verified phone while the trial lasts.
+ * transfer only to the verified mobile of whoever claimed the trial while it
+ * lasts: the owner, an admin, or a partner member who opened the business.
  */
 export async function activateNumberTrialInTransaction(
   tx: DatabaseTransaction,
@@ -82,7 +86,7 @@ export async function activateNumberTrialInTransaction(
   return true;
 }
 
-/** During a trial, calls transfer only to the owner's verified phone. That phone, or null when there's no trial. */
+/** During a trial, calls transfer only to the mobile its claimer verified. That phone, or null when there's no trial. */
 export async function trialTransferNumberInTransaction(tx: DatabaseTransaction, input: { businessId: string }): Promise<string | null> {
   const trial = (await tx.select({ verifiedPhone: numberTrials.verifiedPhone }).from(numberTrials).where(and(eq(numberTrials.businessId, input.businessId), inArray(numberTrials.status, ["reserved", "active", "ended"]))).limit(1))[0];
   return trial?.verifiedPhone ?? null;
@@ -98,13 +102,13 @@ const E164 = /^\+[1-9]\d{6,14}$/;
 /**
  * The rules for every number the receptionist transfers calls to, the
  * business's and each employee's: an E.164 number in a country Twilio lets us
- * call and, during a free number trial, only the owner's verified phone.
+ * call and, during a free number trial, only the mobile its claimer verified.
  */
 export async function assertTransferNumberAllowed(tx: DatabaseTransaction, input: { businessId: string; phone: string }): Promise<void> {
   if (!E164.test(input.phone)) throw Object.assign(new Error("Enter a valid phone number."), { status: 400, code: "transfer_number_invalid" });
   if (!isTransferPhone(input.phone)) throw Object.assign(new Error("Your receptionist can't transfer calls to this country yet."), { status: 400, code: "transfer_country_unsupported" });
   const trialPhone = await trialTransferNumberInTransaction(tx, input);
-  if (trialPhone && input.phone !== trialPhone) throw Object.assign(new Error("During your free trial, calls can only transfer to the mobile number you verified."), { status: 409, code: "trial_transfer_locked" });
+  if (trialPhone && input.phone !== trialPhone) throw Object.assign(new Error("During the free trial, calls can only transfer to the mobile of the person who claimed the trial."), { status: 409, code: "trial_transfer_locked" });
 }
 
 /** A failed purchase doesn't use up the trial. */
@@ -132,6 +136,35 @@ export async function convertNumberTrialInTransaction(tx: DatabaseTransaction, i
   return true;
 }
 
+/**
+ * Whether someone pays for the trial's number now, so it stays the
+ * business's: a direct business's live plan, or for a partner's business,
+ * its partner's paid tier. A partner's business pays its partner, which
+ * doesn't keep the partner's trial number.
+ */
+export async function trialNumberPaidForInTransaction(tx: DatabaseTransaction, businessId: string): Promise<boolean> {
+  const business = (await tx.select({ partnerId: businesses.partnerId }).from(businesses).where(eq(businesses.id, businessId)).limit(1))[0];
+  if (business?.partnerId) return (await loadPartnerNumberStanding(tx, business.partnerId)).paidTier;
+  return (await loadEntitlement(tx, businessId)).live;
+}
+
+/**
+ * The partner paid for a tier: its trial number, if one of its businesses
+ * still holds it, becomes one of the partner's numbers, as a direct
+ * business's trial number does when it pays. The worker runs this after it
+ * reconciles the partner's tier. A business the partner released keeps its
+ * trial as the host's. Returns whether a trial converted.
+ */
+export async function keepPartnerTrialNumber(context: DomainContext, input: { partnerId: string; now?: Date }): Promise<boolean> {
+  const businessId = await withBusinessTransaction(context.db, { actorType: "worker" }, async (tx) => (await tx.execute<{ business_id: string | null }>(sql`select app.partner_number_trial_business(${input.partnerId}::uuid) as business_id`)).rows[0]?.business_id ?? null);
+  if (!businessId) return false;
+  return await withBusinessTransaction(context.db, { businessId, actorType: "worker" }, async (tx) => {
+    const business = (await tx.select({ partnerId: businesses.partnerId }).from(businesses).where(eq(businesses.id, businessId)).limit(1))[0];
+    if (business?.partnerId !== input.partnerId || !await trialNumberPaidForInTransaction(tx, businessId)) return false;
+    return await convertNumberTrialInTransaction(tx, { businessId, ...(input.now ? { now: input.now } : {}) });
+  });
+}
+
 /** A paid plan is live: a trial number becomes the business's number, and a release scheduled when an earlier plan ended is called off. */
 export async function keepBusinessNumbersInTransaction(tx: DatabaseTransaction, input: { businessId: string; now?: Date }): Promise<void> {
   const now = input.now ?? new Date();
@@ -153,8 +186,9 @@ export async function scheduleNumberReleaseInTransaction(tx: DatabaseTransaction
     .where(and(eq(phoneNumbers.businessId, input.businessId), eq(phoneNumbers.status, "active"), isNull(phoneNumbers.reclaimScheduledAt), ...(shared ? [ne(phoneNumbers.e164, shared)] : [])));
 }
 
-/** The owner canceled at the end of the period: tell them when the plan ends and when we release the number. */
+/** The owner canceled at the end of the period: tell them when the plan ends and when we release the number. A partner's business never gets the host's notice. */
 export async function queuePlanCancelNoticeInTransaction(tx: DatabaseTransaction, input: { businessId: string; periodEnd: Date }): Promise<void> {
+  if (!await businessGetsHostEmails(tx, input.businessId)) return;
   const number = (await tx.select({ id: phoneNumbers.id }).from(phoneNumbers).where(and(eq(phoneNumbers.businessId, input.businessId), eq(phoneNumbers.status, "active"), isNull(phoneNumbers.reclaimScheduledAt))).limit(1))[0];
   if (!number) return;
   const releaseAt = new Date(input.periodEnd.getTime() + NUMBER_RELEASE_GRACE_DAYS * 86_400_000);
@@ -168,10 +202,11 @@ export async function queuePlanCancelNoticeInTransaction(tx: DatabaseTransaction
   });
 }
 
-/** Three days before we release a number whose plan ended, remind the owner. */
+/** Three days before we release a number whose plan ended, remind the owner. A partner's business never gets the host's reminder. */
 export async function sweepNumberReleases(context: DomainContext, input: { businessId: string; now?: Date }): Promise<number> {
   const now = input.now ?? new Date();
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    if (!await businessGetsHostEmails(tx, input.businessId)) return 0;
     const due = await tx.select({ id: phoneNumbers.id, reclaimScheduledAt: phoneNumbers.reclaimScheduledAt }).from(phoneNumbers)
       .where(and(eq(phoneNumbers.businessId, input.businessId), eq(phoneNumbers.status, "active"), eq(phoneNumbers.reclaimReason, "subscription_ended"), lte(phoneNumbers.reclaimScheduledAt, new Date(now.getTime() + 3 * 86_400_000)), gt(phoneNumbers.reclaimScheduledAt, now)));
     for (const number of due) {
@@ -182,9 +217,10 @@ export async function sweepNumberReleases(context: DomainContext, input: { busin
   });
 }
 
-/** The facts a release email needs. Null when the number was released or kept, or the owner is gone. */
+/** The facts a release email needs. Null when the number was released or kept, the owner is gone, or it's a partner's business. */
 export async function loadNumberReleaseEmail(context: DomainContext, input: { businessId: string; phoneNumberId: string }): Promise<{ to: string; locale: InterfaceLocale; firstName: string; businessName: string; number: string; timezone: string } | null> {
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    if (!await businessGetsHostEmails(tx, input.businessId)) return null;
     const number = (await tx.select({ e164: phoneNumbers.e164, timezone: businesses.timezone }).from(phoneNumbers).innerJoin(businesses, eq(businesses.id, phoneNumbers.businessId))
       .where(and(eq(phoneNumbers.id, input.phoneNumberId), eq(phoneNumbers.businessId, input.businessId), eq(phoneNumbers.status, "active"))).limit(1))[0];
     if (!number) return null;
@@ -233,10 +269,17 @@ export async function enqueueNumberRouting(tx: DatabaseTransaction, input: { bus
 /**
  * The trial ran out of minutes. Calls ring the owner's phone from now on, and
  * the owner gets one email about it. Returns false when that already happened.
+ * A partner's trial draws on the pool its partner's other businesses share, so
+ * a refused call ends it only when the calls that ended used the minutes up.
+ * Calls still open elsewhere refuse its calls only until they end.
  */
 export async function markNumberTrialMinutesExhausted(context: DomainContext, input: { businessId: string; now?: Date }): Promise<boolean> {
   const now = input.now ?? new Date();
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    const running = (await tx.select({ id: numberTrials.id }).from(numberTrials).where(and(eq(numberTrials.businessId, input.businessId), eq(numberTrials.status, "active"), isNull(numberTrials.minutesExhaustedAt))).limit(1))[0];
+    if (!running) return false;
+    const ended = await readEndedVoiceSecondsLeftInTransaction(tx, { businessId: input.businessId });
+    if (ended.pooled && ended.seconds >= 60) return false;
     const [trial] = await tx.update(numberTrials)
       .set({ minutesExhaustedAt: now, updatedAt: now })
       .where(and(eq(numberTrials.businessId, input.businessId), eq(numberTrials.status, "active"), isNull(numberTrials.minutesExhaustedAt)))
@@ -250,31 +293,43 @@ export async function markNumberTrialMinutesExhausted(context: DomainContext, in
 
 /**
  * After each call: a trial with less than a minute left starts forwarding now,
- * so the next caller reaches the owner instead of a busy signal.
+ * so the next caller reaches the owner instead of a busy signal. A partner's
+ * trial counts the calls that ended, so seconds its partner's other
+ * businesses hold for calls still open don't end it.
  */
 export async function checkNumberTrialMinutes(context: DomainContext, input: { businessId: string }): Promise<boolean> {
   const seconds = await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
     const trial = (await tx.select({ id: numberTrials.id }).from(numberTrials).where(and(eq(numberTrials.businessId, input.businessId), eq(numberTrials.status, "active"), isNull(numberTrials.minutesExhaustedAt))).limit(1))[0];
-    return trial ? (await getVoiceSecondsLeftInTransaction(tx, { businessId: input.businessId })).seconds : null;
+    if (!trial) return null;
+    const ended = await readEndedVoiceSecondsLeftInTransaction(tx, { businessId: input.businessId });
+    return ended.pooled ? ended.seconds : (await getVoiceSecondsLeftInTransaction(tx, { businessId: input.businessId })).seconds;
   });
   return seconds !== null && seconds < 60 ? await markNumberTrialMinutesExhausted(context, input) : false;
 }
 
 /**
- * What an off-trunk number does with a call: a trial out of minutes forwards
- * it to the owner; an ended trial lets it go unanswered, as if the number were
- * gone.
+ * Where a call goes when the receptionist doesn't take it: a trial number out
+ * of minutes, or any number whose plan is out of minutes or at its overage cap
+ * (the trunk fails the call over to /api/webhooks/twilio/voice). It forwards
+ * to the business's transfer number, or else the owner's verified phone, and
+ * rejects only when neither exists. An ended trial lets the call go
+ * unanswered, as if the number were gone. Forwarding uses no AI minutes, so it
+ * doesn't depend on the plan.
  */
 export async function resolveNumberFallback(context: DomainContext, input: { businessId: string; e164: string }): Promise<{ action: "forward"; to: string } | { action: "reject" }> {
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
-    const row = (await tx.select({ status: numberTrials.status, minutesExhaustedAt: numberTrials.minutesExhaustedAt, verifiedPhone: numberTrials.verifiedPhone, transferNumber: receptionistProfiles.transferNumber })
-      .from(numberTrials)
-      .innerJoin(phoneNumbers, eq(phoneNumbers.id, numberTrials.phoneNumberId))
-      .leftJoin(receptionistProfiles, eq(receptionistProfiles.businessId, numberTrials.businessId))
-      .where(and(eq(numberTrials.businessId, input.businessId), eq(phoneNumbers.e164, input.e164), eq(phoneNumbers.status, "active")))
+    const row = (await tx.select({ trialStatus: numberTrials.status, trialPhone: numberTrials.verifiedPhone, transferNumber: receptionistProfiles.transferNumber })
+      .from(phoneNumbers)
+      .leftJoin(numberTrials, and(eq(numberTrials.phoneNumberId, phoneNumbers.id), inArray(numberTrials.status, ["active", "ended"])))
+      .leftJoin(receptionistProfiles, eq(receptionistProfiles.businessId, phoneNumbers.businessId))
+      .where(and(eq(phoneNumbers.businessId, input.businessId), eq(phoneNumbers.e164, input.e164), eq(phoneNumbers.status, "active")))
       .limit(1))[0];
-    if (row?.status === "active" && row.minutesExhaustedAt) return { action: "forward", to: row.transferNumber?.trim() || row.verifiedPhone };
-    return { action: "reject" };
+    if (!row || row.trialStatus === "ended") return { action: "reject" };
+    // A trial transfers only to the verified phone, so it never needs the owner lookup.
+    const ownerPhone = row.trialStatus === "active" ? row.trialPhone : (await tx.execute<{ phone: string | null }>(sql`select app.resolve_business_owner_verified_phone(${input.businessId}::uuid) as phone`)).rows[0]?.phone;
+    // Forwarding a call back to the number it came in on would loop.
+    const to = [row.transferNumber?.trim(), ownerPhone].find((phone): phone is string => Boolean(phone && E164.test(phone) && isTransferPhone(phone) && phone !== input.e164));
+    return to ? { action: "forward", to } : { action: "reject" };
   });
 }
 
@@ -305,12 +360,18 @@ export async function verifiedPhone(tx: DatabaseTransaction, input: { userId: st
   return attempt ? { phone: user.phone, countryCode: attempt.countryCode.toUpperCase() } : null;
 }
 
+/** Whether the host's free trial and plans are for this business: a cloud business that doesn't pay yet, and never a partner's, which pays its partner. */
+async function offersHostTrialInTransaction(tx: DatabaseTransaction, businessId: string): Promise<boolean> {
+  const business = (await tx.select({ deploymentMode: businesses.deploymentMode }).from(businesses).where(eq(businesses.id, businessId)).limit(1))[0];
+  if (business?.deploymentMode !== "cloud") return false;
+  const entitlement = await loadEntitlement(tx, businessId);
+  return !entitlement.live && !entitlement.poolPartnerId;
+}
+
 // The workspace checks the number search makes before it offers a trial. The claim itself also
 // enforces once per user, phone and network; when it refuses, the number step offers the plans.
 async function trialAvailableInTransaction(tx: DatabaseTransaction, input: { userId: string; businessId: string }): Promise<boolean> {
-  const business = (await tx.select({ deploymentMode: businesses.deploymentMode }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1))[0];
-  const billing = (await tx.select({ plan: billingAccounts.plan, state: billingAccounts.subscriptionState }).from(billingAccounts).where(eq(billingAccounts.businessId, input.businessId)).limit(1))[0];
-  if (business?.deploymentMode !== "cloud" || (billing && isPaidSubscription(billing.plan, billing.state))) return false;
+  if (!await offersHostTrialInTransaction(tx, input.businessId)) return false;
   const number = await tx.select({ id: phoneNumbers.id }).from(phoneNumbers).where(and(eq(phoneNumbers.businessId, input.businessId), inArray(phoneNumbers.status, ["active", "provisioning"]))).limit(1);
   // The same once-per-workspace, per-user and per-phone rule the claim enforces.
   const used = await tx.execute(sql`SELECT app.number_trial_used(${input.businessId}::uuid, ${input.userId}::uuid) AS used`);
@@ -330,9 +391,7 @@ export async function numberStepRedirect(context: DomainContext, input: { userId
     await requireBusinessMembership(tx, input);
     const number = await tx.select({ id: phoneNumbers.id }).from(phoneNumbers).where(and(eq(phoneNumbers.businessId, input.businessId), inArray(phoneNumbers.status, ["active", "provisioning"]))).limit(1);
     if (number.length) return input.finished ? "/" : null;
-    const business = (await tx.select({ deploymentMode: businesses.deploymentMode }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1))[0];
-    const billing = (await tx.select({ plan: billingAccounts.plan, state: billingAccounts.subscriptionState }).from(billingAccounts).where(eq(billingAccounts.businessId, input.businessId)).limit(1))[0];
-    if (business?.deploymentMode !== "cloud" || (billing && isPaidSubscription(billing.plan, billing.state))) return null;
+    if (!await offersHostTrialInTransaction(tx, input.businessId)) return null;
     return await verifiedPhone(tx, input) ? null : "/onboarding/verify-phone";
   });
 }
@@ -388,21 +447,23 @@ export async function sweepNumberTrial(context: DomainContext, input: { business
     // Only the latest due reminder goes out: an owner who signs up late in the
     // window gets one email, not a backlog.
     const latest = due.filter((email) => !sent[email] && now >= numberTrialEmailDueAt(email, trial.endsAt!, trial.timezone)).at(-1);
-    if (latest) {
-      await queueTrialEmail(tx, { businessId: input.businessId, trialId: trial.id, email: latest, now });
-      emails.push(latest);
-    }
+    if (latest && await queueTrialEmail(tx, { businessId: input.businessId, trialId: trial.id, email: latest, now })) emails.push(latest);
     return { ended, emails };
   });
 }
 
-/** Queues one trial email to the owner, once per trial. The worker renders the copy in the owner's language. */
-async function queueTrialEmail(tx: DatabaseTransaction, input: { businessId: string; trialId: string; email: TrialEmail; now: Date }): Promise<void> {
+/**
+ * Queues one trial email to the owner, once per trial. The worker renders the
+ * copy in the owner's language. A partner's business never gets one. Returns
+ * whether it queued the email.
+ */
+async function queueTrialEmail(tx: DatabaseTransaction, input: { businessId: string; trialId: string; email: TrialEmail; now: Date }): Promise<boolean> {
+  if (!await businessGetsHostEmails(tx, input.businessId)) return false;
   const claimed = await tx.update(numberTrials)
     .set({ emailsSent: sql`${numberTrials.emailsSent} || jsonb_build_object(${input.email}::text, ${input.now.toISOString()}::text)`, updatedAt: input.now })
     .where(and(eq(numberTrials.id, input.trialId), sql`(${numberTrials.emailsSent} ->> ${input.email}) IS NULL`))
     .returning({ id: numberTrials.id });
-  if (!claimed.length) return;
+  if (!claimed.length) return false;
   await enqueueOutbox(tx, {
     topic: "numberTrial.sendEmail",
     businessId: input.businessId,
@@ -411,6 +472,7 @@ async function queueTrialEmail(tx: DatabaseTransaction, input: { businessId: str
     dedupeKey: `number-trial:${input.trialId}:email:${input.email}`,
     payload: { trialId: input.trialId, email: input.email },
   });
+  return true;
 }
 
 export type NumberTrialEmailContent = {
@@ -427,9 +489,10 @@ export type NumberTrialEmailContent = {
   callsAnswered: number;
 };
 
-/** The facts a trial email needs, read by the worker when it sends one. Null when the trial or its owner is gone. */
+/** The facts a trial email needs, read by the worker when it sends one. Null when the trial or its owner is gone, or it's a partner's business. */
 export async function loadNumberTrialEmail(context: DomainContext, input: { businessId: string; trialId: string; email: TrialEmail }): Promise<NumberTrialEmailContent | null> {
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    if (!await businessGetsHostEmails(tx, input.businessId)) return null;
     const trial = (await tx.select({ e164: phoneNumbers.e164, verifiedPhone: numberTrials.verifiedPhone, transferNumber: receptionistProfiles.transferNumber, status: numberTrials.status, startedAt: numberTrials.startedAt, endsAt: numberTrials.endsAt, timezone: businesses.timezone })
       .from(numberTrials)
       .innerJoin(phoneNumbers, eq(phoneNumbers.id, numberTrials.phoneNumberId))
@@ -459,12 +522,17 @@ export async function loadNumberTrialEmail(context: DomainContext, input: { busi
   });
 }
 
-/** An owner in a country without numbers asks to hear when numbers arrive there. */
+/**
+ * An owner in a country without numbers asks to hear when numbers arrive
+ * there. That's the host contacting them, so a partner's business, which
+ * gets its numbers from its partner, can't join.
+ */
 export async function joinNumberWaitlist(context: DomainContext, input: { userId: string; businessId: string; countryCode: string }): Promise<void> {
   const countryCode = input.countryCode.trim().toUpperCase();
   if (!/^[A-Z]{2}$/.test(countryCode)) throw Object.assign(new Error("Pick a country."), { status: 400, code: "country_invalid" });
   await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
+    if (!await businessGetsHostEmails(tx, input.businessId)) throw Object.assign(new Error("This business gets its phone numbers from its partner."), { status: 409, code: "partner_business" });
     await tx.insert(numberWaitlist).values({ businessId: input.businessId, userId: input.userId, countryCode }).onConflictDoNothing({ target: [numberWaitlist.businessId, numberWaitlist.countryCode] });
   });
 }

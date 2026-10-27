@@ -3,12 +3,13 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { and, eq, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 
 import { canTextNumber, type InterfaceLocale } from "@lobbystack/shared";
-import { enqueueOutbox, onboardingPhoneVerifications, withBusinessTransaction } from "@lobbystack/db";
+import { enqueueOutbox, onboardingPhoneVerifications, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
 
-import { requireBusinessMembership } from "../authz";
+import { AuthorizationError, requireBusinessMembership, requireTeamMembership } from "../authz";
 import type { DomainContext } from "./context";
 import { enableOperatorSmsAlertsWithConsent } from "./notifications";
-import { isNumberCountry } from "./numberTrials";
+import { isNumberCountry, trialCountries } from "./numberTrials";
+import { partnerNumberAvailabilityInTransaction } from "./partnerNumbers";
 import { resolveSmsSender } from "./smsSender";
 import { VERIFICATION_CODE_TTL_MS, newVerificationCode, verificationCodeSecret } from "./verificationCode";
 
@@ -18,7 +19,12 @@ import { VERIFICATION_CODE_TTL_MS, newVerificationCode, verificationCodeSecret }
 // phone each hour, 30 seconds between codes to one phone). The worker
 // generates each code and texts it from the alert SMS sender; only a keyed
 // hash is stored. app.complete_phone_verification then sets users.phone and
-// users.phone_verified_at.
+// users.phone_verified_at. Only the business's own team verifies a phone for
+// alerts, since alerts go to the team. A partner member who opened a business
+// verifies their own mobile only at the phone step, and only while the
+// business is offered its partner's trial number, whose calls transfer to the
+// mobile of whoever claims it. Their verification never finishes the owner's
+// onboarding (migration 0159).
 
 export const PHONE_VERIFICATION_CODE_TTL_MS = VERIFICATION_CODE_TTL_MS;
 export const PHONE_VERIFICATION_MAX_CHECKS = 5;
@@ -93,7 +99,7 @@ export async function startOperatorPhoneVerification(
   const fingerprint = createHash("sha256").update(`${input.userId}:${input.phoneE164}`).digest("hex");
   try {
     return await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
-      await requireBusinessMembership(tx, input);
+      await requireTeamMembership(tx, input);
       const sender = await resolveSmsSender(tx, input.businessId);
       if (!sender) throw phoneVerificationError(409, "sms_sender_missing", "An alert SMS sender is required for SMS notifications.");
       if (!canTextNumber(sender, input.phoneE164)) throw phoneVerificationError(422, "phone_unreachable", "The alert SMS sender can't text this number.");
@@ -124,7 +130,7 @@ export async function getOperatorPhoneVerification(
 ): Promise<{ id: string; status: OperatorPhoneVerificationStatus; expiresAt: Date } | null> {
   const now = input.now ?? new Date();
   return await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
-    await requireBusinessMembership(tx, input);
+    await requireTeamMembership(tx, input);
     const row = (await tx.select({ id: onboardingPhoneVerifications.id, status: onboardingPhoneVerifications.status, expiresAt: onboardingPhoneVerifications.expiresAt })
       .from(onboardingPhoneVerifications)
       .where(and(eq(onboardingPhoneVerifications.id, input.attemptId), eq(onboardingPhoneVerifications.businessId, input.businessId), eq(onboardingPhoneVerifications.userId, input.userId)))
@@ -150,7 +156,7 @@ export async function checkOperatorPhoneVerificationCode(
   if (!CODE_PATTERN.test(code)) throw phoneVerificationError(400, "verification_code_invalid", "Enter the 6-digit code.");
   const now = input.now ?? new Date();
   return await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
-    await requireBusinessMembership(tx, input);
+    await requireTeamMembership(tx, input);
     const scope = and(eq(onboardingPhoneVerifications.id, input.attemptId), eq(onboardingPhoneVerifications.businessId, input.businessId), eq(onboardingPhoneVerifications.userId, input.userId));
     const attempt = (await tx.select({ id: onboardingPhoneVerifications.id, phoneE164: onboardingPhoneVerifications.phoneE164, status: onboardingPhoneVerifications.status, expiresAt: onboardingPhoneVerifications.expiresAt, attemptCount: onboardingPhoneVerifications.attemptCount, codeHash: onboardingPhoneVerifications.codeHash })
       .from(onboardingPhoneVerifications).where(scope).limit(1).for("update"))[0];
@@ -224,6 +230,18 @@ export async function releaseOperatorPhoneVerificationCodeSend(context: DomainCo
   });
 }
 
+/**
+ * Who may verify their mobile at the phone step: someone on the business's
+ * own team, or a partner member who opened it while the business is offered
+ * its partner's trial number, which needs the claimer's verified mobile.
+ * Throws an AuthorizationError for anyone else. Returns how they reach it.
+ */
+async function requirePhoneStepAccess(tx: DatabaseTransaction, input: { userId: string; businessId: string }): Promise<"membership" | "partner"> {
+  const { via } = await requireBusinessMembership(tx, input);
+  if (via === "partner" && !(await partnerNumberAvailabilityInTransaction(tx, input.businessId))?.trial) throw new AuthorizationError();
+  return via;
+}
+
 /** Twilio Verify and Lookup, as the onboarding phone step uses them. */
 export type OnboardingPhoneVerifyProvider = {
   lookupLineType(phoneE164: string): Promise<string | null>;
@@ -250,7 +268,8 @@ export async function startOnboardingPhoneVerification(
   let attemptId: string;
   try {
     attemptId = await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
-      await requireBusinessMembership(tx, input);
+      // A partner member verifies only for the trial, so only from a trial country.
+      if (await requirePhoneStepAccess(tx, input) === "partner" && !(trialCountries() as string[]).includes(countryCode)) throw phoneVerificationError(422, "phone_country_unsupported", "Trial numbers aren't available in this country.");
       const result = await tx.execute(sql`SELECT app.reserve_phone_verification_attempt(${input.businessId}::uuid, ${input.userId}::uuid, ${input.phoneE164}, ${countryCode}, ${null}, ${fingerprint}) AS id`);
       const id = String((result.rows[0] as { id?: unknown } | undefined)?.id ?? "");
       if (!id) throw new Error("Phone verification could not be reserved.");
@@ -297,7 +316,7 @@ export async function startOnboardingPhoneVerification(
   return { attemptId };
 }
 
-/** Checks the onboarding code with Twilio Verify. A correct code verifies the phone on the user's account and moves onboarding to the number step. */
+/** Checks the onboarding code with Twilio Verify. A correct code verifies the phone on the user's account and, for the business's own team, moves onboarding on from the phone step. */
 export async function checkOnboardingPhoneVerificationCode(
   context: DomainContext,
   input: { userId: string; businessId: string; attemptId: string; code: string; now?: Date },
@@ -309,7 +328,7 @@ export async function checkOnboardingPhoneVerificationCode(
   const scope = and(eq(onboardingPhoneVerifications.id, input.attemptId), eq(onboardingPhoneVerifications.businessId, input.businessId), eq(onboardingPhoneVerifications.userId, input.userId));
   // Count the check before calling Twilio, so parallel guesses can't get past the limit.
   const attempt = await withBusinessTransaction(context.db, { userId: input.userId, businessId: input.businessId, actorType: "operator" }, async (tx) => {
-    await requireBusinessMembership(tx, input);
+    await requirePhoneStepAccess(tx, input);
     const row = (await tx.select({ phoneE164: onboardingPhoneVerifications.phoneE164, status: onboardingPhoneVerifications.status, expiresAt: onboardingPhoneVerifications.expiresAt, attemptCount: onboardingPhoneVerifications.attemptCount, providerVerificationId: onboardingPhoneVerifications.providerVerificationId })
       .from(onboardingPhoneVerifications).where(scope).limit(1).for("update"))[0];
     if (!row || row.status !== "pending" || !row.providerVerificationId) return { outcome: { status: "unavailable" } as const };

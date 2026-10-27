@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
-import { loadBranding } from "@/lib/branding";
-import { brandLogoSrc, type BrandingSnapshot } from "@/lib/branding-snapshot";
+import { brandingSnapshot, requireRequestBrand } from "@/lib/branding";
+import { brandIconSrc, type BrandingSnapshot } from "@/lib/branding-snapshot";
 
-/** The title, description and tab icon every page takes from the deployment's name and logo. */
-export function brandingMetadata(branding: Pick<BrandingSnapshot, "appName" | "logoUrl">): Metadata {
-  const icon = brandLogoSrc(branding);
+/** The title, description and tab icon every page takes from its brand: the host's name and logo, or a partner's name and favicon. */
+export function brandingMetadata(branding: Pick<BrandingSnapshot, "appName" | "logoUrl" | "partner">): Metadata {
+  const icon = brandIconSrc(branding);
   return {
     title: branding.appName,
     description: "AI receptionist dashboard",
@@ -13,7 +13,7 @@ export function brandingMetadata(branding: Pick<BrandingSnapshot, "appName" | "l
   };
 }
 
-/** Metadata for a layout rendered per request, from the deployment's current branding. */
+/** Metadata for a layout rendered per request, from the brand of the request's hostname. */
 export async function generateBrandingMetadata(): Promise<Metadata> {
-  return brandingMetadata(await loadBranding());
+  return brandingMetadata(brandingSnapshot(await requireRequestBrand()));
 }

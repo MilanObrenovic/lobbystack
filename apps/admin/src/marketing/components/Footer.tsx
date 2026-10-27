@@ -20,6 +20,8 @@ const footerCopy = {
     blog: "Blog",
     calculator: "Missed Call Calculator",
     affiliateProgram: "Affiliate Program",
+    whiteLabel: "White Label",
+    mcpServer: "MCP Server",
     company: "Company",
     about: "About",
     contact: "Contact",
@@ -42,6 +44,8 @@ const footerCopy = {
     blog: "Blog",
     calculator: "Calculateur d'appels manqués",
     affiliateProgram: "Programme d'affiliation",
+    whiteLabel: "Marque blanche",
+    mcpServer: "Serveur MCP",
     company: "Entreprise",
     about: "À propos",
     contact: "Contact",
@@ -64,6 +68,8 @@ const footerCopy = {
     blog: "Blog",
     calculator: "Calculadora de llamadas perdidas",
     affiliateProgram: "Programa de afiliados",
+    whiteLabel: "Marca blanca",
+    mcpServer: "Servidor MCP",
     company: "Empresa",
     about: "Acerca de",
     contact: "Contacto",
@@ -85,7 +91,9 @@ const footerCopy = {
     helpCenter: "Centar za pomoć",
     blog: "Blog",
     calculator: "Kalkulator propuštenih poziva",
-    affiliateProgram: "Partnerski program",
+    affiliateProgram: "Program preporuka",
+    whiteLabel: "Bela etiketa",
+    mcpServer: "MCP server",
     company: "Kompanija",
     about: "O nama",
     contact: "Kontakt",
@@ -110,6 +118,8 @@ const footerSections = (locale: Locale) => {
         { label: copy.features, href: "/features/" },
         { label: copy.howItWorks, href: "/#how-it-works" },
         { label: copy.pricing, href: "/pricing/" },
+        { label: copy.whiteLabel, href: "/white-label/" },
+        { label: copy.mcpServer, href: "/features/mcp/" },
       ],
     },
     {
@@ -207,7 +217,7 @@ export function Footer({ locale = "en", path }: FooterProps) {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {footerSections(locale).map((section) => (
             <div key={section.title}>
-              <p className="mb-4 text-xs font-semibold text-muted-foreground">
+              <p className="mb-4 font-mono text-xs leading-tight font-semibold tracking-[-0.02em] text-beige-foreground uppercase">
                 {section.title}
               </p>
               <ul className="space-y-2.5">
@@ -231,7 +241,7 @@ export function Footer({ locale = "en", path }: FooterProps) {
         </div>
       </div>
 
-      <Separator className="my-8" />
+      <Separator className="my-8 bg-border/60" />
 
       <div className="mx-auto max-w-site px-6 pb-8">
         <div className="flex flex-col items-center justify-between gap-4 text-xs text-muted-foreground md:flex-row">

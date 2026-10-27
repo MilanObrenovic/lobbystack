@@ -15,11 +15,13 @@
     "appearance": "Postavke",
     "integrations": "Integracije",
     "billing": "Paket",
+    "subscription": "Naplata",
     "usage": "Potrošnja",
     "notifications": "Obaveštenja",
     "widget": "Vidžet za sajt",
     "apiKeys": "API ključevi",
-    "connectedApps": "Povezane aplikacije"
+    "connectedApps": "Povezane aplikacije",
+    "partnerAccess": "Pristup partnera"
   },
   "widget": {
     "title": "Vidžet za sajt",
@@ -199,11 +201,13 @@
     },
     "usage": {
       "title": "Uključena potrošnja",
+      "allowanceTitle": "Potrošnja ovog meseca",
       "description": "Resetuje se {{resetAt}}.",
       "paygTitle": "Plaćanje po potrošnji",
       "paygDescription": "Dodatna potrošnja koja se naplaćuje u ovom periodu. Resetuje se {{resetAt}}.",
       "knowledgeTitle": "Baza znanja",
       "voiceTitle": "Minuti razgovora",
+      "chatsTitle": "Četovi",
       "voiceValue": "Iskorišćeno minuta: {{minutes}}",
       "voiceRemaining": "Preostalo minuta: {{minutes}}",
       "alertSmsTitle": "SMS upozorenja",
@@ -230,10 +234,15 @@
         "voice": "min",
         "outboundAttempts": "pokušaja",
         "segments": "segmenata",
-        "storage": "MB"
+        "storage": "MB",
+        "chats": "četova"
       },
       "unavailable": "Podaci o potrošnji nisu dostupni.",
-      "customAllowance": "Iskorišćeno: {{used}} {{unit}} · Prilagođeni iznos"
+      "customAllowance": "Iskorišćeno: {{used}} {{unit}} · Prilagođeni iznos",
+      "noLimit": "Iskorišćeno: {{used}} {{unit}} · Bez ograničenja",
+      "extraTitle": "Dodatna potrošnja",
+      "extraOnDescription": "Vaš recepcioner nastavlja da odgovara i posle uključenog iznosa, a {{appName}} Vam naplaćuje dodatne minute i četove.",
+      "extraOffDescription": "Dodatna potrošnja je isključena. {{appName}} Vam naplaćuje dodatne minute i četove koje ste potrošili pre nego što je isključena."
     },
     "spendingCap": {
       "title": "Mesečni limit potrošnje",
@@ -356,6 +365,41 @@
       "dashboard": "Idi na kontrolnu tablu"
     }
   },
+  "subscription": {
+    "loadFailed": "Nismo mogli da učitamo naplatu. Osvežite stranicu i pokušajte ponovo.",
+    "outside": "{{appName}} Vam naplaćuje direktno. Njima se obratite u vezi sa računom.",
+    "packageTitle": "Vaša ponuda",
+    "minutes_one": "{{amount}} minut",
+    "minutes_few": "{{amount}} minuta",
+    "minutes_other": "{{amount}} minuta",
+    "chats_one": "{{amount}} čet",
+    "chats_few": "{{amount}} četa",
+    "chats_other": "{{amount}} četova",
+    "allowance": "Svakog meseca dobijate {{minutes}} i {{chats}}.",
+    "status": {
+      "awaiting_payment": "Vaš recepcioner počinje da odgovara na pozive i četove čim platite.",
+      "active": "Vaša pretplata je aktivna.",
+      "renews": "Vaša pretplata se obnavlja {{date}}.",
+      "past_due": "Poslednja uplata nije prošla, a pokušaćemo ponovo. Ažurirajte karticu da bi recepcioner nastavio da odgovara.",
+      "inactive": "Vaša pretplata je istekla, pa recepcioner ne odgovara na pozive i četove. Ponovo se pretplatite da biste ga uključili."
+    },
+    "badge": {
+      "awaiting_payment": "Čeka uplatu",
+      "active": "Aktivna",
+      "past_due": "Uplata nije prošla",
+      "inactive": "Istekla"
+    },
+    "subscribe": "Pretplatite se",
+    "manage": "Upravljajte naplatom",
+    "opening": "Otvaramo…",
+    "manageHint": "Ažurirajte karticu, preuzmite račune ili otkažite pretplatu.",
+    "paid": "Uplata je primljena. Recepcioner počinje da odgovara za trenutak.",
+    "errors": {
+      "portal": "Portal za naplatu trenutno nije dostupan. Obratite se firmi {{appName}}.",
+      "checkout": "Nismo mogli da otvorimo plaćanje. Pokušajte ponovo.",
+      "unavailable": "{{appName}} trenutno ne može da prima uplate. Obratite im se u vezi sa računom."
+    }
+  },
   "phoneNumber": {
     "current": {
       "label": "Trenutni broj telefona",
@@ -375,6 +419,44 @@
       "title": "Namenski brojevi su deo plaćenih paketa",
       "description": "Pređite na Starter ili Pro da biste dobili lokalni poslovni broj koji pozivaoci mogu da pozovu.",
       "upgradeCta": "Pogledaj pakete"
+    },
+    "partnerTierRequired": {
+      "description": "Partner ove firme mora da plaća nivo da bi dodao brojeve telefona."
+    },
+    "partnerNumbersUnavailable": {
+      "description": "Brojevi telefona još nisu dostupni za ovu firmu."
+    },
+    "trialPhone": {
+      "title": "Potvrdite broj mobilnog telefona",
+      "description": "Tokom probe od 14 dana recepcioner prebacuje pozive samo na ovaj mobilni.",
+      "fields": {
+        "mobileNumber": "Broj mobilnog telefona",
+        "country": "Zemlja"
+      },
+      "hint": "Koristite mobilni koji prima SMS poruke. Internet brojevi ne rade.",
+      "sendCode": "Pošalji mi kôd",
+      "sending": "Slanje…",
+      "errors": {
+        "voip": "Koristite broj mobilnog telefona. Internet brojevi ne mogu da se potvrde.",
+        "notMobile": "Koristite broj mobilnog telefona koji prima SMS poruke.",
+        "countryMismatch": "Ovaj broj nije iz zemlje koju ste izabrali.",
+        "invalidNumber": "Unesite ispravan broj mobilnog telefona.",
+        "rateLimited": "Previše kodova. Sačekajte malo i pokušajte ponovo.",
+        "sendFailed": "Nismo mogli da pošaljemo kôd. Pokušajte ponovo."
+      },
+      "code": {
+        "sentTo": "Unesite šestocifreni kôd koji smo poslali na {{phone}}.",
+        "label": "Kôd za potvrdu",
+        "checking": "Proveravamo…",
+        "invalid_one": "Taj kôd nije ispravan. Ostao Vam je {{count}} pokušaj.",
+        "invalid_few": "Taj kôd nije ispravan. Ostala su Vam {{count}} pokušaja.",
+        "invalid_other": "Taj kôd nije ispravan. Ostalo Vam je {{count}} pokušaja.",
+        "expired": "Kôd je istekao. Zatražite novi.",
+        "locked": "Previše pokušaja. Zatražite novi kôd.",
+        "failed": "Nismo mogli da proverimo kôd. Pokušajte ponovo.",
+        "resend": "Pošalji novi kôd",
+        "changeNumber": "Koristi drugi broj"
+      }
     },
     "actions": {
       "requestChange": "Zatraži promenu",
@@ -404,7 +486,8 @@
     "toast": {
       "changed": "Broj telefona je promenjen. Prethodni broj ostaje aktivan još 30 dana.",
       "added": "Broj telefona je dodat."
-    }
+    },
+    "numbersUnavailable": "Brojevi telefona još nisu podešeni na ovoj kontrolnoj tabli. Zamolite osobu koja njome upravlja da poveže telefonskog provajdera."
   },
   "appearance": {
     "title": "Postavke",
@@ -662,6 +745,7 @@
       "sent": "Poziv je poslat na {{email}}.",
       "errors": {
         "invalidEmail": "Unesite ispravnu imejl adresu.",
+        "partnerMember": "{{email}} je u timu partnera ove firme. Radi ovde iz partnerske konzole, pa ne može da se pridruži timu.",
         "failed": "Nismo uspeli da pošaljemo poziv. Pokušajte ponovo."
       }
     },
@@ -1090,6 +1174,21 @@
       "appointments_write": "Zakazivanje, otkazivanje i pomeranje termina",
       "messages_read": "Čitanje poruka koje je primio recepcioner",
       "knowledge_write": "Dodavanje unosa u znanje i čestih pitanja"
+    }
+  },
+  "partnerAccess": {
+    "title": "Pristup partnera",
+    "description": "Svaki put kada je neko iz tima vašeg partnera otvorio vašu kontrolnu tablu da vam pomogne, i kada ju je napustio.",
+    "empty": "Niko iz tima vašeg partnera još nije otvorio vašu kontrolnu tablu.",
+    "adminsOnly": "Samo vlasnici i administratori vide ko je otvorio kontrolnu tablu.",
+    "loadFailed": "Nismo uspeli da učitamo ovaj spisak. Pokušajte ponovo.",
+    "someone": "Član tima {{partnerName}}",
+    "opened": "Otvaranje vaše kontrolne table",
+    "left": "Izlazak",
+    "columns": {
+      "who": "Ko",
+      "what": "Šta",
+      "when": "Kada"
     }
   }
 }

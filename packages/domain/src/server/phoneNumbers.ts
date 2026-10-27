@@ -1,14 +1,15 @@
-import { isPaidSubscription } from "@lobbystack/shared";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import { and, eq, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 
-import { billingAccounts, businesses, enqueueOutbox, numberTrials, onboardingNumberClaimEvents, phoneNumbers, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
+import { businesses, enqueueOutbox, numberTrials, onboardingNumberClaimEvents, phoneNumbers, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
 
 import { requireBusinessAdmin } from "../authz";
 import type { DomainContext } from "./context";
-import { activateNumberTrialInTransaction, failNumberTrialInTransaction, isNumberCountry, keepBusinessNumbersInTransaction, trialCountries, verifiedPhone, type NumberCountry } from "./numberTrials";
-import { normalizeOnboardingStage } from "./onboarding";
+import { loadEntitlement } from "./entitlement";
+import { activateNumberTrialInTransaction, failNumberTrialInTransaction, isNumberCountry, keepBusinessNumbersInTransaction, trialCountries, trialNumberPaidForInTransaction, verifiedPhone, type NumberCountry } from "./numberTrials";
+import { normalizeOnboardingStage, NUMBER_CLAIM_STAGES } from "./onboarding";
+import { loadPartnerNumberStanding, newPartnerNumberRefusal, numberCountsForPartnerInTransaction, partnerTrialOffered, recordPartnerNumberCostInTransaction, unclaimedPartnerDemoInTransaction } from "./partnerNumbers";
 import { resolveBusinessNumberMarket, type BusinessNumberMarket } from "./phoneNumberMarket";
 
 export type NumberSelection = {
@@ -69,6 +70,10 @@ const claimRefusals: Record<string, [status: number, message: string]> = {
   trial_ip_limited: [429, "A free trial already started from this network in the last 30 days. Choose a plan to get a number."],
   trial_not_needed: [409, "Your plan already includes a number. Search again to pick one."],
   trial_not_available: [409, "A free trial number isn't available for this workspace. Choose a plan to get a number."],
+  // The partner check on onboarding_number_claim_events (migrations 0147 and 0154), which also counts the daily and 30-day quotas above across a partner's businesses.
+  partner_numbers_unavailable: [409, "Phone numbers aren't available for this business yet."],
+  partner_number_limit_reached: [409, "This business's partner needs a paid tier for more phone numbers."],
+  partner_trial_used: [409, "This business's partner already used its free trial number. A paid tier includes numbers."],
 };
 
 function refused(reason: string): Error {
@@ -98,18 +103,31 @@ export type NumberEligibility = { market: BusinessNumberMarket; trial: { verifie
 /**
  * Checks that the business may pick a number for this purpose now, as the
  * person picking: the onboarding stage, the one replacement, and the paid-plan
- * rule, under which a cloud business without a paid plan gets a free trial
- * number during onboarding when this person verified a phone in a trial
+ * rule, under which a cloud business without a live entitlement gets a free
+ * trial number during onboarding when this person verified a phone in a trial
  * country. Throws the claim refusals the dashboard shows. The API runs in a
  * worker transaction and skips the onboarding stage order.
  */
 export async function numberEligibilityInTransaction(tx: DatabaseTransaction, input: { userId: string; businessId: string; purpose: NumberClaimPurpose; selection?: Partial<NumberSelection> | undefined; via: "dashboard" | "api" }): Promise<NumberEligibility> {
   const { purpose } = input;
   const business = (await tx.select({ stage: businesses.onboardingStage, timezone: businesses.timezone, deploymentMode: businesses.deploymentMode, replacementUsedAt: businesses.phoneNumberReplacementUsedAt }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1))[0];
-  const billing = (await tx.select({ plan: billingAccounts.plan, state: billingAccounts.subscriptionState }).from(billingAccounts).where(eq(billingAccounts.businessId, input.businessId)).limit(1))[0];
+  const entitlement = await loadEntitlement(tx, input.businessId);
   if (!business) throw numberClaimError(404, "not_found", "Workspace not found.");
+  // While the deployment bills tiers, a partner's tier sets how many numbers
+  // its businesses hold between them. A paid tier pays for each one past those
+  // it includes, and Free gets none past them, apart from the partner's one
+  // trial number, which the dashboard offers on the cloud. Without tier
+  // billing, the cloud buys a partner's business no new number. The claim
+  // checks the same, under the partner's lock.
+  let partnerTrial = false;
+  if (entitlement.poolPartnerId && purpose === "onboarding") {
+    const standing = await loadPartnerNumberStanding(tx, entitlement.poolPartnerId);
+    partnerTrial = input.via === "dashboard" && partnerTrialOffered(standing, business.deploymentMode);
+    const refusal = newPartnerNumberRefusal(standing, business.deploymentMode);
+    if (refusal && !partnerTrial) throw refused(refusal);
+  }
   const onboardingStage = normalizeOnboardingStage(business.stage);
-  if (input.via === "dashboard" && purpose === "onboarding" && !["phone_number", "attribution", "complete"].includes(onboardingStage)) throw refused("invalid_onboarding_stage");
+  if (input.via === "dashboard" && purpose === "onboarding" && !NUMBER_CLAIM_STAGES.includes(onboardingStage)) throw refused("invalid_onboarding_stage");
   if (purpose === "replacement") {
     if (business.replacementUsedAt) throw refused("replacement_already_used");
     const active = await tx.select({ id: phoneNumbers.id }).from(phoneNumbers).where(and(eq(phoneNumbers.businessId, input.businessId), eq(phoneNumbers.status, "active"), isNull(phoneNumbers.reclaimScheduledAt))).limit(1);
@@ -120,7 +138,21 @@ export async function numberEligibilityInTransaction(tx: DatabaseTransaction, in
   const requested = (verified?.countryCode ?? input.selection?.countryCode)?.trim().toUpperCase();
   if (requested && !isNumberCountry(requested)) throw numberClaimError(400, "unsupported_country", "Phone numbers aren't available in this country yet.");
   let trial: { verifiedPhone: string } | undefined;
-  if (business.deploymentMode === "cloud" && (!billing || !isPaidSubscription(billing.plan, billing.state))) {
+  if (partnerTrial) {
+    // The partner's trial runs by the host's trial rules: a live business,
+    // the verified mobile of the person claiming, in a trial country, once.
+    // A business paused with its partner's other businesses isn't live, and
+    // a demo nobody claimed would spend the partner's one trial and expire.
+    if (!entitlement.live || await unclaimedPartnerDemoInTransaction(tx, input.businessId)) throw refused("partner_numbers_unavailable");
+    if (!verified) throw refused("phone_verification_required");
+    if (!(trialCountries() as string[]).includes(verified.countryCode)) throw refused("partner_number_limit_reached");
+    const used = await tx.select({ id: numberTrials.id }).from(numberTrials).where(and(eq(numberTrials.businessId, input.businessId), ne(numberTrials.status, "failed"))).limit(1);
+    if (used.length) throw refused("trial_already_used");
+    trial = { verifiedPhone: verified.phone };
+  } else if (business.deploymentMode === "cloud" && !entitlement.live) {
+    // A partner's business that isn't live, such as one whose package isn't
+    // paid, pays its partner, so the host's plans and free trial aren't for it.
+    if (entitlement.poolPartnerId) throw refused("partner_numbers_unavailable");
     // Without a paid plan, a number is a free trial: during onboarding, with a
     // verified phone in a trial country, once per business.
     if (purpose !== "onboarding") throw refused("dedicated_number_requires_paid_plan");
@@ -260,8 +292,17 @@ export async function getOnboardingNumberClaim(context: DomainContext, input: { 
 
 const numberProvisioningLeaseMs = 10 * 60_000;
 
+/**
+ * Takes a claim for this worker to buy its number, or one whose earlier
+ * attempt died holding it. `countsForPartner` says the number counts against
+ * a partner's tier, so the worker reads what the host pays for it before
+ * buying it.
+ */
 export async function claimNumberProvisioning(context: DomainContext, input: { businessId: string; claimId: string }) {
-  return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => (await tx.update(onboardingNumberClaimEvents).set({ status: "provisioning", attemptCount: sql`${onboardingNumberClaimEvents.attemptCount} + 1`, updatedAt: new Date() }).where(and(eq(onboardingNumberClaimEvents.id, input.claimId), eq(onboardingNumberClaimEvents.businessId, input.businessId), or(eq(onboardingNumberClaimEvents.status, "reserved"), and(eq(onboardingNumberClaimEvents.status, "provisioning"), lt(onboardingNumberClaimEvents.updatedAt, new Date(Date.now() - numberProvisioningLeaseMs)))))).returning({ id: onboardingNumberClaimEvents.id, e164: onboardingNumberClaimEvents.requestedE164, selection: onboardingNumberClaimEvents.selectionContext }))[0] ?? null);
+  return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    const claim = (await tx.update(onboardingNumberClaimEvents).set({ status: "provisioning", attemptCount: sql`${onboardingNumberClaimEvents.attemptCount} + 1`, updatedAt: new Date() }).where(and(eq(onboardingNumberClaimEvents.id, input.claimId), eq(onboardingNumberClaimEvents.businessId, input.businessId), or(eq(onboardingNumberClaimEvents.status, "reserved"), and(eq(onboardingNumberClaimEvents.status, "provisioning"), lt(onboardingNumberClaimEvents.updatedAt, new Date(Date.now() - numberProvisioningLeaseMs)))))).returning({ id: onboardingNumberClaimEvents.id, e164: onboardingNumberClaimEvents.requestedE164, selection: onboardingNumberClaimEvents.selectionContext }))[0];
+    return claim ? { ...claim, countsForPartner: await numberCountsForPartnerInTransaction(tx, input.businessId) } : null;
+  });
 }
 
 /** When a claim another attempt holds becomes reclaimable, or null when no attempt holds it. */
@@ -272,7 +313,12 @@ export async function numberProvisioningLeaseEndsAt(context: DomainContext, inpu
   });
 }
 
-export async function completeNumberProvisioning(context: DomainContext, input: { businessId: string; claimId: string; e164: string; providerPhoneId: string; voiceUrl: string; smsUrl: string }): Promise<string> {
+/**
+ * Stores the number the worker bought for a claim. `monthlyCostCents`, what
+ * the host pays for the number each month, is recorded for a number that
+ * counts against a partner's tier.
+ */
+export async function completeNumberProvisioning(context: DomainContext, input: { businessId: string; claimId: string; e164: string; providerPhoneId: string; voiceUrl: string; smsUrl: string; monthlyCostCents?: number | undefined }): Promise<string> {
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
     const existing = (await tx.select({ id: phoneNumbers.id }).from(phoneNumbers).where(eq(phoneNumbers.providerPhoneId, input.providerPhoneId)).limit(1))[0];
     const offered = (await tx.select({ selection: onboardingNumberClaimEvents.selectionContext }).from(onboardingNumberClaimEvents).where(and(eq(onboardingNumberClaimEvents.id, input.claimId), eq(onboardingNumberClaimEvents.businessId, input.businessId))).limit(1))[0]?.selection;
@@ -280,6 +326,7 @@ export async function completeNumberProvisioning(context: DomainContext, input: 
     const smsEnabled = offered?.sms !== false;
     const [number] = existing ? [existing] : await tx.insert(phoneNumbers).values({ businessId: input.businessId, e164: input.e164, providerPhoneId: input.providerPhoneId, status: "active", voiceEnabled: true, smsEnabled, voiceWebhookStatus: "synced", voiceWebhookTargetUrl: input.voiceUrl, voiceWebhookLastSyncedAt: new Date(), smsWebhookStatus: "synced", smsWebhookTargetUrl: input.smsUrl, smsWebhookLastSyncedAt: new Date() }).returning({ id: phoneNumbers.id });
     if (!number) throw new Error("Provisioned number could not be persisted.");
+    if (input.monthlyCostCents !== undefined) await recordPartnerNumberCostInTransaction(tx, { businessId: input.businessId, phoneNumberId: number.id, monthlyCostCents: input.monthlyCostCents });
     const claim = (await tx.update(onboardingNumberClaimEvents).set({ status: "claimed", phoneNumberId: number.id, providerPhoneId: input.providerPhoneId, purchasedAt: new Date(), completedAt: new Date(), updatedAt: new Date() }).where(and(eq(onboardingNumberClaimEvents.id, input.claimId), eq(onboardingNumberClaimEvents.businessId, input.businessId), eq(onboardingNumberClaimEvents.status, "provisioning"))).returning({ purpose: onboardingNumberClaimEvents.purpose, replacingPhoneNumberId: onboardingNumberClaimEvents.replacingPhoneNumberId }))[0];
     if (!claim) throw new Error("Number claim is no longer awaiting provisioning.");
     if (claim.purpose === "replacement") {
@@ -290,9 +337,8 @@ export async function completeNumberProvisioning(context: DomainContext, input: 
     } else {
       await tx.update(businesses).set({ onboardingStage: sql`CASE WHEN ${businesses.onboardingStage} = 'complete' THEN 'complete' ELSE 'attribution' END`, updatedAt: new Date() }).where(eq(businesses.id, input.businessId));
       const activated = await activateNumberTrialInTransaction(tx, { businessId: input.businessId, claimId: input.claimId, phoneNumberId: number.id });
-      // The owner may have paid while we bought the number: that payment found no trial to convert, so convert it now.
-      const billing = activated ? (await tx.select({ plan: billingAccounts.plan, state: billingAccounts.subscriptionState }).from(billingAccounts).where(eq(billingAccounts.businessId, input.businessId)).limit(1))[0] : undefined;
-      if (billing && isPaidSubscription(billing.plan, billing.state)) await keepBusinessNumbersInTransaction(tx, { businessId: input.businessId });
+      // The owner, or for a partner's trial the partner, may have paid while we bought the number: that payment found no trial to convert, so convert it now.
+      if (activated && await trialNumberPaidForInTransaction(tx, input.businessId)) await keepBusinessNumbersInTransaction(tx, { businessId: input.businessId });
     }
     return number.id;
   });
@@ -310,6 +356,7 @@ export async function failNumberProvisioning(context: DomainContext, input: { bu
   });
 }
 
+// A partner's business has no number step or attribution, so only a direct business skips to attribution.
 export async function skipOnboardingNumber(context: DomainContext, input: { userId: string; businessId: string }): Promise<void> {
-  await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => { await requireBusinessAdmin(tx, input); const changed = await tx.update(businesses).set({ onboardingStage: "attribution", updatedAt: new Date() }).where(and(eq(businesses.id, input.businessId), or(eq(businesses.onboardingStage, "verify_phone"), eq(businesses.onboardingStage, "phone_number")))).returning({ id: businesses.id }); if (!changed.length) { const [business] = await tx.select({ stage: businesses.onboardingStage }).from(businesses).where(eq(businesses.id, input.businessId)); if (!["attribution", "complete"].includes(business?.stage ?? "")) throw numberClaimError(409, "invalid_onboarding_stage", "Number selection cannot be skipped at this onboarding stage."); } });
+  await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => { await requireBusinessAdmin(tx, input); const changed = await tx.update(businesses).set({ onboardingStage: "attribution", updatedAt: new Date() }).where(and(eq(businesses.id, input.businessId), isNull(businesses.partnerId), or(eq(businesses.onboardingStage, "verify_phone"), eq(businesses.onboardingStage, "phone_number")))).returning({ id: businesses.id }); if (!changed.length) { const [business] = await tx.select({ stage: businesses.onboardingStage }).from(businesses).where(eq(businesses.id, input.businessId)); if (!["attribution", "complete"].includes(business?.stage ?? "")) throw numberClaimError(409, "invalid_onboarding_stage", "Number selection cannot be skipped at this onboarding stage."); } });
 }

@@ -1,0 +1,826 @@
+{
+  "shell": {
+    "switchPartner": "Cambiar de socio",
+    "signUpAnother": "Registrar otro socio",
+    "userMenu": "Menú de la cuenta {{email}}",
+    "businessDashboard": "Panel del negocio"
+  },
+  "nav": {
+    "businesses": "Negocios",
+    "templates": "Plantillas",
+    "demos": "Demos",
+    "packages": "Paquetes",
+    "branding": "Marca y dominio",
+    "team": "Equipo",
+    "stripe": "Pagos",
+    "apiKeys": "Claves de API",
+    "billing": "Facturación",
+    "settings": "Configuración"
+  },
+  "roles": {
+    "owner": "Propietario",
+    "admin": "Administrador",
+    "member": "Miembro"
+  },
+  "businesses": {
+    "title": "Negocios",
+    "loadFailed": "No pudimos cargar sus negocios. Actualice la página para intentarlo de nuevo.",
+    "createdOn": "Creado el {{date}}",
+    "table": {
+      "business": "Negocio",
+      "owner": "Propietario",
+      "access": "Acceso",
+      "billing": "Facturación",
+      "minutes": "Minutos este mes",
+      "chats": "Chats este mes",
+      "actions": "Acciones"
+    },
+    "owner": {
+      "invited": "Invitación enviada",
+      "expired": "Invitación vencida",
+      "none": "Todavía sin propietario"
+    },
+    "access": {
+      "full": "Acceso completo",
+      "activity": "Solo actividad"
+    },
+    "open": {
+      "action": "Abrir",
+      "label": "Abrir {{name}}",
+      "opening": "Abriendo…",
+      "failed": "No pudimos abrir {{name}}. Inténtelo de nuevo."
+    },
+    "actions": {
+      "more": "Más acciones para {{name}}",
+      "saveTemplate": "Guardar como plantilla"
+    },
+    "confirm": {
+      "cancel": "Cancelar"
+    },
+    "release": {
+      "action": "Ceder al propietario",
+      "title": "¿Ceder {{name}}?",
+      "description": "{{email}} se queda con {{name}} en el plan Free y lo paga a partir de ahora. El negocio sale de su consola.",
+      "confirm": "Ceder negocio",
+      "released": "Usted cedió {{name}} a {{email}}.",
+      "errors": {
+        "ownerRequired": "{{name}} todavía no tiene propietario. La persona invitada debe aceptar primero.",
+        "failed": "No pudimos ceder {{name}}. Inténtelo de nuevo."
+      }
+    },
+    "delete": {
+      "action": "Eliminar",
+      "title": "¿Eliminar {{name}}?",
+      "description": "Esto borra {{name}} con todo lo que contiene y libera su número de teléfono. No podrá deshacerlo.",
+      "confirm": "Eliminar negocio",
+      "deleted": "Usted eliminó {{name}}.",
+      "errors": {
+        "numberInProgress": "Todavía estamos configurando el número de teléfono de {{name}}. Inténtelo de nuevo en unos minutos.",
+        "failed": "No pudimos eliminar {{name}}. Inténtelo de nuevo."
+      }
+    },
+    "empty": {
+      "title": "Aún no hay negocios",
+      "description": "Cree un negocio e invite a su propietario.",
+      "memberDescription": "Los propietarios y administradores de su equipo crean los negocios aquí."
+    },
+    "create": {
+      "action": "Crear negocio",
+      "title": "Crear un negocio",
+      "description": "El propietario recibe por correo un enlace de {{partnerName}} para iniciar sesión.",
+      "nameLabel": "Nombre del negocio",
+      "namePlaceholder": "Clínica Dental del Puerto",
+      "ownerLabel": "Correo del propietario",
+      "ownerPlaceholder": "propietario@negocio.com",
+      "timezoneLabel": "Zona horaria",
+      "timezoneSearch": "Buscar zonas horarias…",
+      "timezoneNoResults": "No se encontraron zonas horarias.",
+      "timezoneRegions": {
+        "africa": "África",
+        "america": "América",
+        "antarctica": "Antártida",
+        "arctic": "Ártico",
+        "asia": "Asia",
+        "atlantic": "Atlántico",
+        "australia": "Australia",
+        "europe": "Europa",
+        "indian": "Océano Índico",
+        "pacific": "Pacífico"
+      },
+      "accessLabel": "Lo que puede usar el equipo del negocio",
+      "access": {
+        "full": "El equipo configura la recepcionista. Usted conserva la facturación y las claves de API.",
+        "activity": "El equipo ve las llamadas, los chats y las citas. Usted configura la recepcionista."
+      },
+      "billingLabel": "Facturación",
+      "billing": {
+        "outside": "Usted factura a este negocio por su cuenta.",
+        "package": "El propietario paga este paquete al aceptar la invitación."
+      },
+      "templateLabel": "Plantilla",
+      "noTemplate": "Sin plantilla",
+      "templateHelp": "El negocio empieza con la configuración de la plantilla. Leemos una parte de cada sitio web de la plantilla y el resto cuando abra el negocio.",
+      "submit": "Crear e invitar",
+      "submitting": "Creando…",
+      "created": "Creó {{name}} e invitó a {{email}}.",
+      "errors": {
+        "invalidName": "Escriba el nombre del negocio, de hasta 120 caracteres.",
+        "invalidEmail": "Escriba el correo del propietario.",
+        "invalidTimezone": "Elija una zona horaria.",
+        "domainRequired": "Primero necesita una dirección de panel. Pida a {{appName}} que configure una.",
+        "rateLimited": "Demasiados negocios nuevos en la última hora. Inténtelo de nuevo más tarde.",
+        "ownerOnTeam": "Una persona de su equipo no puede ser propietaria de un negocio. Escriba el correo de su cliente.",
+        "failed": "No pudimos crear el negocio. Inténtelo de nuevo.",
+        "templateFailed": "No pudimos crear el negocio con esa plantilla. Inténtelo de nuevo o elija otra.",
+        "templateNotFound": "Alguien eliminó esa plantilla. Elija otra."
+      }
+    },
+    "billing": {
+      "outside": "Lo factura usted",
+      "option": "{{name}}, {{amount}} al mes",
+      "status": {
+        "awaiting_payment": "Pago pendiente",
+        "active": "Pagando",
+        "past_due": "Pago fallido",
+        "inactive": "Sin pagar"
+      },
+      "change": "Cambiar",
+      "changeFor": "Cambiar la facturación de {{name}}",
+      "title": "Facturación de {{name}}",
+      "description": "Elija el paquete que paga este negocio, o factúrelo usted.",
+      "outsideHint": "Ningún paquete limita sus minutos ni chats.",
+      "packageHint": "El propietario paga en la página de facturación del negocio.",
+      "submit": "Guardar",
+      "saving": "Guardando…",
+      "saved": "Cambió la facturación de {{name}}.",
+      "errors": {
+        "subscriptionActive": "Este negocio tiene una suscripción activa. Primero cancélela en su panel de Stripe.",
+        "packageGone": "Ese paquete ya no está a la venta. Elija otro.",
+        "notConnected": "Conecte su cuenta de pagos antes de vender paquetes.",
+        "notConfigured": "Este panel todavía no puede vender paquetes.",
+        "failed": "No pudimos cambiar la facturación del negocio. Inténtelo de nuevo."
+      }
+    },
+    "overage": {
+      "change": "Cambiar",
+      "changeFor": "Cambiar el excedente de {{name}}",
+      "summary": {
+        "off": "Sin excedente",
+        "noCap": "Excedente sin límite",
+        "cap": "Excedente de hasta {{cap}} al mes"
+      },
+      "title": "Excedente de {{name}}",
+      "description": "Permita que el negocio siga respondiendo más allá de {{packageName}}, con las tarifas que usted fije.",
+      "toggle": "Permitir excedente",
+      "onHint": "Pasado su paquete, el negocio sigue respondiendo hasta llegar al límite. El excedente aparece en su próxima factura.",
+      "offHint": "Al llegar al límite de su paquete, las llamadas se desvían y el chat del sitio deja de responder.",
+      "minuteRateLabel": "Cada minuto de más",
+      "chatRateLabel": "Cada chat de más",
+      "capLabel": "Límite mensual",
+      "capPlaceholder": "Sin límite",
+      "capHint": "Se reinicia el día 1 de cada mes. Déjelo vacío para no tener límite.",
+      "submit": "Guardar",
+      "saving": "Guardando…",
+      "saved": "Guardó el excedente de {{name}}.",
+      "errors": {
+        "invalidRate": "Escriba cada tarifa como un importe en la moneda del paquete.",
+        "invalidCap": "Escriba un importe en la moneda del paquete, o déjelo vacío.",
+        "billedOutside": "Usted factura este negocio, así que no tiene excedente.",
+        "failed": "No pudimos guardar el excedente. Inténtelo de nuevo."
+      }
+    }
+  },
+  "packages": {
+    "title": "Paquetes",
+    "loadFailed": "No pudimos cargar sus paquetes. Actualice para intentarlo de nuevo.",
+    "managersOnly": "Solo los propietarios y los administradores pueden ver los paquetes.",
+    "notConfigured": "Este panel no tiene los pagos activados, así que usted factura a sus negocios por su cuenta.",
+    "connectFirst": {
+      "owner": "Conecte su cuenta de pagos para vender paquetes.",
+      "admin": "Pida a un propietario que conecte una cuenta de pagos para poder vender paquetes."
+    },
+    "notReady": "Su cuenta de pagos todavía no puede aceptar pagos. Sus negocios podrán comprar paquetes cuando esté lista.",
+    "disconnected": {
+      "owner": "Su cuenta de pagos está desconectada. Conecte una para volver a vender paquetes.",
+      "admin": "Su cuenta de pagos está desconectada. Pida a un propietario que conecte una."
+    },
+    "openStripe": "Configurar pagos",
+    "oldAccount": "Cuenta desconectada",
+    "createdOn": "Creado el {{date}}",
+    "perMonth": "{{amount}} al mes",
+    "setupFee": "{{amount}} de cuota de alta",
+    "noSetupFee": "Sin cuota de alta",
+    "minutes_one": "{{amount}} minuto",
+    "minutes_many": "{{amount}} minutos",
+    "minutes_other": "{{amount}} minutos",
+    "chats_one": "{{amount}} chat",
+    "chats_many": "{{amount}} chats",
+    "chats_other": "{{amount}} chats",
+    "moreOptions": "Más opciones para {{name}}",
+    "table": {
+      "package": "Paquete",
+      "price": "Precio",
+      "allowance": "Incluido cada mes"
+    },
+    "empty": {
+      "title": "Todavía no hay paquetes",
+      "description": "Cree un paquete que sus clientes puedan comprar.",
+      "noStripe": "Los paquetes necesitan pagos, y este panel todavía no los ofrece."
+    },
+    "create": {
+      "action": "Crear paquete",
+      "title": "Crear un paquete",
+      "description": "Los negocios con este paquete pagan este importe cada mes, en {{currency}}.",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Recepción",
+      "priceLabel": "Precio mensual",
+      "setupFeeLabel": "Cuota de alta",
+      "optional": "Opcional",
+      "minutesLabel": "Minutos al mes",
+      "chatsLabel": "Chats al mes",
+      "fixedTerms": "Después podrá cambiarle el nombre, pero no el precio, los minutos ni los chats.",
+      "submit": "Crear paquete",
+      "submitting": "Creando…",
+      "created": "Creó {{name}}.",
+      "errors": {
+        "invalidName": "Escriba un nombre de hasta 80 caracteres.",
+        "invalidPrice": "Escriba un precio mensual mayor que cero.",
+        "invalidSetupFee": "Escriba una cuota de alta mayor que cero, o deje el campo vacío.",
+        "invalidAllowance": "Escriba números enteros de 0 a 1.000.000.",
+        "notConnected": "Conecte su cuenta de pagos antes de crear paquetes.",
+        "failed": "No pudimos crear el paquete. Inténtelo de nuevo."
+      }
+    },
+    "rename": {
+      "action": "Cambiar nombre",
+      "title": "Cambiar el nombre del paquete",
+      "description": "Sus clientes ven el nuevo nombre en sus facturas.",
+      "submit": "Guardar nombre",
+      "saving": "Guardando…",
+      "saved": "Nombre del paquete cambiado.",
+      "notConnected": "Solo puede cambiar el nombre de los paquetes de su cuenta de pagos conectada.",
+      "failed": "No pudimos cambiar el nombre del paquete. Inténtelo de nuevo."
+    },
+    "archive": {
+      "action": "Dejar de vender",
+      "title": "¿Dejar de vender {{name}}?",
+      "description": "Los negocios nuevos ya no podrán comprarlo. Los que ya lo tienen lo conservan.",
+      "confirm": "Dejar de vender",
+      "cancel": "Cancelar",
+      "done": "{{name}} ya no está a la venta.",
+      "failed": "No pudimos retirar el paquete de la venta. Inténtelo de nuevo."
+    }
+  },
+  "templates": {
+    "title": "Plantillas",
+    "loadFailed": "No pudimos cargar sus plantillas. Actualice la página para intentarlo de nuevo.",
+    "savedOn": "Guardada el {{date}}",
+    "table": {
+      "template": "Plantilla",
+      "contents": "Lo que configura",
+      "actions": "Acciones"
+    },
+    "contents": {
+      "receptionist": "Ajustes de la recepcionista",
+      "hours": "Horarios",
+      "services_one": "{{count}} servicio",
+      "services_many": "{{count}} servicios",
+      "services_other": "{{count}} servicios",
+      "rules_one": "{{count}} regla",
+      "rules_many": "{{count}} reglas",
+      "rules_other": "{{count}} reglas",
+      "websites_one": "{{count}} sitio web",
+      "websites_many": "{{count}} sitios web",
+      "websites_other": "{{count}} sitios web",
+      "files_one": "{{count}} documento",
+      "files_many": "{{count}} documentos",
+      "files_other": "{{count}} documentos",
+      "faqs_one": "{{count}} pregunta frecuente",
+      "faqs_many": "{{count}} preguntas frecuentes",
+      "faqs_other": "{{count}} preguntas frecuentes",
+      "texts_one": "{{count}} texto",
+      "texts_many": "{{count}} textos",
+      "texts_other": "{{count}} textos"
+    },
+    "empty": {
+      "title": "Aún no hay plantillas",
+      "description": "Guarde un negocio como plantilla y úsela para el siguiente.",
+      "memberDescription": "Los propietarios y administradores de su equipo guardan las plantillas aquí."
+    },
+    "save": {
+      "action": "Guardar una plantilla",
+      "title": "Guardar una plantilla",
+      "description": "Guarda una copia de la configuración de este negocio. Los cambios posteriores en el negocio no la afectan.",
+      "businessLabel": "Negocio",
+      "businessPlaceholder": "Elija un negocio",
+      "noBusinesses": "Primero cree un negocio y luego guarde su configuración aquí.",
+      "nameLabel": "Nombre de la plantilla",
+      "namePlaceholder": "Clínica dental",
+      "submit": "Guardar plantilla",
+      "submitting": "Guardando…",
+      "saved": "Usted guardó {{name}}.",
+      "errors": {
+        "invalidName": "Escriba el nombre de la plantilla, de hasta 120 caracteres.",
+        "invalid": "Un ajuste es demasiado largo para una plantilla, como una regla de más de 4000 caracteres. Acórtelo e inténtelo de nuevo.",
+        "fileMismatch": "Un documento no coincide con su copia guardada. Súbalo de nuevo y vuelva a guardar.",
+        "rateLimited": "Guardó demasiadas plantillas. Inténtelo de nuevo en una hora.",
+        "failed": "No pudimos guardar la plantilla. Inténtelo de nuevo."
+      }
+    },
+    "actions": {
+      "more": "Más acciones para {{name}}"
+    },
+    "delete": {
+      "action": "Eliminar",
+      "title": "¿Eliminar {{name}}?",
+      "description": "Ya no podrá crear negocios nuevos a partir de {{name}}. Los negocios creados con ella conservan su configuración.",
+      "confirm": "Eliminar plantilla",
+      "deleted": "Usted eliminó {{name}}.",
+      "failed": "No pudimos eliminar {{name}}. Inténtelo de nuevo."
+    }
+  },
+  "team": {
+    "title": "Equipo",
+    "loadFailed": "No pudimos cargar el equipo. Actualice la página para intentarlo de nuevo.",
+    "table": {
+      "person": "Persona",
+      "role": "Rol"
+    },
+    "joinedOn": "Se unió el {{date}}",
+    "invitedOn": "Invitación enviada el {{date}}",
+    "status": {
+      "pending": "Pendiente",
+      "expired": "Vencida"
+    },
+    "invite": {
+      "action": "Invitar",
+      "title": "Invite a alguien a su equipo",
+      "description": "Recibirá un correo con un enlace para unirse a {{partnerName}}.",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "nombre@empresa.com",
+      "roleLabel": "Rol",
+      "submit": "Enviar invitación",
+      "sending": "Enviando…",
+      "sent": "Invitación enviada a {{email}}.",
+      "roles": {
+        "owner": "Todo, incluso la facturación y los pagos.",
+        "admin": "Todo menos la facturación, los pagos y los propietarios.",
+        "member": "Abre sus negocios y trabaja en ellos."
+      },
+      "errors": {
+        "failed": "No pudimos enviar la invitación. Inténtelo de nuevo.",
+        "invalidEmail": "Escriba una sola dirección de correo válida.",
+        "rateLimited": "Envió demasiadas invitaciones. Inténtelo de nuevo en una hora."
+      }
+    },
+    "actions": {
+      "moreOptions": "Más opciones para {{email}}",
+      "makeOwner": "Hacer propietario",
+      "makeAdmin": "Hacer administrador",
+      "makeMember": "Hacer miembro",
+      "remove": "Quitar del equipo",
+      "revoke": "Cancelar invitación"
+    },
+    "errors": {
+      "changeFailed": "No pudimos cambiar ese rol. Inténtelo de nuevo.",
+      "removeFailed": "No pudimos quitar a esa persona. Inténtelo de nuevo.",
+      "revokeFailed": "No pudimos cancelar esa invitación. Inténtelo de nuevo.",
+      "finalOwner": "Su cuenta de socio necesita al menos un propietario."
+    },
+    "confirm": {
+      "cancel": "Cancelar",
+      "ownerTitle": "¿Hacer propietario a {{email}}?",
+      "ownerDescription": "Los propietarios pueden hacerlo todo, incluso gestionar la facturación, los pagos y a otros propietarios.",
+      "ownerAction": "Hacer propietario",
+      "removeTitle": "¿Quitar a {{email}}?",
+      "removeDescription": "Pierde el acceso a la consola de {{partnerName}} y a sus negocios.",
+      "removeAction": "Quitar del equipo"
+    }
+  },
+  "branding": {
+    "title": "Marca y dominio",
+    "loadFailed": "No pudimos cargar su marca. Actualice la página para intentarlo de nuevo.",
+    "membersCantEdit": "Solo los propietarios y los administradores pueden cambiar la marca.",
+    "domain": {
+      "title": "Dirección del panel",
+      "open": "Abrir",
+      "none": "Todavía no tiene un subdominio. Pida uno a {{appName}}.",
+      "subdomainLabel": "Su subdominio",
+      "own": {
+        "title": "Su propio dominio",
+        "description": "Use su propio subdominio, como app.suempresa.com. Su dirección actual sigue funcionando.",
+        "label": "Dominio",
+        "placeholder": "app.suempresa.com",
+        "help": "A continuación agregará dos registros DNS en su proveedor de DNS.",
+        "connect": "Conectar dominio",
+        "connecting": "Conectando…",
+        "added": "Dominio conectado. Ahora agregue sus registros DNS.",
+        "paidTier": "Su propio dominio viene con un nivel de pago.",
+        "paidTierAskOwner": "Su propio dominio viene con un nivel de pago. Pida a un propietario que elija uno.",
+        "chooseTier": "Elegir un nivel",
+        "membersCantEdit": "Solo los propietarios y administradores pueden conectar un dominio.",
+        "status": {
+          "pending": "Esperando el DNS",
+          "active": "Activo",
+          "failed": "Falló"
+        },
+        "settingUp": "Estamos configurando su dominio. Sus registros DNS aparecerán aquí en breve.",
+        "pendingHelp": "Agregue estos registros en su proveedor de DNS. Los cambios pueden tardar unas horas.",
+        "activeHelp": "Su panel y sus páginas de inicio de sesión funcionan ahora en este dominio.",
+        "failedHelp": "No pudimos configurar este dominio. Quítelo, revise sus registros DNS e inténtelo de nuevo.",
+        "takenHelp": "Otro panel ya usa este dominio. Quítelo para agregar otro.",
+        "records": {
+          "type": "Tipo",
+          "name": "Nombre",
+          "value": "Valor",
+          "status": "Estado",
+          "verified": "Encontrado",
+          "waiting": "Aún no encontrado",
+          "copy": "Copiar",
+          "copied": "Copiado"
+        },
+        "providerSays": "Su proveedor de certificados informa:",
+        "checkedAt": "Última comprobación: {{time}}.",
+        "remove": "Quitar dominio",
+        "removeTitle": "¿Quitar {{hostname}}?",
+        "removeDescription": "Su panel dejará de funcionar en este dominio. Puede volver a agregarlo más adelante.",
+        "removed": "Dominio quitado.",
+        "cancel": "Cancelar",
+        "errors": {
+          "invalid": "Ingrese un subdominio de su sitio web, como app.suempresa.com.",
+          "reserved": "Ese dominio pertenece a {{appName}}. Use un subdominio de su propio sitio web.",
+          "taken": "Otro panel ya usa ese dominio.",
+          "exists": "Quite su dominio actual antes de conectar otro.",
+          "paidTier": "Su propio dominio viene con un nivel de pago.",
+          "unavailable": "{{appName}} no puede conectar su propio dominio.",
+          "forbidden": "Solo los propietarios y administradores pueden cambiar su dominio.",
+          "failed": "No pudimos guardar su dominio. Inténtelo de nuevo.",
+          "loadFailed": "No pudimos cargar sus direcciones. Actualice la página para intentarlo de nuevo."
+        },
+        "unavailable": "Este panel todavía no tiene activados los dominios propios. Sus clientes inician sesión en su subdominio.",
+        "unavailableNoSubdomain": "Este panel todavía no tiene activados los dominios propios."
+      }
+    },
+    "brand": {
+      "title": "Marca"
+    },
+    "nameLabel": "Nombre",
+    "nameHelp": "Aparece en la pestaña del navegador, al iniciar sesión y como remitente de sus correos.",
+    "logoLabel": "Logotipo",
+    "logoHelp": "Aparece en el inicio de sesión y en los correos. PNG, JPEG, WebP o SVG, de hasta 256 KB.",
+    "faviconLabel": "Favicon",
+    "faviconHelp": "El icono de la pestaña del navegador. Por defecto, muestra su logotipo.",
+    "imageChoose": "Elegir una imagen",
+    "imageChange": "Cambiar imagen",
+    "logoRemove": "Quitar logotipo",
+    "faviconRemove": "Quitar favicon",
+    "colorLabel": "Color de la marca",
+    "colorPick": "Elegir el color de la marca",
+    "colorHelp": "Un código hexadecimal, como #0f766e.",
+    "links": {
+      "title": "Enlaces",
+      "description": "Se muestran en su página de inicio de sesión y en su panel. Deje un campo vacío para ocultarlo.",
+      "termsUrl": "Términos del servicio",
+      "termsUrlPlaceholder": "https://empresa.com/terminos",
+      "privacyUrl": "Política de privacidad",
+      "privacyUrlPlaceholder": "https://empresa.com/privacidad",
+      "supportUrl": "Página de soporte",
+      "supportUrlPlaceholder": "https://empresa.com/soporte",
+      "supportEmail": "Correo de soporte",
+      "supportEmailPlaceholder": "soporte@empresa.com",
+      "supportEmailHelp": "Las respuestas a sus correos llegan aquí. También es su enlace de soporte si no tiene página de soporte."
+    },
+    "preview": "Vista previa",
+    "save": "Guardar marca",
+    "saving": "Guardando…",
+    "saved": "Marca guardada.",
+    "errors": {
+      "failed": "No pudimos guardar su marca. Inténtelo de nuevo.",
+      "name": "Escriba un nombre de hasta 80 caracteres.",
+      "color": "Escriba el color como código hexadecimal, como #0f766e.",
+      "link": "Escriba direcciones web completas que empiecen por https://.",
+      "supportEmail": "Escriba una sola dirección de correo válida.",
+      "imageType": "Suba una imagen PNG, JPEG, WebP o SVG.",
+      "imageSize": "Suba una imagen de 256 KB o menos.",
+      "forbidden": "Solo los propietarios y los administradores pueden cambiar la marca."
+    }
+  },
+  "stripe": {
+    "title": "Pagos",
+    "loadFailed": "No pudimos cargar su configuración de pagos. Actualice para intentarlo de nuevo.",
+    "ownersOnly": "Solo los propietarios pueden gestionar los pagos.",
+    "opening": "Abriendo Stripe…",
+    "notConfigured": {
+      "title": "Los pagos no están configurados aquí",
+      "description": "Este panel no tiene los pagos activados, así que usted factura a sus negocios por su cuenta."
+    },
+    "status": {
+      "notConnected": "Sin conectar",
+      "onboarding": "Configuración pendiente",
+      "restricted": "Pagos desactivados",
+      "active": "Conectada",
+      "disconnected": "Desconectada"
+    },
+    "connect": {
+      "title": "Conecte una cuenta de pagos",
+      "description": "Usamos Stripe para cobrar a sus clientes en su nombre y transferirle el dinero.",
+      "countryLabel": "País de su empresa",
+      "countryPlaceholder": "Elija un país",
+      "countryHelp": "No podrá cambiarlo después.",
+      "action": "Conectar con Stripe"
+    },
+    "onboarding": {
+      "title": "Termine de configurar los pagos",
+      "description": "Stripe necesita algunos datos más antes de que pueda aceptar pagos.",
+      "action": "Continuar en Stripe"
+    },
+    "restricted": {
+      "title": "Todavía no puede aceptar pagos",
+      "description": "Stripe necesita más datos. Complételos allí para empezar a aceptar pagos.",
+      "action": "Terminar en Stripe"
+    },
+    "active": {
+      "title": "Su cuenta de pagos está conectada",
+      "description": "Sus clientes le pagan en {{currency}}. Gestione los reembolsos y las disputas en su panel de Stripe.",
+      "dashboard": "Abrir el panel de Stripe"
+    },
+    "disconnected": {
+      "title": "Su cuenta de pagos está desconectada",
+      "description": "Desconectó su cuenta de pagos el {{date}}. Conecte una para volver a vender paquetes.",
+      "action": "Volver a conectar"
+    },
+    "details": {
+      "account": "Cuenta",
+      "country": "País",
+      "currency": "Moneda",
+      "payouts": "Transferencias",
+      "payoutsOn": "Activadas",
+      "payoutsOff": "Desactivadas"
+    },
+    "errors": {
+      "failed": "No pudimos abrir Stripe. Inténtelo de nuevo.",
+      "invalidCountry": "Elija el país de su empresa.",
+      "notConfigured": "Este panel todavía no puede aceptar pagos.",
+      "changed": "Otra persona cambió la configuración de pagos. Actualice e inténtelo de nuevo."
+    }
+  },
+  "apiKeys": {
+    "title": "Claves de API",
+    "empty": "Aún no hay claves de plataforma.",
+    "neverUsed": "Nunca",
+    "createdBy": "{{date}} por {{name}}",
+    "revoked": "Revocada el {{date}}",
+    "restricted": {
+      "title": "Solo los propietarios y administradores pueden gestionar las claves de plataforma",
+      "description": "Pida a un propietario o administrador que cree una clave para usted."
+    },
+    "columns": {
+      "name": "Nombre",
+      "key": "Clave",
+      "scopes": "Acceso",
+      "created": "Creada",
+      "lastUsed": "Último uso",
+      "actions": "Acciones"
+    },
+    "create": {
+      "action": "Crear clave de plataforma",
+      "title": "Crear una clave de plataforma",
+      "description": "Póngale un nombre que reconozca y dele solo el acceso que necesita.",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Alta de clientes",
+      "scopesLabel": "Acceso",
+      "cancel": "Cancelar",
+      "submit": "Crear clave",
+      "creating": "Creando…"
+    },
+    "created": {
+      "title": "{{name}} está lista",
+      "description": "Cópiela en un lugar seguro, como un gestor de contraseñas.",
+      "warning": "No volverá a ver esta clave. Si la pierde, cree una nueva.",
+      "done": "Listo"
+    },
+    "revoke": {
+      "action": "Revocar",
+      "title": "¿Revocar esta clave de plataforma?",
+      "description": "Todo lo que use {{name}} dejará de funcionar y sus webhooks se desactivarán. No podrá deshacerlo.",
+      "confirm": "Revocar clave",
+      "cancel": "Cancelar",
+      "done": "Clave de plataforma revocada",
+      "failed": "No pudimos revocar la clave. Inténtelo de nuevo."
+    },
+    "scopes": {
+      "business_read": "Leer el negocio, su horario, sus servicios y su recepcionista",
+      "business_write": "Actualizar el negocio, su horario, sus servicios y su recepcionista, incluidas las transferencias de llamadas",
+      "calls_read": "Leer llamadas, resúmenes y transcripciones",
+      "contacts_read": "Leer contactos",
+      "contacts_write": "Crear y actualizar contactos",
+      "appointments_read": "Leer citas y horarios disponibles",
+      "appointments_write": "Reservar, cancelar y reprogramar citas",
+      "messages_read": "Leer los mensajes que tomó la recepcionista",
+      "knowledge_read": "Leer entradas de conocimiento, preguntas frecuentes, sitios web y archivos",
+      "knowledge_write": "Agregar, editar y eliminar entradas de conocimiento, preguntas frecuentes, sitios web y archivos",
+      "billing_manage": "Ver el plan",
+      "phone_numbers_manage": "Ver y liberar números de teléfono",
+      "team_manage": "Invitar y quitar miembros del equipo y cambiar roles",
+      "webhooks_manage": "Crear y eliminar endpoints de webhook",
+      "businesses_create": "Crear negocios e invitar a sus propietarios",
+      "users_create": "Invitar a propietarios a crear una cuenta"
+    },
+    "emptyDescription": "Cree una para configurar sus negocios desde su propio código."
+  },
+  "secretReveal": {
+    "copy": "Copiar",
+    "copied": "Copiado"
+  },
+  "billing": {
+    "title": "Facturación",
+    "loadFailed": "No pudimos cargar su facturación. Actualice la página para intentarlo de nuevo.",
+    "ownersOnly": "Solo los propietarios gestionan la facturación. Pida a uno que cambie su nivel.",
+    "unavailable": "Este panel no cobra niveles, así que nada limita a sus negocios.",
+    "pastDue": "Su último pago falló. Actualice su tarjeta en Gestionar suscripción.",
+    "tiers": {
+      "free": "Gratis",
+      "starter": "Starter",
+      "growth": "Growth",
+      "scale": "Scale"
+    },
+    "intervals": {
+      "monthly": "Mensual",
+      "annual": "Anual"
+    },
+    "price": {
+      "perMonth": "al mes",
+      "billedMonthly": "Facturado cada mes",
+      "billedYearly": "{{price}} facturados cada año"
+    },
+    "terms": {
+      "minutes_one": "{{formatted}} minuto al mes",
+      "minutes_many": "{{formatted}} minutos al mes",
+      "minutes_other": "{{formatted}} minutos al mes",
+      "chats_one": "{{formatted}} chat al mes",
+      "chats_many": "{{formatted}} chats al mes",
+      "chats_other": "{{formatted}} chats al mes",
+      "numbers_one": "{{count}} número de teléfono",
+      "numbers_many": "{{count}} números de teléfono",
+      "numbers_other": "{{count}} números de teléfono",
+      "noNumbers": "Ningún número de teléfono",
+      "trialNumber": "1 número de prueba durante 14 días",
+      "extraNumbers": "Números adicionales facturados cada mes",
+      "overage": "Excedente: {{minute}} por minuto, {{chat}} por chat",
+      "noOverage": "Sin excedente"
+    },
+    "current": {
+      "title": "Nivel actual",
+      "free": "$0 al mes",
+      "renewsOn": "Se renueva el {{date}}.",
+      "endsOn": "Termina el {{date}}. Conserva su nivel hasta entonces."
+    },
+    "numbers": {
+      "used": "{{held}} de {{included}} números de teléfono en uso.",
+      "extra_one": "Números de teléfono en uso: {{held}}. Paga {{count}} número adicional cada mes.",
+      "extra_many": "Números de teléfono en uso: {{held}}. Paga {{count}} números adicionales cada mes.",
+      "extra_other": "Números de teléfono en uso: {{held}}. Paga {{count}} números adicionales cada mes."
+    },
+    "trial": {
+      "available": "Solicite su número de prueba de 14 días en la configuración de teléfono de cualquier negocio. Sus llamadas van al móvil de quien lo solicite.",
+      "used": "Ya usó su número de prueba de 14 días."
+    },
+    "pool": {
+      "title": "Este mes",
+      "description": "Lo que sus negocios usaron este mes. Se reinicia el {{resetsAt}}.",
+      "minutes": "Minutos",
+      "chats": "Chats",
+      "noLimit": "{{used}}, sin límite"
+    },
+    "hostPool": {
+      "limit": "Al llegar al límite, las llamadas se desvían y el chat del sitio deja de responder hasta que se reinicie la bolsa. Para cambiarla, consulte a la empresa que administra este panel."
+    },
+    "overage": {
+      "title": "Excedente",
+      "description": "Pasada su bolsa, sus negocios siguen respondiendo con las tarifas de excedente de su nivel, hasta su límite.",
+      "toggle": "Permitir excedente",
+      "free": "El nivel Gratis no tiene excedente. Sus negocios se detienen en la bolsa.",
+      "off": "El excedente está desactivado. Sus negocios se detienen en la bolsa cada mes.",
+      "noCap": "Sin límite",
+      "spend": "Excedente este mes",
+      "spendNoCap": "{{spend}} este mes",
+      "spendOfCap": "{{spend}} de {{cap}}",
+      "capReached": "Llegó a su límite. Las llamadas se desvían y el chat se pausa hasta el próximo mes, o hasta que suba el límite.",
+      "capLabel": "Límite mensual",
+      "capPlaceholder": "50,00",
+      "saveCap": "Fijar límite",
+      "updateCap": "Actualizar límite",
+      "removeCap": "Quitar límite",
+      "capSaved": "Límite guardado.",
+      "capRemoved": "Límite quitado.",
+      "turnedOn": "Excedente activado.",
+      "turnedOff": "Excedente desactivado.",
+      "saveFailed": "No pudimos guardarlo. Inténtelo de nuevo.",
+      "invalidAmount": "Escriba un monto en dólares, como 50 o 50,00."
+    },
+    "choose": {
+      "title": "Elija un nivel",
+      "intervalLabel": "Periodo de facturación",
+      "annualDiscount": "Ahorre un 20 %",
+      "action": "Elegir {{tier}}",
+      "opening": "Abriendo el pago…"
+    },
+    "portal": {
+      "action": "Gestionar suscripción",
+      "opening": "Abriendo…"
+    },
+    "checkout": {
+      "confirming": "Pago recibido. Esta página se actualiza cuando su nivel esté listo.",
+      "done": "Ya está en el nivel {{tier}}."
+    },
+    "errors": {
+      "checkoutFailed": "No pudimos abrir el pago. Inténtelo de nuevo.",
+      "subscriptionActive": "Ya tiene un nivel. Cámbielo en Gestionar suscripción.",
+      "checkoutInProgress": "Otro propietario tiene un pago abierto. Inténtelo de nuevo en 30 minutos.",
+      "unavailable": "No puede comprar un nivel en este panel.",
+      "portalFailed": "No pudimos abrir su suscripción. Inténtelo de nuevo."
+    }
+  },
+  "lifecycle": {
+    "past_due": {
+      "title": "Falló el último pago de su nivel",
+      "description": "Sus negocios siguen atendiendo hasta el {{pausesAt}} y luego se pausan hasta que pague. Los eliminamos 90 días después de que termine su nivel.",
+      "owner": "Actualice su tarjeta en Gestionar suscripción, o ceda cada negocio a su propietario.",
+      "admin": "Pida a un propietario que actualice la tarjeta, o ceda cada negocio a su propietario."
+    },
+    "ending": {
+      "title": "Su nivel terminó el {{tierEndedAt}}",
+      "description": "Sus negocios siguen atendiendo hasta el {{pausesAt}} y luego se pausan. Los eliminamos el {{deletesAt}}.",
+      "owner": "Elija un nivel para que sigan atendiendo, o ceda cada negocio a su propietario.",
+      "admin": "Pida a un propietario que elija un nivel, o ceda cada negocio a su propietario."
+    },
+    "paused": {
+      "title": "Sus negocios dejaron de atender el {{pausesAt}}",
+      "description": "Su nivel terminó el {{tierEndedAt}}. Las llamadas se desvían y el chat está desactivado. Eliminamos sus negocios el {{deletesAt}}.",
+      "owner": "Elija un nivel para que vuelvan a atender, o ceda cada negocio a su propietario.",
+      "admin": "Pida a un propietario que elija un nivel, o ceda cada negocio a su propietario."
+    },
+    "paused_past_due": {
+      "title": "Sus negocios dejaron de atender el {{pausesAt}}",
+      "description": "Su último pago falló. Las llamadas se desvían y el chat está desactivado. Eliminamos sus negocios 90 días después de que termine su nivel.",
+      "owner": "Actualice su tarjeta en Gestionar suscripción para que vuelvan a atender, o ceda cada negocio a su propietario.",
+      "admin": "Pida a un propietario que actualice la tarjeta, o ceda cada negocio a su propietario."
+    },
+    "deleted": {
+      "title": "Eliminamos sus negocios el {{deletesAt}}",
+      "description": "Los eliminamos 90 días después de que terminó su nivel. Ahora está en Gratis.",
+      "owner": "Elija un nivel en la página Facturación para volver a empezar.",
+      "admin": "Pida a un propietario un nivel de pago si lo vuelve a necesitar."
+    }
+  },
+  "settings": {
+    "title": "Configuración",
+    "loadFailed": "No pudimos cargar su configuración. Actualice la página para intentarlo de nuevo.",
+    "saved": "Configuración guardada.",
+    "membersCantEdit": "Solo los propietarios y los administradores pueden cambiar esta configuración.",
+    "telemetry": {
+      "label": "Compartir datos de uso",
+      "description": "Comparta datos anónimos de uso y errores de la consola para ayudarnos a mejorarla.",
+      "saveFailed": "No pudimos guardar su preferencia de telemetría. Inténtelo de nuevo."
+    }
+  },
+  "signup": {
+    "title": "Hágase socio",
+    "nameLabel": "Nombre de la empresa",
+    "namePlaceholder": "Recepción Acme",
+    "subdomainLabel": "Dirección del panel",
+    "subdomainHelp": "Use de 3 a 40 letras minúsculas, dígitos y guiones.",
+    "submit": "Crear cuenta de socio",
+    "submitting": "Creando…",
+    "inviteOnly": "Por ahora, el registro de socios es solo por invitación. Pida un enlace a {{appName}}.",
+    "invitationInvalid": "Este enlace de invitación no es válido o venció.",
+    "invitationUsed": "Alguien ya usó esta invitación.",
+    "wrongAccount": "Esta invitación es para {{email}}. Inicie sesión con esa dirección verificada para usarla.",
+    "errors": {
+      "subdomainTaken": "Esa dirección ya está en uso. Elija otra.",
+      "invalidSubdomain": "Use de 3 a 40 letras minúsculas, dígitos y guiones. Nombres como www o app no están disponibles.",
+      "rateLimited": "Registró demasiados socios hoy. Inténtelo de nuevo mañana.",
+      "failed": "No pudimos crear la cuenta de socio. Inténtelo de nuevo."
+    }
+  },
+  "acceptInvite": {
+    "genericTitle": "Invitación de socio",
+    "title": "Únase a {{partnerName}}",
+    "description": "Únase como {{role}} con {{email}}.",
+    "submit": "Aceptar invitación",
+    "submitting": "Uniéndose…",
+    "success": "Se unió a {{partnerName}}.",
+    "invalid": "Este enlace de invitación no es válido.",
+    "expired": "Esta invitación venció. Pida una nueva a quien se la envió.",
+    "used": "Alguien ya usó o canceló esta invitación.",
+    "stale": "Esta invitación ya no funciona. Pida una nueva a quien se la envió.",
+    "wrongAccount": "Esta invitación es para {{email}}. Inicie sesión con esa dirección verificada para aceptarla.",
+    "failed": "No pudimos aceptar la invitación. Inténtelo de nuevo."
+  },
+  "signedOut": {
+    "acceptInvite": "Inicie sesión o cree una cuenta con {{email}} para unirse a {{partnerName}}.",
+    "signIn": "Iniciar sesión",
+    "createAccount": "Crear cuenta",
+    "switchAccount": "Usar otra cuenta"
+  }
+}

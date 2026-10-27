@@ -4,6 +4,7 @@ import {
   bigint,
   boolean,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -120,6 +121,37 @@ export const verifications = pgTable(
   (table) => [index("verifications_identifier_idx").on(table.identifier)],
 );
 
+// A company that resells LobbyStack under its own brand. Its slug is also its
+// subdomain's label under the partner base domain.
+export const partners = pgTable(
+  "partners",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    slug: varchar("slug", { length: 40 }).notNull(),
+    status: varchar("status", { length: 32 }).default("active").notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    // The partner's brand (migration 0131). Each image's version changes with its bytes.
+    logo: bytea("logo"),
+    logoContentType: varchar("logo_content_type", { length: 32 }),
+    logoVersion: text("logo_version").generatedAlwaysAs(sql`encode(sha256(logo), 'hex')`),
+    favicon: bytea("favicon"),
+    faviconContentType: varchar("favicon_content_type", { length: 32 }),
+    faviconVersion: text("favicon_version").generatedAlwaysAs(sql`encode(sha256(favicon), 'hex')`),
+    brandColor: varchar("brand_color", { length: 7 }),
+    termsUrl: text("terms_url"),
+    privacyUrl: text("privacy_url"),
+    supportUrl: text("support_url"),
+    supportEmail: varchar("support_email", { length: 254 }),
+    // When the partner's one 14-day trial number started, kept after the business that held it is deleted (migration 0154).
+    numberTrialStartedAt: timestamp("number_trial_started_at", { withTimezone: true }),
+    // Whether the console shares product telemetry, as a business's telemetryEnabled does for its dashboard (migration 0160).
+    telemetryEnabled: boolean("telemetry_enabled").default(true).notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("partners_slug_unique").on(table.slug)],
+);
+
 export const businesses = pgTable(
   "businesses",
   {
@@ -145,12 +177,17 @@ export const businesses = pgTable(
     hoursSource: varchar("hours_source", { length: 16 }).$type<"none" | "generated" | "operator">().default("none").notNull(),
     hoursFingerprint: varchar("hours_fingerprint", { length: 64 }),
     hoursGeneratedAt: timestamp("hours_generated_at", { withTimezone: true }),
+    // The partner that resells this business, or null for a direct business. A direct business never gets one.
+    partnerId: uuid("partner_id").references(() => partners.id),
+    // What a partner's business lets its own operators do: full, or activity only. Direct businesses ignore it, and only the system actor changes it.
+    partnerAccessLevel: varchar("partner_access_level", { length: 16 }).$type<"full" | "activity">().default("full").notNull(),
     ...legacyId,
     ...timestamps,
   },
   (table) => [
     uniqueIndex("businesses_slug_unique").on(table.slug),
     uniqueIndex("businesses_legacy_convex_id_unique").on(table.legacyConvexId),
+    index("businesses_partner_idx").on(table.partnerId).where(sql`${table.partnerId} is not null`),
   ],
 );
 
@@ -176,7 +213,9 @@ export const businessInvitations = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
-    invitedByUserId: uuid("invited_by_user_id").notNull().references(() => users.id),
+    // Null when a partner's platform key invited them as the partner; a claim link always names its sender.
+    invitedByUserId: uuid("invited_by_user_id").references(() => users.id),
+    invitedByPlatformKeyId: uuid("invited_by_platform_key_id"),
     email: text("email").notNull(),
     normalizedEmail: text("normalized_email").notNull(),
     role: varchar("role", { length: 32 }).notNull(),
@@ -194,6 +233,237 @@ export const businessInvitations = pgTable(
     index("business_invitations_business_status_idx").on(table.businessId, table.status),
     index("business_invitations_email_idx").on(table.normalizedEmail),
   ],
+);
+
+export const partnerMembers = pgTable(
+  "partner_members",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 16 }).$type<"owner" | "admin" | "member">().notNull(),
+    status: varchar("status", { length: 16 }).$type<"active" | "removed">().default("active").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("partner_members_partner_user_unique").on(table.partnerId, table.userId),
+    index("partner_members_user_idx").on(table.userId).where(sql`${table.status} = 'active'`),
+  ],
+);
+
+export const partnerInvitations = pgTable(
+  "partner_invitations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    invitedByUserId: uuid("invited_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    normalizedEmail: text("normalized_email").notNull(),
+    role: varchar("role", { length: 16 }).$type<"owner" | "admin" | "member">().notNull(),
+    tokenHash: text("token_hash").notNull(),
+    status: varchar("status", { length: 16 }).$type<"pending" | "accepted" | "revoked">().default("pending").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("partner_invitations_token_hash_unique").on(table.tokenHash),
+    index("partner_invitations_partner_status_idx").on(table.partnerId, table.status),
+  ],
+);
+
+// The hostnames a partner's brand answers on: its subdomain of the partner base domain, and later its own domains.
+export const partnerDomains = pgTable(
+  "partner_domains",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    hostname: varchar("hostname", { length: 253 }).notNull(),
+    kind: varchar("kind", { length: 16 }).$type<"subdomain" | "custom">().notNull(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    // A partner's own domain: the provider that set it up, its id there, and what the provider last said.
+    provider: varchar("provider", { length: 16 }).$type<"cloudflare" | "caddy">(),
+    providerHostnameId: text("provider_hostname_id"),
+    dnsRecords: jsonb("dns_records").$type<Array<{ type: "CNAME" | "TXT"; name: string; value: string; verified: boolean }>>().notNull().default([]),
+    providerErrors: jsonb("provider_errors").$type<string[]>().notNull().default([]),
+    checkedAt: timestamp("checked_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    addedByUserId: uuid("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    // The value a partner's own domain publishes as a TXT record to prove the partner controls it.
+    verificationToken: varchar("verification_token", { length: 64 }).notNull().default(sql`replace(gen_random_uuid()::text, '-', '')`),
+    ...timestamps,
+  },
+  (table) => [
+    // Partners' claims on the same domain of their own wait side by side until one is verified.
+    uniqueIndex("partner_domains_verified_hostname_unique").on(table.hostname).where(sql`${table.verifiedAt} IS NOT NULL OR ${table.kind} = 'subdomain'`),
+    index("partner_domains_hostname_idx").on(table.hostname),
+    uniqueIndex("partner_domains_one_subdomain").on(table.partnerId).where(sql`${table.kind} = 'subdomain'`),
+    uniqueIndex("partner_domains_one_custom").on(table.partnerId).where(sql`${table.kind} = 'custom'`),
+    index("partner_domains_pending_custom_idx").on(table.checkedAt).where(sql`${table.kind} = 'custom' AND ${table.verifiedAt} IS NULL AND ${table.failedAt} IS NULL`),
+  ],
+);
+
+// The business a person last worked in on each partner's domains. The host's own domain keeps users.activeBusinessId.
+export const userActiveBusinesses = pgTable(
+  "user_active_businesses",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.partnerId] }),
+    index("user_active_businesses_business_idx").on(table.businessId),
+  ],
+);
+
+// A partner member's open of one of the partner's businesses (migration 0136): until it expires, they work inside the
+// business without joining its team. Opening again moves the times forward; the business's audit log keeps every open.
+export const partnerBusinessOpens = pgTable(
+  "partner_business_opens",
+  {
+    businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    openedAt: timestamp("opened_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.businessId, table.userId] }),
+    index("partner_business_opens_user_idx").on(table.userId, table.expiresAt),
+  ],
+);
+
+// The platform keys a partner made in its console. Each acts as the partner and keeps only its key's SHA-256.
+export const partnerPlatformKeys = pgTable(
+  "partner_platform_keys",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 120 }).notNull(),
+    prefix: varchar("prefix", { length: 12 }).notNull(),
+    keyHash: text("key_hash").notNull(),
+    // Always "group": a CHECK refuses "all", which would reach every business on the deployment.
+    access: varchar("access", { length: 16 }).$type<"group">().default("group").notNull(),
+    scopes: jsonb("scopes").$type<string[]>().notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    revokedByUserId: uuid("revoked_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("partner_platform_keys_prefix_unique").on(table.prefix),
+    uniqueIndex("partner_platform_keys_key_hash_unique").on(table.keyHash),
+    index("partner_platform_keys_partner_created_idx").on(table.partnerId, table.createdAt),
+  ],
+);
+
+// A partner's templates (migration 0148): a business's setup in the lobbystack onboard file format, which the
+// partner starts new businesses from. Saved once, never changed.
+export const businessTemplates = pgTable(
+  "business_templates",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    manifest: jsonb("manifest").$type<Record<string, unknown>>().notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (table) => [
+    index("business_templates_partner_idx").on(table.partnerId, table.createdAt),
+    uniqueIndex("business_templates_id_partner_unique").on(table.id, table.partnerId),
+  ],
+);
+
+// The stored copy of each document a template lists. Its partner is the template's, as a key on both keeps it.
+export const businessTemplateFiles = pgTable(
+  "business_template_files",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    templateId: uuid("template_id").notNull(),
+    partnerId: uuid("partner_id").notNull(),
+    path: text("path").notNull(),
+    objectKey: text("object_key").notNull(),
+    contentType: varchar("content_type", { length: 255 }).notNull(),
+    contentLength: integer("content_length").notNull(),
+    checksum: text("checksum").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({ columns: [table.templateId, table.partnerId], foreignColumns: [businessTemplates.id, businessTemplates.partnerId] }).onDelete("cascade"),
+    uniqueIndex("business_template_files_path_unique").on(table.templateId, table.path),
+    uniqueIndex("business_template_files_object_key_unique").on(table.objectKey),
+  ],
+);
+
+// The host's invitations to sign up as a partner while signup is invite-only.
+export const partnerSignupInvitations = pgTable(
+  "partner_signup_invitations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: text("email").notNull(),
+    normalizedEmail: text("normalized_email").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    status: varchar("status", { length: 16 }).$type<"pending" | "accepted" | "revoked">().default("pending").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("partner_signup_invitations_token_hash_unique").on(table.tokenHash)],
+);
+
+// A partner's connected Stripe account (migration 0141), as the Connect webhook last described it.
+export const partnerStripeAccounts = pgTable(
+  "partner_stripe_accounts",
+  {
+    partnerId: uuid("partner_id").primaryKey().references(() => partners.id, { onDelete: "cascade" }),
+    stripeAccountId: varchar("stripe_account_id", { length: 255 }).notNull(),
+    country: varchar("country", { length: 2 }),
+    // The account's default currency, uppercase: its packages are priced in it.
+    currency: varchar("currency", { length: 3 }),
+    detailsSubmitted: boolean("details_submitted").default(false).notNull(),
+    chargesEnabled: boolean("charges_enabled").default(false).notNull(),
+    payoutsEnabled: boolean("payouts_enabled").default(false).notNull(),
+    disabledReason: varchar("disabled_reason", { length: 120 }),
+    // Set when the partner disconnects the account in Stripe. Connecting again makes a new account.
+    disconnectedAt: timestamp("disconnected_at", { withTimezone: true }),
+    // When Stripe last described the account, so late news never overwrites newer news.
+    syncedAt: timestamp("synced_at", { withTimezone: true }),
+    connectedByUserId: uuid("connected_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("partner_stripe_accounts_account_unique").on(table.stripeAccountId)],
+);
+
+// What a partner sells its businesses (migration 0141): a monthly price, an
+// optional setup fee and an allowance, with the product and prices on the
+// connected account named here. Only the name and archivedAt change.
+export const partnerPackages = pgTable(
+  "partner_packages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    monthlyPriceMinor: integer("monthly_price_minor").notNull(),
+    setupFeeMinor: integer("setup_fee_minor"),
+    voiceMinutes: integer("voice_minutes").notNull(),
+    chats: integer("chats").notNull(),
+    stripeAccountId: varchar("stripe_account_id", { length: 255 }).notNull(),
+    stripeProductId: varchar("stripe_product_id", { length: 255 }).notNull(),
+    stripePriceId: varchar("stripe_price_id", { length: 255 }).notNull(),
+    stripeSetupPriceId: varchar("stripe_setup_price_id", { length: 255 }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (table) => [index("partner_packages_partner_idx").on(table.partnerId, table.createdAt)],
 );
 
 export const prospectDemos = pgTable(
@@ -216,6 +486,8 @@ export const prospectDemos = pgTable(
     publishedAt: timestamp("published_at", { withTimezone: true }),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     claimedByUserId: uuid("claimed_by_user_id").references(() => users.id),
+    // The partner whose team made the demo, or null for the host's own.
+    partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),
     ...legacyId,
     ...timestamps,
   },
@@ -223,6 +495,7 @@ export const prospectDemos = pgTable(
     uniqueIndex("prospect_demos_token_hash_unique").on(table.tokenHash),
     uniqueIndex("prospect_demos_business_unique").on(table.businessId),
     index("prospect_demos_status_expires_idx").on(table.status, table.expiresAt),
+    index("prospect_demos_partner_idx").on(table.partnerId, table.createdAt).where(sql`${table.partnerId} is not null`),
   ],
 );
 
@@ -350,7 +623,9 @@ export const onboardingPhoneVerifications = pgTable("onboarding_phone_verificati
 }, (table) => [index("onboarding_phone_verifications_business_user_idx").on(table.businessId, table.userId, table.updatedAt), index("onboarding_phone_verifications_provider_idx").on(table.providerVerificationId), index("onboarding_phone_verifications_user_phone_status_idx").on(table.userId, table.phoneE164, table.status, table.updatedAt)]);
 
 export const onboardingNumberClaimEvents = pgTable("onboarding_number_claim_events", {
-  id: uuid("id").defaultRandom().primaryKey(), businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }), userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), purpose: varchar("purpose", { length: 32 }).default("onboarding").notNull(), replacingPhoneNumberId: uuid("replacing_phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }), requestedE164: varchar("requested_e164", { length: 32 }).notNull(), selectionContext: jsonb("selection_context").$type<Record<string, unknown>>().notNull(), claimTokenHash: text("claim_token_hash").notNull(), idempotencyKey: varchar("idempotency_key", { length: 255 }).notNull(), status: varchar("status", { length: 32 }).default("reserved").notNull(), phoneNumberId: uuid("phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }), providerPhoneId: varchar("provider_phone_id", { length: 255 }), reservedAt: timestamp("reserved_at", { withTimezone: true }).defaultNow().notNull(), purchasedAt: timestamp("purchased_at", { withTimezone: true }), completedAt: timestamp("completed_at", { withTimezone: true }), attemptCount: integer("attempt_count").default(0).notNull(), lastError: text("last_error"), alternatives: jsonb("alternatives").$type<Array<Record<string, unknown>>>(), ...timestamps,
+  id: uuid("id").defaultRandom().primaryKey(), businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }), userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), purpose: varchar("purpose", { length: 32 }).default("onboarding").notNull(), replacingPhoneNumberId: uuid("replacing_phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }), requestedE164: varchar("requested_e164", { length: 32 }).notNull(), selectionContext: jsonb("selection_context").$type<Record<string, unknown>>().notNull(), claimTokenHash: text("claim_token_hash").notNull(), idempotencyKey: varchar("idempotency_key", { length: 255 }).notNull(), status: varchar("status", { length: 32 }).default("reserved").notNull(), phoneNumberId: uuid("phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }), providerPhoneId: varchar("provider_phone_id", { length: 255 }), reservedAt: timestamp("reserved_at", { withTimezone: true }).defaultNow().notNull(), purchasedAt: timestamp("purchased_at", { withTimezone: true }), completedAt: timestamp("completed_at", { withTimezone: true }), attemptCount: integer("attempt_count").default(0).notNull(), lastError: text("last_error"), alternatives: jsonb("alternatives").$type<Array<Record<string, unknown>>>(),
+  // A partner member made the claim through an open of the business, so only the partner's quotas count it (migration 0159).
+  byPartnerMember: boolean("by_partner_member").default(false).notNull(), ...timestamps,
 }, (table) => [uniqueIndex("onboarding_number_claim_events_business_key_unique").on(table.businessId, table.idempotencyKey), uniqueIndex("onboarding_number_claim_events_provider_unique").on(table.providerPhoneId), index("onboarding_number_claim_events_user_purchased_idx").on(table.userId, table.purchasedAt), index("onboarding_number_claim_events_business_status_idx").on(table.businessId, table.status, table.reservedAt)]);
 
 export const numberTrials = pgTable("number_trials", {
@@ -366,9 +641,12 @@ export const numberTrials = pgTable("number_trials", {
   endsAt: timestamp("ends_at", { withTimezone: true }),
   minutesExhaustedAt: timestamp("minutes_exhausted_at", { withTimezone: true }),
   emailsSent: jsonb("emails_sent").$type<Record<string, string>>().default({}).notNull(),
+  // The partner whose one trial this is, set from the business as it's reserved (migration 0154).
+  partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),
   ...timestamps,
 }, (table) => [
   uniqueIndex("number_trials_business_unique").on(table.businessId).where(sql`${table.status} <> 'failed'`),
+  uniqueIndex("number_trials_partner_unique").on(table.partnerId).where(sql`${table.partnerId} is not null and ${table.status} <> 'failed'`),
   index("number_trials_phone_idx").on(table.verifiedPhone),
   index("number_trials_user_idx").on(table.userId),
   index("number_trials_ip_created_idx").on(table.ipHash, table.createdAt),
@@ -427,6 +705,8 @@ export const contacts = pgTable(
     smsConsentSource: varchar("sms_consent_source", { length: 64 }),
     // The status a STOP to the shared sender replaced, which START restores.
     smsConsentStatusBeforeOptOut: varchar("sms_consent_status_before_opt_out", { length: 32 }),
+    // When the opt-in confirmation went out for the current yes to texts. Null until it does.
+    smsOptInConfirmedAt: timestamp("sms_opt_in_confirmed_at", { withTimezone: true }),
     operatorBlockedAt: timestamp("operator_blocked_at", { withTimezone: true }),
     // The Instagram-scoped ID of someone who messaged the business on Instagram.
     instagramUserId: text("instagram_user_id"),
@@ -976,6 +1256,9 @@ export const operatorNotificationDeliveries = pgTable(
   (table) => [uniqueIndex("operator_notification_deliveries_event_channel_unique").on(table.eventKey, table.userId, table.channel), uniqueIndex("operator_notification_deliveries_legacy_convex_id_unique").on(table.legacyConvexId), index("operator_notification_deliveries_status_schedule_idx").on(table.status, table.scheduledFor), index("operator_notification_deliveries_business_user_idx").on(table.businessId, table.userId)],
 );
 
+/** The items of a business's package subscription that bill its overage, one per meter, and the subscription they're on. */
+export type StripeOverageItems = { subscriptionId: string; voice?: string; chat?: string };
+
 export const billingAccounts = pgTable(
   "billing_accounts",
   {
@@ -991,6 +1274,36 @@ export const billingAccounts = pgTable(
     currentPeriodStart: timestamp("current_period_start", { withTimezone: true }),
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
     overageSpendingCapCents: integer("overage_spending_cap_cents"),
+    // A partner's business (migration 0142): the package its partner sells it,
+    // or null when the partner bills it outside LobbyStack, and its
+    // subscription on the partner's Stripe account. Only the system actor
+    // writes these.
+    packageId: uuid("package_id").references(() => partnerPackages.id, { onDelete: "set null" }),
+    stripeAccountId: varchar("stripe_account_id", { length: 255 }),
+    stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+    stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+    stripeSubscriptionState: varchar("stripe_subscription_state", { length: 32 }),
+    stripeCurrentPeriodEnd: timestamp("stripe_current_period_end", { withTimezone: true }),
+    // When the subscription was last read from Stripe, so a late read never overwrites a newer one.
+    stripeSyncedAt: timestamp("stripe_synced_at", { withTimezone: true }),
+    // The open checkout the business was sent to, reused so two clicks can't start two subscriptions.
+    stripeCheckoutSessionId: varchar("stripe_checkout_session_id", { length: 255 }),
+    stripeCheckoutUrl: text("stripe_checkout_url"),
+    stripeCheckoutExpiresAt: timestamp("stripe_checkout_expires_at", { withTimezone: true }),
+    // A partner's business's overage on its package (migration 0155): whether
+    // it keeps answering past the package's allowance, what each minute and
+    // chat past it costs, and the monthly cap on that, or null for none, in
+    // the minor unit of overageCurrency, the package's currency when the
+    // partner set them. Only the system actor writes these.
+    overageEnabled: boolean("overage_enabled").default(false).notNull(),
+    overageCurrency: varchar("overage_currency", { length: 3 }),
+    overageVoiceMinuteRateMinor: integer("overage_voice_minute_rate_minor").default(0).notNull(),
+    overageChatRateMinor: integer("overage_chat_rate_minor").default(0).notNull(),
+    overageCapMinor: integer("overage_cap_minor"),
+    // The subscription items that bill the business's overage on its
+    // partner's Stripe, one per meter, for the subscription they name
+    // (migration 0156). Only the worker and the system actor write them.
+    stripeOverageItems: jsonb("stripe_overage_items").$type<StripeOverageItems>(),
     ...legacyId,
     ...timestamps,
   },
@@ -1012,6 +1325,136 @@ export const billingCheckoutRequests = pgTable(
     ...timestamps,
   },
   (table) => [uniqueIndex("billing_checkout_requests_id_unique").on(table.id), index("billing_checkout_requests_business_status_idx").on(table.businessId, table.status, table.createdAt)],
+);
+
+// The tier a partner buys from the host through Polar, and the terms of the tier in force (migration 0144).
+export const partnerBillingAccounts = pgTable(
+  "partner_billing_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    // partner:<partner id>, the external id of the partner's Polar customer.
+    billingKey: text("billing_key").notNull(),
+    customerId: text("customer_id"),
+    subscriptionId: text("subscription_id"),
+    tier: varchar("tier", { length: 16 }).$type<"free" | "starter" | "growth" | "scale">().default("free").notNull(),
+    billingInterval: varchar("billing_interval", { length: 16 }).$type<"monthly" | "annual">(),
+    subscriptionState: varchar("subscription_state", { length: 32 }),
+    currentPeriodStart: timestamp("current_period_start", { withTimezone: true }),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    // When a canceled tier ends, while it runs to the end of its period. Null while it renews.
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    poolVoiceSeconds: integer("pool_voice_seconds").notNull(),
+    poolChats: integer("pool_chats").notNull(),
+    includedNumbers: integer("included_numbers").notNull(),
+    // Pool overage, on unless an owner turns it off, and its monthly cap in US cents. Null means no cap (migration 0153).
+    poolOverageEnabled: boolean("pool_overage_enabled").default(true).notNull(),
+    poolOverageCapCents: integer("pool_overage_cap_cents"),
+    // The pool the host set while the deployment bills no tiers, each kind null for no limit (migration 0158).
+    hostPoolVoiceSeconds: integer("host_pool_voice_seconds"),
+    hostPoolChats: integer("host_pool_chats"),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("partner_billing_accounts_partner_unique").on(table.partnerId), uniqueIndex("partner_billing_accounts_billing_key_unique").on(table.billingKey)],
+);
+
+// What a partner's businesses used each month, as its pool counts it (migration 0153). Only SECURITY DEFINER functions read and write it.
+export const partnerUsageMonths = pgTable(
+  "partner_usage_months",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    periodKey: varchar("period_key", { length: 16 }).notNull(),
+    // Open reservations included.
+    voiceSecondsUsed: doublePrecision("voice_seconds_used").default(0).notNull(),
+    voiceSecondsFinal: doublePrecision("voice_seconds_final").default(0).notNull(),
+    chatsUsed: doublePrecision("chats_used").default(0).notNull(),
+    // Final usage past the pool while the partner paid for overage, and its cost at the tier's rates in US cents.
+    overageVoiceSeconds: doublePrecision("overage_voice_seconds").default(0).notNull(),
+    overageChats: doublePrecision("overage_chats").default(0).notNull(),
+    overageSpendCents: doublePrecision("overage_spend_cents").default(0).notNull(),
+    // The month's alerts already sent the partner's owners and admins, by alert, with when each was queued.
+    alertsSent: jsonb("alerts_sent").$type<Record<string, string>>().default({}).notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("partner_usage_months_partner_period_unique").on(table.partnerId, table.periodKey)],
+);
+
+// An owner's request for a Polar checkout of a tier, which the worker turns into a checkout page.
+export const partnerCheckoutRequests = pgTable(
+  "partner_checkout_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    requestedByUserId: uuid("requested_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tier: varchar("tier", { length: 16 }).$type<"starter" | "growth" | "scale">().notNull(),
+    billingInterval: varchar("billing_interval", { length: 16 }).$type<"monthly" | "annual">().notNull(),
+    status: varchar("status", { length: 16 }).$type<"pending" | "processing" | "ready" | "error" | "superseded">().default("pending").notNull(),
+    // The console's origin the owner started from, where Polar sends them back.
+    returnOrigin: text("return_origin").notNull(),
+    checkoutId: text("checkout_id"),
+    checkoutUrl: text("checkout_url"),
+    error: text("error"),
+    ...timestamps,
+  },
+  (table) => [index("partner_checkout_requests_partner_status_idx").on(table.partnerId, table.status, table.createdAt)],
+);
+
+// Where a partner stands after its paid tier ends, since when, and when the tier ended (migration 0150). A partner with no row is active.
+export const partnerLifecycles = pgTable(
+  "partner_lifecycles",
+  {
+    partnerId: uuid("partner_id").primaryKey().references(() => partners.id, { onDelete: "cascade" }),
+    state: varchar("state", { length: 16 }).$type<"active" | "past_due" | "ending" | "paused" | "deleted">().notNull(),
+    since: timestamp("since", { withTimezone: true }).notNull(),
+    tierEndedAt: timestamp("tier_ended_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [index("partner_lifecycles_state_since_idx").on(table.state, table.since).where(sql`${table.state} in ('past_due', 'ending', 'paused', 'deleted')`)],
+);
+
+// Every lifecycle step a partner took, and every business the host deleted at its end. It outlives the businesses (migration 0150).
+export const partnerLifecycleEvents = pgTable(
+  "partner_lifecycle_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    eventType: varchar("event_type", { length: 64 }).$type<"partner.lifecycle_changed" | "partner.business_deleted">().notNull(),
+    businessId: uuid("business_id"),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("partner_lifecycle_events_partner_idx").on(table.partnerId, table.createdAt)],
+);
+
+// Whether this deployment bills partners for tiers, as the worker last recorded it from the environment. At most one row (migration 0147).
+export const partnerTierBilling = pgTable("partner_tier_billing", {
+  id: smallint("id").default(1).primaryKey(),
+  enabled: boolean("enabled").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// What the host pays each month for a number a partner's business holds while the deployment bills tiers, and the months settled since (migration 0147).
+export const partnerNumberCharges = pgTable(
+  "partner_number_charges",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
+    phoneNumberId: uuid("phone_number_id").notNull().references(() => phoneNumbers.id, { onDelete: "cascade" }),
+    // US cents a month, read from the carrier when the number was bought.
+    monthlyCostCents: integer("monthly_cost_cents").notNull(),
+    // The number's months run from here.
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    monthsSettled: integer("months_settled").default(0).notNull(),
+    monthsCharged: integer("months_charged").default(0).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("partner_number_charges_phone_number_unique").on(table.phoneNumberId),
+    index("partner_number_charges_partner_idx").on(table.partnerId),
+    index("partner_number_charges_business_idx").on(table.businessId),
+  ],
 );
 
 export const billingTransactions = pgTable(
@@ -1049,6 +1492,21 @@ export const billingUsageEvents = pgTable(
     billableQuantity: doublePrecision("billable_quantity"),
     planAtRecordTime: varchar("plan_at_record_time", { length: 32 }),
     billingIntervalAtRecordTime: varchar("billing_interval_at_record_time", { length: 16 }),
+    // The allowance, overage and pool terms in force when the usage happened (migration 0153).
+    termsAtRecordTime: jsonb("terms_at_record_time").$type<Record<string, unknown>>(),
+    // The partner whose pool the usage drew on, and once final, what it put past the pool and what that costs the partner in US cents.
+    poolPartnerId: uuid("pool_partner_id"),
+    poolOverageQuantity: doublePrecision("pool_overage_quantity"),
+    poolOverageCents: doublePrecision("pool_overage_cents"),
+    // Once final, what a package business's usage put past its own allowance, and what that costs it in the package's minor unit (migration 0155).
+    businessOverageQuantity: doublePrecision("business_overage_quantity"),
+    businessOverageMinor: doublePrecision("business_overage_minor"),
+    // That overage's report to the partner's Stripe, apart from syncStatus's to Polar (migration 0156):
+    // null with nothing to send, then pending, synced or skipped, and what Stripe has been sent, is being sent, and how many reports went.
+    stripeSyncStatus: varchar("stripe_sync_status", { length: 32 }),
+    stripeOverageReportedMinor: doublePrecision("stripe_overage_reported_minor").default(0).notNull(),
+    stripeOverageSendingMinor: doublePrecision("stripe_overage_sending_minor"),
+    stripeOverageReports: integer("stripe_overage_reports").default(0).notNull(),
     isFinal: boolean("is_final").default(true).notNull(),
     ...legacyId,
     syncStatus: varchar("sync_status", { length: 32 }).default("pending").notNull(),
@@ -1073,6 +1531,8 @@ export const billingUsageMonths = pgTable(
     outboundCallAttemptsBlocked: boolean("outbound_call_attempts_blocked").default(false).notNull(),
     chatAiBlocked: boolean("chat_ai_tokens_blocked").default(false).notNull(),
     overageSpendCents: integer("overage_spend_cents").default(0).notNull(),
+    // The allowance alerts the month sent a business on a package, by key, such as minutes:80:600 (migration 0156).
+    alertsSent: jsonb("alerts_sent").$type<Record<string, string>>().default({}).notNull(),
     lastRecordedAt: timestamp("last_recorded_at", { withTimezone: true }).defaultNow().notNull(),
     ...timestamps,
   },
@@ -1289,11 +1749,17 @@ export const providerEvents = pgTable(
     providerEventId: varchar("provider_event_id", { length: 255 }).notNull(),
     eventType: varchar("event_type", { length: 160 }).notNull(),
     businessId: uuid("business_id").references(() => businesses.id, { onDelete: "set null" }),
+    // A Polar event for a partner's tier (migration 0144). An event belongs to a business or a partner, never both.
+    partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
     status: varchar("status", { length: 32 }).default("received").notNull(),
     ...timestamps,
   },
-  (table) => [uniqueIndex("provider_events_provider_id_unique").on(table.provider, table.providerEventId), index("provider_events_business_idx").on(table.businessId, table.createdAt)],
+  (table) => [
+    uniqueIndex("provider_events_provider_id_unique").on(table.provider, table.providerEventId),
+    index("provider_events_business_idx").on(table.businessId, table.createdAt),
+    index("provider_events_partner_idx").on(table.partnerId, table.createdAt).where(sql`${table.partnerId} is not null`),
+  ],
 );
 
 export const outboxMessages = pgTable(
@@ -1441,18 +1907,18 @@ export const deploymentBranding = pgTable("deployment_branding", {
 });
 
 // Platform keys live in the PLATFORM_API_KEYS environment variable, not in a
-// table. A partner's keys reach the businesses linked to the partner here.
-export const platformPartnerBusinesses = pgTable(
-  "platform_partner_businesses",
+// table. A key with group access reaches the businesses linked to its group here.
+export const platformKeyBusinesses = pgTable(
+  "platform_key_businesses",
   {
     businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
-    partnerId: varchar("partner_id", { length: 40 }).notNull(),
+    groupId: varchar("group_id", { length: 40 }).notNull(),
     createdByPlatformKeyId: uuid("created_by_platform_key_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.businessId, table.partnerId] }),
-    index("platform_partner_businesses_partner_idx").on(table.partnerId, table.createdAt),
+    primaryKey({ columns: [table.businessId, table.groupId] }),
+    index("platform_key_businesses_group_idx").on(table.groupId, table.createdAt),
   ],
 );
 
@@ -1753,7 +2219,7 @@ export const allTenantTables = [
   unitEconomicsEvents,
   unitEconomicsRollups,
   apiKeys,
-  platformPartnerBusinesses,
+  platformKeyBusinesses,
   webhookEndpoints,
   webhookEvents,
   webhookDeliveries,
@@ -1765,7 +2231,19 @@ export const schema = {
   accounts,
   sessions,
   verifications,
+  partners,
+  partnerMembers,
+  partnerInvitations,
+  partnerDomains,
+  partnerPlatformKeys,
+  partnerSignupInvitations,
+  partnerStripeAccounts,
+  partnerPackages,
   businesses,
+  userActiveBusinesses,
+  partnerBusinessOpens,
+  businessTemplates,
+  businessTemplateFiles,
   businessMemberships,
   businessInvitations,
   prospectDemos,
@@ -1803,6 +2281,12 @@ export const schema = {
   operatorNotificationDeliveries,
   billingAccounts,
   billingCheckoutRequests,
+  partnerBillingAccounts,
+  partnerCheckoutRequests,
+  partnerLifecycles,
+  partnerLifecycleEvents,
+  partnerTierBilling,
+  partnerNumberCharges,
   billingTransactions,
   billingUsageEvents,
   billingUsageMonths,
@@ -1825,7 +2309,7 @@ export const schema = {
   unitEconomicsRollups,
   apiKeys,
   deploymentBranding,
-  platformPartnerBusinesses,
+  platformKeyBusinesses,
   webhookEndpoints,
   webhookEvents,
   webhookDeliveries,

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { billingPlanSlugs } from "../billing";
 import { interfaceLocales, runtimeLocales } from "../locales";
+import { partnerAccessLevels } from "../partners";
 import { appointmentChangeVerificationModes, bookingModes, CONTACT_PASSCODE_DEFAULT_LENGTH, CONTACT_PASSCODE_LOCK_ATTEMPTS, CONTACT_PASSCODE_MAX_LENGTH, CONTACT_PASSCODE_MIN_LENGTH, isContactPasscode, isGuessableContactPasscode, RECEPTIONIST_INSTRUCTIONS_MAX_LENGTH, RECEPTIONIST_TEXT_MAX_LENGTH, RULE_CONTENT_CALL_MAX_LENGTH, RULE_TITLE_MAX_LENGTH, RULES_MAX, transferModes } from "../receptionist";
 import { WIDGET_COLOR_PATTERN, widgetPositionSchema } from "../widget";
 import { CONTACT_PASSCODES_MAX_PER_REQUEST, KNOWLEDGE_UPLOAD_MAX_BYTES, PUBLIC_API_VERSION, WEBHOOK_TEST_EVENT_TYPE, apiKeyScopes, webhookEventTypes, weekdays } from "./constants";
@@ -44,6 +45,7 @@ export const apiErrorCodes = [
   "business_required",
   "key_owner_inactive",
   "plan_limit_reached",
+  "phone_numbers_unavailable",
 ] as const;
 export type ApiErrorCode = (typeof apiErrorCodes)[number];
 
@@ -71,8 +73,12 @@ export const apiMeSchema = z.object({
   }),
   business: z.object({ id, name: z.string() }).nullable().describe("The business the key acts on. Always set for a per-business key. For a platform key, the business in the LobbyStack-Business header, or null when the request has none."),
   platform: z.object({
-    partner: z.string().describe("Who the platform key belongs to, as set in PLATFORM_API_KEYS."),
-    access: z.enum(["partner", "all"]).describe("all: the key can act on every business. partner: only on businesses its partner onboarded."),
+    group: z.string().describe("The group the platform key belongs to, as set in PLATFORM_API_KEYS. Keys in the same group reach the same businesses."),
+    partner: z.string().meta({ deprecated: true, description: "Deprecated: the old name for group, with the same value. Read group instead." }),
+    reach: z.enum(["group", "all"]).describe("all: the key can act on every business. group: only on the businesses its group's keys onboarded."),
+    // v1 only changes additively, so access keeps the value it shipped with for group access.
+    access: z.enum(["partner", "all"]).meta({ deprecated: true, description: "Deprecated: the old name for reach, with partner in place of group. Read reach instead." }),
+    partner_id: id.nullable().describe("For a key a partner made in its console, the partner, which is also the key's group: the key reaches the partner's businesses. null for the host's keys in PLATFORM_API_KEYS."),
   }).optional().describe("Present only for a platform key."),
 }).describe("The API key making the request and the business it acts on.");
 
@@ -442,7 +448,7 @@ export const apiOnboardingUpdateSchema = z.strictObject({
 
 export const apiOnboardingCompleteSchema = z.strictObject({
   source: z.string().trim().max(120).optional().describe("How the business heard about LobbyStack."),
-  referral_code: z.string().trim().min(1).max(64).optional().describe("An affiliate's referral code. Not accepted from a platform key, or for a business a partner onboarded."),
+  referral_code: z.string().trim().min(1).max(64).optional().describe("An affiliate's referral code. Not accepted from a platform key, or for a business a platform key onboarded."),
   skip_number: z.boolean().optional().describe("true finishes a paid plan's onboarding without a phone number."),
 });
 
@@ -453,6 +459,8 @@ export const apiBusinessCreateSchema = z.strictObject({
   slug: z.string().trim().min(2).max(120).optional().describe("Lowercase letters, digits and hyphens. Made from the name when left out. Another business already using it is a 409."),
   locale: locale.optional().describe("Default language for callers: en, fr, es, sr (Serbian, Latin script), de, pt (Brazilian Portuguese), it or nl. Defaults to en."),
   website_url: z.url().max(2_000).optional(),
+  owner_email: teamEmail.optional().describe("Required with a partner's platform key, and refused with the host's. The partner emails this address an invitation to own the business and sign in on the partner's dashboard."),
+  access_level: z.enum(partnerAccessLevels).optional().describe("Only with a partner's platform key: what the business's own team can use. full, the default, lets them run the receptionist, its knowledge, hours, services and team, without billing, API keys or MCP. activity shows them calls, chats, appointments, contacts and messages, and the partner sets up the receptionist."),
 });
 
 export const apiBusinessSummarySchema = z.object({
@@ -463,7 +471,7 @@ export const apiBusinessSummarySchema = z.object({
   website_url: z.string().nullable(),
   onboarding_stage: z.string().describe("Where the business is in onboarding, for example website, phone_number or complete."),
   created_at: timestamp,
-}).describe("A business the platform key's partner onboarded.");
+}).describe("A business the platform key's group onboarded, or for a partner's key, a business of the partner.");
 
 export const apiUserCreateSchema = z.strictObject({
   email: teamEmail.describe("The owner's email."),

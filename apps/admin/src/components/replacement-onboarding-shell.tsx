@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
 import { BrandMark } from "@/components/brand-mark";
+import { useBranding } from "@/components/branding-provider";
+import { useBrandLinks } from "@/hooks/use-brand-links";
 import { resolveLocale } from "@/lib/locale";
-import { privacyHref, termsHref } from "@/lib/marketing-site-url";
 import { cn } from "@/lib/utils";
 
 type OnboardingShellProps = {
@@ -14,7 +16,8 @@ type OnboardingShellProps = {
   eyebrow?: string;
   title: string;
   description?: React.ReactNode;
-  progress?: { current: number; navigableUntil?: number; total: number } | null;
+  /** The step dots. `routes` names the page of each step when the owner's onboarding skips some, as a partner's business does. */
+  progress?: { current: number; navigableUntil?: number; total: number; routes?: readonly string[] } | null;
   width?: "sm" | "md" | "lg" | "xl" | "wide";
   children: React.ReactNode;
   legalFooter?: React.ReactNode;
@@ -44,7 +47,14 @@ const widths = { sm: "max-w-sm", md: "max-w-md", lg: "max-w-lg", xl: "max-w-xl",
 
 export function ReplacementOnboardingShell({ icon, eyebrow, title, description, progress, width = "md", children, legalFooter, onSignOut }: OnboardingShellProps) {
   const { t, i18n } = useTranslation("onboarding");
-  const marketingLocale = resolveLocale(i18n.resolvedLanguage, i18n.language);
+  const links = useBrandLinks(resolveLocale(i18n.resolvedLanguage, i18n.language));
+  const { partner } = useBranding();
+  // Terms and privacy, unless the page's own legal line names them, and on a
+  // partner's pages its support too. Each link the partner left out stays out.
+  const footerLinks = [
+    ...(legalFooter ? [] : [{ key: "terms", href: links.terms, label: t("shell.terms") }, { key: "privacy", href: links.privacy, label: t("shell.privacy") }]),
+    ...(partner ? [{ key: "support", href: links.support, label: t("shell.support") }] : []),
+  ].filter((link): link is { key: string; href: string; label: string } => Boolean(link.href));
   return (
     <div className="relative flex min-h-svh w-full flex-col bg-background text-foreground">
       {onSignOut ? (
@@ -73,7 +83,7 @@ export function ReplacementOnboardingShell({ icon, eyebrow, title, description, 
                   const active = step === progress.current;
                   const completed = step < progress.current;
                   const canNavigate = step <= (progress.navigableUntil ?? progress.current);
-                  const href = !active && canNavigate ? progressRoutes[step] : undefined;
+                  const href = !active && canNavigate ? (progress.routes ? progress.routes[step - 1] : progressRoutes[step]) : undefined;
                   const className = cn(
                     "h-1.5 rounded-full transition-all",
                     active ? "w-6 bg-foreground" : "w-1.5",
@@ -84,11 +94,15 @@ export function ReplacementOnboardingShell({ icon, eyebrow, title, description, 
             </ol>
           </nav>
         ) : null}
-        {legalFooter ?? <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <a className="hover:text-foreground" href={termsHref(marketingLocale)} rel="noreferrer" target="_blank">{t("shell.terms")}</a>
-          <span aria-hidden="true">·</span>
-          <a className="hover:text-foreground" href={privacyHref(marketingLocale)} rel="noreferrer" target="_blank">{t("shell.privacy")}</a>
-        </div>}
+        {legalFooter}
+        {footerLinks.length ? <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          {footerLinks.map((link, index) => (
+            <Fragment key={link.key}>
+              {index > 0 ? <span aria-hidden="true">·</span> : null}
+              <a className="hover:text-foreground" href={link.href} {...(link.href.startsWith("mailto:") ? {} : { rel: "noreferrer", target: "_blank" })}>{link.label}</a>
+            </Fragment>
+          ))}
+        </div> : null}
       </footer>
     </div>
   );

@@ -35,6 +35,27 @@ export const publicPages: PublicPage[] = [
     markdown: "/pricing.md",
   },
   {
+    path: "/pricing/self-hosted/",
+    title: "Self-Hosted AI Receptionist Pricing and Support",
+    description:
+      "Self-host LobbyStack's AI receptionist free with every feature, or add Premium or Enterprise support for email or Slack help, faster replies and upgrades.",
+    markdown: "/pricing/self-hosted.md",
+  },
+  {
+    path: "/white-label/",
+    title: "Open-source white-label AI receptionist",
+    description:
+      "Resell a white-label AI receptionist under your agency's brand and domain. Bill clients on your own Stripe, share one pool of minutes, and start free.",
+    markdown: "/white-label.md",
+  },
+  {
+    path: "/features/mcp/",
+    title: "AI Receptionist MCP Server for Claude and ChatGPT",
+    description:
+      "Connect Claude, ChatGPT or any MCP client to your LobbyStack AI receptionist. Read calls and messages, book appointments and change your hours from the chat.",
+    markdown: "/features/mcp.md",
+  },
+  {
     path: "/blog/",
     title: "AI Receptionist Blog and Product Updates",
     description:

@@ -2,7 +2,8 @@
   "shell": {
     "signOut": "Déconnexion",
     "terms": "Conditions",
-    "privacy": "Confidentialité"
+    "privacy": "Confidentialité",
+    "support": "Assistance"
   },
   "errors": {
     "tooManyBusinesses": "Vous possédez déjà 10 espaces de travail, la limite pour un compte."
@@ -152,7 +153,10 @@
       "notify": "M'écrire quand ils seront disponibles",
       "joined": "C'est noté. Nous vous écrirons.",
       "continue": "Continuer sans numéro",
-      "failed": "Une erreur est survenue. Réessayez."
+      "failed": "Une erreur est survenue. Réessayez.",
+      "partnerTitle": "Nous ne pouvons pas encore vérifier les téléphones dans ce pays ({{country}}).",
+      "partnerBody": "Vous pouvez terminer la configuration sans téléphone vérifié.",
+      "partnerContinue": "Continuer"
     }
   },
   "greeting": {
@@ -197,6 +201,8 @@
     "searchFailed": "Impossible de rechercher maintenant.",
     "claimFailed": "Impossible de provisionner ce numéro. Réessayez.",
     "claimRateLimited": "Vous avez essayé plusieurs numéros. Attendez un peu avant de réessayer.",
+    "partnerTierRequired": "Le partenaire de cette entreprise doit payer un palier pour ajouter des numéros de téléphone.",
+    "partnerNumbersUnavailable": "Les numéros de téléphone ne sont pas encore disponibles pour cette entreprise.",
     "offerExpired": "Cette offre a expiré. Relancez la recherche et choisissez un numéro.",
     "trialAccountPurchaseLimit": "Ce compte Twilio ne peut pas encore acheter ce numéro. Les comptes d'essai ne peuvent acheter que des numéros admissibles; libérez un numéro existant ou mettez le compte à niveau, puis réessayez.",
     "skipFailed": "Impossible d'ignorer cette étape maintenant. Réessayez.",
@@ -204,7 +210,8 @@
     "unavailable": "Ce numéro vient d'être pris. Choisissez-en un autre.",
     "selectedTitle": "Le numéro de votre IA",
     "selectedNumberLabel": "Numéro sélectionné",
-    "continue": "Continuer"
+    "continue": "Continuer",
+    "numbersUnavailable": "Les numéros de téléphone ne sont pas encore configurés sur ce tableau de bord. Demandez à la personne qui le gère de connecter un fournisseur de téléphonie."
   },
   "attribution": {
     "title": "Comment avez-vous connu {{appName}} ?",
@@ -260,5 +267,12 @@
     "continue": "Continuer",
     "continuing": "Continuer...",
     "continueFailed": "Impossible de continuer maintenant. Réessayez."
+  },
+  "noBusinesses": {
+    "title": "Aucune entreprise ici pour l'instant",
+    "description": "{{appName}} n'a pas encore ajouté {{email}} à une entreprise. Demandez-lui de vous inviter, puis ouvrez le lien de son courriel.",
+    "switchAccount": "Se connecter avec un autre compte",
+    "released": "{{email}} n'a plus d'entreprise sur ce tableau de bord. Une entreprise qui vous appartient est passée à votre propre compte : ouvrez votre tableau de bord pour la gérer.",
+    "openDashboard": "Ouvrir votre tableau de bord"
   }
 }

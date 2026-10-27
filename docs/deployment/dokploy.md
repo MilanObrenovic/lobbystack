@@ -1,6 +1,6 @@
 # Deploy LobbyStack on Dokploy
 
-LobbyStack's production and staging run on Dokploy at `deploy.lobbystack.com`, on one OVH VPS-1 in Virginia with 2 vCores, 4 GB of RAM and a 40 GB disk. Cloudflare proxies every hostname, and the server accepts web traffic from Cloudflare only. Production moved here from Railway on 2026-10-21; the [Dokploy cutover record](../operations/dokploy-cutover-record.md) lists what changed.
+LobbyStack's production and staging run on Dokploy at `deploy.lobbystack.com`, on one OVH VPS in Virginia with 4 vCores and 8 GB of RAM. Cloudflare proxies every hostname, and the server accepts web traffic from Cloudflare only. Production moved here from Railway on 2026-10-21; the [Dokploy cutover record](../operations/dokploy-cutover-record.md) lists what changed.
 
 ## Hostnames
 
@@ -14,6 +14,8 @@ All four hostnames are proxied A records for `40.160.96.129`:
 | `seo.lobbystack.com` | `openseo`, stopped unless you start it |
 
 Traefik on the server holds a Let's Encrypt certificate for each hostname, and the zone's SSL mode is Full. Let's Encrypt renews through Cloudflare with an HTTP challenge, so keep **Always Use HTTPS** off for the `lobbystack.com` zone. Turning it on stops the renewals.
+
+Partners' hostnames reach the same server through the `receptionistportal.com` zone and Cloudflare for SaaS, and a catch-all Traefik route sends them to the production admin. [Serve partners' domains](partner-domains.md) covers that setup.
 
 ## Services
 

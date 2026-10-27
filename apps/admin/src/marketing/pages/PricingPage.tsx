@@ -3,7 +3,7 @@ import { Footer } from "@/marketing/components/Footer"
 import { Navbar } from "@/marketing/components/Navbar"
 import { PricingSection } from "@/marketing/components/PricingSection"
 import { PricingFaqSection } from "@/marketing/components/pricing/PricingFaqSection"
-import { getCopy, getRouteSeo, localeTag, localizePath, type Locale } from "@/marketing/i18n"
+import { getCopy, getRouteSeo, localeTag, localizeHref, localizePath, type Locale } from "@/marketing/i18n"
 import { getPricingFaqs } from "@/marketing/lib/pricing-faqs"
 import {
   absoluteUrl,
@@ -15,11 +15,18 @@ import {
 } from "@/marketing/lib/seo"
 import { PageJsonLd, type MarketingPageSeo } from "@/marketing/seo/page-seo"
 
-const breadcrumbNames: Record<Locale, string> = {
+export const pricingBreadcrumbNames: Record<Locale, string> = {
   en: "Pricing",
   fr: "Tarifs",
   es: "Precios",
   sr: "Cene",
+}
+
+const partnerNote: Record<Locale, { prefix: string; link: string; suffix: string }> = {
+  en: { prefix: "Reselling to your own clients? Compare the ", link: "white-label partner tiers", suffix: "." },
+  fr: { prefix: "Vous revendez à vos propres clients ? Comparez les ", link: "paliers partenaires en marque blanche", suffix: "." },
+  es: { prefix: "¿Revende a sus propios clientes? Compare los ", link: "niveles de socio de marca blanca", suffix: "." },
+  sr: { prefix: "Prodajete svojim klijentima? Uporedite ", link: "white-label partnerske nivoe", suffix: "." },
 }
 
 export function pricingPageSeo(locale: Locale): MarketingPageSeo {
@@ -36,7 +43,7 @@ export function pricingPageSeo(locale: Locale): MarketingPageSeo {
       softwareApplicationJsonLd({ locale }),
       breadcrumbJsonLd([
         { name: copy.common.home, path: localizePath(locale, "/") },
-        { name: breadcrumbNames[locale], path: canonicalPath },
+        { name: pricingBreadcrumbNames[locale], path: canonicalPath },
       ]),
       {
         "@context": "https://schema.org",
@@ -67,6 +74,16 @@ export function PricingPage({ locale }: { locale: Locale }) {
       <Navbar locale={locale} />
       <main id="main-content" tabIndex={-1}>
         <PricingSection locale={locale} />
+        <p className="mx-auto max-w-3xl px-6 text-center text-sm leading-relaxed text-muted-foreground">
+          {partnerNote[locale].prefix}
+          <a
+            href={localizeHref(locale, "/white-label/")}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            {partnerNote[locale].link}
+          </a>
+          {partnerNote[locale].suffix}
+        </p>
         <PricingFaqSection locale={locale} />
         <CtaSection locale={locale} />
       </main>

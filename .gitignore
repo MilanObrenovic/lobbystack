@@ -18,6 +18,7 @@ node_modules
 .firecrawl/
 .prospect-demos/
 .platform-keys/
+.partner-invites/
 **/.next/
 *.tsbuildinfo
 test-results/
@@ -37,3 +38,6 @@ apps/web/vite.tailscale.config.ts
 apps/admin/.marketing-dist
 apps/admin/public/pagefind
 apps/admin/public/marketing-sitemaps
+
+# Local agent tickets and scratch notes; never committed
+.scratch/

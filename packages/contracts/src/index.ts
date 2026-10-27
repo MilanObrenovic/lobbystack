@@ -198,6 +198,10 @@ export type JobQueue = (typeof jobQueues)[number];
 
 export const queueForJobType = {
   "email.send": "default",
+  // An email in a template workers before it didn't know, such as the notes that a partner released or
+  // deleted a business. A worker on the previous release has no queue for it, so its dispatcher retries
+  // the message until a worker that knows the template sends it, instead of sending it blank.
+  "email.sendNotice": "default",
   "sms.send": "critical",
   "appointment.sendChangeOtp": "critical",
   "sms.syncPrice": "critical",
@@ -212,6 +216,17 @@ export const queueForJobType = {
   "billing.reconcile": "default",
   "billing.refreshUnitEconomics": "maintenance",
   "billing.createCheckout": "critical",
+  // A partner's tier: its Polar checkout, then each Polar event for its customer.
+  "billing.createPartnerCheckout": "critical",
+  "billing.reconcilePartner": "default",
+  // Each month of a number a partner holds past its tier's included ones, charged to the partner in Polar.
+  "billing.chargePartnerNumbers": "maintenance",
+  // The hourly clock that pauses a partner's businesses 30 days after its tier ends, and deletes them at 90.
+  "partnerLifecycle.advance": "maintenance",
+  // A partner's own domain: registered with the custom hostname provider, checked until it's active, and removed.
+  "partnerDomain.provision": "default",
+  "partnerDomain.check": "maintenance",
+  "partnerDomain.remove": "maintenance",
   "calendar.syncAppointment": "default",
   "calendar.reconcileBusiness": "default",
   "calendar.deleteEvent": "default",
@@ -228,9 +243,13 @@ export const queueForJobType = {
   "privacy.scrubMessage": "maintenance",
   "privacy.deleteRecording": "maintenance",
   "privacy.cleanupPendingUpload": "maintenance",
+  // The files a deleted business stored.
+  "privacy.deleteStoredObjects": "maintenance",
   "phoneVerification.sendCode": "critical",
   "phoneNumber.provision": "critical",
   "phoneNumber.reclaim": "maintenance",
+  // The numbers a deleted business held, released with the provider.
+  "phoneNumber.releaseDeleted": "maintenance",
   // Moves a number between the receptionist and the forward-or-reject fallback; callers notice a delay.
   "phoneNumber.route": "critical",
   "numberTrial.sweep": "maintenance",

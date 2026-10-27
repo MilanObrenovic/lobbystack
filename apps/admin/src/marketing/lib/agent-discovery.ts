@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import { selfHostedSupportCatalog } from "@lobbystack/shared"
 import { PREFIXED_LOCALES, type Locale } from "@/marketing/i18n/config"
 import {
   DEFAULT_DESCRIPTION,
@@ -25,8 +26,11 @@ export const markdownAlternatePath = (pathname: string) => {
   const localizedMarkdownBasePaths = new Set([
     "/",
     "/features/",
+    "/features/mcp/",
     "/pricing/",
+    "/pricing/self-hosted/",
     "/affiliate-program/",
+    "/white-label/",
     "/missed-call-revenue-calculator/",
     "/blog/",
     "/changelog/",
@@ -36,8 +40,11 @@ export const markdownAlternatePath = (pathname: string) => {
   const alternates: Record<string, string> = {
     "/": "/index.md",
     "/features/": "/features.md",
+    "/features/mcp/": "/features/mcp.md",
     "/pricing/": "/pricing.md",
+    "/pricing/self-hosted/": "/pricing/self-hosted.md",
     "/affiliate-program/": "/affiliate-program.md",
+    "/white-label/": "/white-label.md",
     "/missed-call-revenue-calculator/":
       "/missed-call-revenue-calculator/index.md",
     "/blog/": "/blog.md",
@@ -118,9 +125,24 @@ export const apiCatalog = {
           title: "LobbyStack pricing markdown summary",
         },
         {
+          href: absoluteUrl("/pricing/self-hosted.md"),
+          type: "text/markdown",
+          title: "LobbyStack self-hosted plans markdown summary",
+        },
+        {
           href: absoluteUrl("/affiliate-program.md"),
           type: "text/markdown",
           title: "LobbyStack affiliate program markdown summary",
+        },
+        {
+          href: absoluteUrl("/white-label.md"),
+          type: "text/markdown",
+          title: "LobbyStack white-label partner program markdown summary",
+        },
+        {
+          href: absoluteUrl("/features/mcp.md"),
+          type: "text/markdown",
+          title: "LobbyStack MCP server markdown summary",
         },
         {
           href: absoluteUrl("/missed-call-revenue-calculator/index.md"),
@@ -343,6 +365,57 @@ export const openApiDocument = {
         },
       },
     },
+    "/pricing/self-hosted.md": {
+      get: {
+        summary: "Get the self-hosted plans markdown summary",
+        operationId: "getSelfHostedPricingMarkdown",
+        responses: {
+          "200": {
+            description:
+              "Markdown summary of LobbyStack's self-hosted plans: the free Complete edition and the Premium and Enterprise support plans, with prices and checkout links.",
+            content: {
+              "text/markdown": {
+                schema: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/white-label.md": {
+      get: {
+        summary: "Get the white-label partner program markdown summary",
+        operationId: "getWhiteLabelMarkdown",
+        responses: {
+          "200": {
+            description:
+              "Markdown summary of the LobbyStack partner program: branding, the partner console, packages billed on the partner's Stripe, and partner tiers.",
+            content: {
+              "text/markdown": {
+                schema: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/features/mcp.md": {
+      get: {
+        summary: "Get the MCP server markdown summary",
+        operationId: "getMcpServerMarkdown",
+        responses: {
+          "200": {
+            description:
+              "Markdown summary of the LobbyStack MCP server: the server URL, sign-in and consent, the tools and the scopes they need, and how to connect Claude, ChatGPT and other MCP clients.",
+            content: {
+              "text/markdown": {
+                schema: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
     "/affiliate-program.md": {
       get: {
         summary: "Get the affiliate program markdown summary",
@@ -475,8 +548,23 @@ export const mcpServerCard = {
         mimeType: "text/markdown",
       },
       {
+        uri: absoluteUrl("/pricing/self-hosted.md"),
+        name: "LobbyStack self-hosted plans markdown summary",
+        mimeType: "text/markdown",
+      },
+      {
         uri: absoluteUrl("/affiliate-program.md"),
         name: "LobbyStack affiliate program markdown summary",
+        mimeType: "text/markdown",
+      },
+      {
+        uri: absoluteUrl("/white-label.md"),
+        name: "LobbyStack white-label partner program markdown summary",
+        mimeType: "text/markdown",
+      },
+      {
+        uri: absoluteUrl("/features/mcp.md"),
+        name: "LobbyStack MCP server markdown summary",
         mimeType: "text/markdown",
       },
       {
@@ -507,7 +595,10 @@ Use this skill when an agent needs a concise, machine-readable orientation to Lo
 - LLM context: ${absoluteUrl("/llms.txt")}
 - Features markdown: ${absoluteUrl("/features.md")}
 - Pricing markdown: ${absoluteUrl("/pricing.md")}
+- Self-hosted plans markdown: ${absoluteUrl("/pricing/self-hosted.md")}
 - Affiliate program markdown: ${absoluteUrl("/affiliate-program.md")}
+- White-label program markdown: ${absoluteUrl("/white-label.md")}
+- MCP server markdown: ${absoluteUrl("/features/mcp.md")}
 - Calculator markdown: ${absoluteUrl("/missed-call-revenue-calculator/index.md")}
 - GitHub repository: https://github.com/lobbystack/lobbystack
 
@@ -515,7 +606,7 @@ Use this skill when an agent needs a concise, machine-readable orientation to Lo
 
 1. Start with ${absoluteUrl("/llms.txt")} for a compact product overview.
 2. Use ${absoluteUrl("/.well-known/api-catalog")} to discover public machine-readable resources.
-3. Use ${absoluteUrl("/features.md")}, ${absoluteUrl("/pricing.md")}, and ${absoluteUrl("/affiliate-program.md")} for clean markdown summaries of the public site.
+3. Use ${absoluteUrl("/features.md")}, ${absoluteUrl("/pricing.md")}, ${absoluteUrl("/affiliate-program.md")}, and ${absoluteUrl("/white-label.md")} for clean markdown summaries of the public site.
 4. Use https://docs.lobbystack.com/introduction for product setup and self-hosting documentation.
 5. Use ${absoluteUrl("/pricing/")} for canonical pricing details and ${absoluteUrl("/features/")} for canonical capability descriptions.
 `
@@ -538,6 +629,12 @@ export const agentSkillsIndex = {
   ],
 }
 
+const dollars = (cents: number) => `$${(cents / 100).toLocaleString("en-US")}`
+const supportPrice = (plan: { monthlyChargeCents: number; annualEffectiveMonthlyChargeCents: number }, unit: string) =>
+  `${dollars(plan.monthlyChargeCents)}/${unit} or ${dollars(plan.annualEffectiveMonthlyChargeCents)}/${unit} billed annually`
+const { business: businessSupport, white_label: partnerSupport } = selfHostedSupportCatalog
+const selfHostedPricingSnapshot = `The Complete edition is free under the MIT license and includes every feature. Premium support costs ${supportPrice(businessSupport.premium, "business/month")}; Enterprise support costs ${supportPrice(businessSupport.enterprise, "business/month")}. Agencies running the partner program on their own servers pay one price for all clients: ${supportPrice(partnerSupport.premium, "month")} for Premium support, ${supportPrice(partnerSupport.enterprise, "month")} for Enterprise support.`
+
 export const homepageMarkdown = `---
 title: ${DEFAULT_TITLE}
 description: ${DEFAULT_DESCRIPTION}
@@ -559,11 +656,17 @@ ${DEFAULT_DESCRIPTION}
 
 - Features: ${absoluteUrl("/features/")}
 - Pricing: ${absoluteUrl("/pricing/")}
+- Self-hosted plans: ${absoluteUrl("/pricing/self-hosted/")}
 - Affiliate program: ${absoluteUrl("/affiliate-program/")}
+- White-label partner program: ${absoluteUrl("/white-label/")}
+- MCP server for AI assistants: ${absoluteUrl("/features/mcp/")}
 - Calculator: ${absoluteUrl("/missed-call-revenue-calculator/")}
 - Features markdown: ${absoluteUrl("/features.md")}
 - Pricing markdown: ${absoluteUrl("/pricing.md")}
+- Self-hosted plans markdown: ${absoluteUrl("/pricing/self-hosted.md")}
 - Affiliate program markdown: ${absoluteUrl("/affiliate-program.md")}
+- White-label program markdown: ${absoluteUrl("/white-label.md")}
+- MCP server markdown: ${absoluteUrl("/features/mcp.md")}
 - Calculator markdown: ${absoluteUrl("/missed-call-revenue-calculator/index.md")}
 - Documentation: https://docs.lobbystack.com/introduction
 - API catalog: ${absoluteUrl("/.well-known/api-catalog")}
@@ -579,7 +682,8 @@ ${DEFAULT_DESCRIPTION}
 - Starter overage: $0.20 per voice minute, $0.02 per transfer attempt, and $0.02 per alert SMS segment.
 - Pro overage: $0.18 per voice minute, $0.02 per transfer attempt, and $0.02 per alert SMS segment.
 - Spam calls and calls under 10 seconds are excluded from usage, so they do not count against included voice minutes or paid-plan overages.
-- Enterprise: custom pricing for higher volume, multiple numbers, and self-hosting implementation support.
+- Enterprise: custom pricing for higher volume and multiple numbers.
+- Self-hosted: ${selfHostedPricingSnapshot}
 `
 
 export const featuresMarkdown = `---
@@ -629,7 +733,11 @@ LobbyStack has Free, Starter, Pro, and Enterprise options. Plans scale by usage 
 | Free | $0/month | 30 voice minutes, a phone number free for 14 days, 1 MB knowledge base |
 | Starter | $30/month or $288/year | 150 voice minutes, 20 transfer attempts, 50 alert SMS segments, 5 MB knowledge base |
 | Pro | $100/month or $960/year | 500 voice minutes, 100 transfer attempts, 200 alert SMS segments, 20 MB knowledge base |
-| Enterprise | Custom | Custom volume, multiple numbers, and self-hosting implementation support |
+| Enterprise | Custom | Custom volume and multiple numbers |
+
+## Self-Hosted Plans
+
+${selfHostedPricingSnapshot} See ${absoluteUrl("/pricing/self-hosted/")}.
 
 ## Overage Rates
 
@@ -702,12 +810,12 @@ Agencias, consultores, creadores y operadores que recomiendan herramientas a peq
 
   if (locale === "sr") {
     return `---
-title: LobbyStack partnerski program | Provizija od 20%
-description: Javni pregled LobbyStack partnerskog programa.
+title: LobbyStack program preporuka | Provizija od 20%
+description: Javni pregled LobbyStack programa preporuka.
 url: ${absoluteUrl("/sr/affiliate-program/")}
 ---
 
-# LobbyStack partnerski program
+# LobbyStack program preporuka
 
 Preporučite hostovane LobbyStack pakete klijentima koji plaćaju i zaradite proviziju.
 
@@ -729,7 +837,7 @@ Proviziju zarađujete samo na uplatama za hostovane LobbyStack pakete. Samostaln
 
 ## Kako da počnete
 
-1. Prijavite se i otvorite stranicu partnerskog programa na kontrolnoj tabli.
+1. Prijavite se i otvorite stranicu programa preporuka na kontrolnoj tabli.
 2. Dodajte svoju PayPal e-adresu.
 3. Podelite link sa firmama kojima treba bolje pokrivanje telefona i zakazivanje termina.
 

@@ -13,13 +13,14 @@ import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Turnstile } from "@/components/turnstile";
 import { recordAuthSuccess } from "@/lib/auth-success-analytics";
+import { takeInvitedEmail } from "@/lib/invited-email";
 import { resolveLocale } from "@/lib/locale";
 import { localizePublicPath } from "@/lib/locale-path";
-import { privacyHref, termsHref } from "@/lib/marketing-site-url";
+import { useBrandLinks } from "@/hooks/use-brand-links";
 import { cn } from "@/lib/utils";
 import { captureAffiliateReferralFromUrl, getAffiliateVisitorId } from "@/lib/affiliate-referral";
 
-import { buildAuthPathWithReturnTo, getSafeReturnTo } from "@/lib/auth-return-to";
+import { buildAuthPathWithReturnTo, buildPartnerAuthPath, getSafeReturnTo } from "@/lib/auth-return-to";
 import googleIcon from "@iconify-icons/logos/google-icon";
 import { Icon } from "@iconify/react/offline";
 
@@ -27,24 +28,31 @@ function GoogleLogo() {
   return <Icon aria-hidden="true" icon={googleIcon} id="google-logo" ssr />;
 }
 
-export function AuthCard({ mode, google = false }: { mode: "login" | "signup"; google?: boolean }) {
+/** White Label's own sign-in and sign-up: they link to each other and land back in the partner console. */
+export type PartnerAuth = { returnTo: string };
+
+export function AuthCard({ mode, google = false, partner }: { mode: "login" | "signup"; google?: boolean; partner?: PartnerAuth | undefined }) {
   const router = useRouter();
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const { t, i18n } = useTranslation("auth");
   const authLocale = resolveLocale(i18n.resolvedLanguage, i18n.language);
+  const links = useBrandLinks(authLocale);
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const [signupSource, setSignupSource] = useState<"calculator" | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setReturnTo(getSafeReturnTo(params.get("returnTo")));
+    setReturnTo(getSafeReturnTo(params.get("returnTo")) ?? partner?.returnTo ?? null);
     setSignupSource(params.get("source") === "calculator" ? "calculator" : null);
     // Better Auth sends a failed Google sign-in back here with ?error=.
     const googleFailure = params.get("error");
     if (googleFailure) setGoogleError(googleFailure === "account_not_linked" ? "errors.googleAccountNotLinked" : "errors.googleFailed");
-  }, []);
+  }, [partner?.returnTo]);
+  // A White Label visitor who resets their password comes back to the partner console, not the dashboard.
+  const forgotPasswordPath = partner ? `${localizePublicPath("/forgot-password", authLocale)}?returnTo=${encodeURIComponent(getSafeReturnTo(returnTo) ?? partner.returnTo)}` : localizePublicPath("/forgot-password", authLocale);
   function authPath(path: "/login" | "/signup") {
+    if (partner) return buildPartnerAuthPath(path, returnTo);
     const target = buildAuthPathWithReturnTo(path, returnTo, authLocale);
     return signupSource ? `${target}${target.includes("?") ? "&" : "?"}source=${signupSource}` : target;
   }
@@ -82,6 +90,12 @@ export function AuthCard({ mode, google = false }: { mode: "login" | "signup"; g
     void continueWithGoogle();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on arrival
   }, [google]);
+
+  // An invitation's accept page leaves the address it was sent to.
+  useEffect(() => {
+    const invited = takeInvitedEmail();
+    if (invited) setEmail((current) => current || invited);
+  }, []);
 
   useEffect(() => {
     if (mode !== "login") return;
@@ -185,7 +199,7 @@ export function AuthCard({ mode, google = false }: { mode: "login" | "signup"; g
   function finishAuthentication() {
     const event = login ? "web.auth.login_succeeded" : "web.auth.signup_succeeded";
     recordAuthSuccess(event, { method: "email", ...(signupSource ? { source: signupSource } : {}) });
-    const safeReturnTo = getSafeReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? "/";
+    const safeReturnTo = getSafeReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? partner?.returnTo ?? "/";
     const target = new URL(safeReturnTo, window.location.origin);
     window.location.assign(target.origin === window.location.origin ? `${target.pathname}${target.search}${target.hash}` : "/");
   }
@@ -308,7 +322,7 @@ export function AuthCard({ mode, google = false }: { mode: "login" | "signup"; g
             <Button className="h-11 w-full" disabled={verificationLoading || Boolean(resendChallengeRequired && turnstileSiteKey && !resendTurnstileToken)} loading={resendLoading} loadingLabel={t("verifyEmail.resending")} onClick={() => void resendVerificationCode()} type="button" variant="outline">{t("verifyEmail.resend")}</Button>
           </FieldGroup>
         </form>
-        {!login ? <p className="text-center text-sm text-muted-foreground">{t("verifyEmail.existingAccountHelp")} <Link className="font-medium text-foreground underline-offset-4 hover:underline" href={authPath("/login")}>{t("signup.signIn")}</Link> {t("verifyEmail.or")} <Link className="font-medium text-foreground underline-offset-4 hover:underline" href={localizePublicPath("/forgot-password", authLocale)}>{t("verifyEmail.resetPassword")}</Link>.</p> : null}
+        {!login ? <p className="text-center text-sm text-muted-foreground">{t("verifyEmail.existingAccountHelp")} <Link className="font-medium text-foreground underline-offset-4 hover:underline" href={authPath("/login")}>{t("signup.signIn")}</Link> {t("verifyEmail.or")} <Link className="font-medium text-foreground underline-offset-4 hover:underline" href={forgotPasswordPath}>{t("verifyEmail.resetPassword")}</Link>.</p> : null}
         <button disabled={verificationLoading} className="text-center text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setVerificationPending(false); setVerificationCode(""); setVerificationError(null); setResendStatus(null); }} type="button">{t("verifyEmail.useDifferentEmail")}</button>
       </div>
     </ReplacementOnboardingShell>
@@ -324,18 +338,18 @@ export function AuthCard({ mode, google = false }: { mode: "login" | "signup"; g
   const passwordError = submitted && !password ? "passwordRequired" : null;
   const passwordInvalid = Boolean(passwordError) || (submitted && Boolean(password) && isPasswordWeak);
   const invalidInputClassName = "border-destructive text-destructive focus-visible:border-destructive focus-visible:ring-destructive/20";
-  const marketingLocale = resolveLocale(i18n.resolvedLanguage, i18n.language);
-  const legalFooter = (
+  // A partner that left out its terms or privacy page gets no agreement line.
+  const legalFooter = links.terms && links.privacy ? (
     <p className="max-w-full text-center text-xs leading-5 text-muted-foreground sm:whitespace-nowrap">
       {login ? t("login.legalPrefix") : t("signup.legal.prefix")} {" "}
-      <a className="underline underline-offset-4 hover:text-foreground" href={termsHref(marketingLocale)} rel="noreferrer" target="_blank">{t("signup.legal.terms")}</a>{" "}
+      <a className="underline underline-offset-4 hover:text-foreground" href={links.terms} rel="noreferrer" target="_blank">{t("signup.legal.terms")}</a>{" "}
       {t("signup.legal.and")} {" "}
-      <a className="underline underline-offset-4 hover:text-foreground" href={privacyHref(marketingLocale)} rel="noreferrer" target="_blank">{t("signup.legal.privacy")}</a>
+      <a className="underline underline-offset-4 hover:text-foreground" href={links.privacy} rel="noreferrer" target="_blank">{t("signup.legal.privacy")}</a>
       {t("signup.legal.suffix")}
     </p>
-  );
+  ) : undefined;
   return (
-    <ReplacementOnboardingShell legalFooter={legalFooter} progress={login ? null : { current: 1, total: 9 }} title={login ? t("login.title") : t("signup.title")} width="sm">
+    <ReplacementOnboardingShell {...(partner ? { eyebrow: t("partner.eyebrow") } : {})} legalFooter={legalFooter} progress={login || partner ? null : { current: 1, total: 9 }} title={login ? t("login.title") : t("signup.title")} width="sm">
       <div className="flex w-full flex-col gap-6">
         {google ? <>
           <div className="flex flex-col gap-2">
@@ -348,7 +362,7 @@ export function AuthCard({ mode, google = false }: { mode: "login" | "signup"; g
           <FieldGroup className="gap-4">
             <Field data-invalid={emailError ? true : undefined}><FieldLabel htmlFor="auth-email">{login ? t("login.email") : t("signup.email")}</FieldLabel><Input aria-describedby={emailError ? "auth-email-error" : undefined} aria-invalid={emailError ? true : undefined} autoComplete="email" className={cn("h-11", emailError && invalidInputClassName)} id="auth-email" onBlur={() => setHasBlurredEmail(true)} onChange={(event) => { setHasBlurredEmail(false); setEmail(event.target.value); }} placeholder={login ? t("login.emailPlaceholder") : t("signup.emailPlaceholder")} ref={emailInputRef} required type="email" value={email} />{emailError ? <FieldError className="flex items-center gap-2 font-medium" id="auth-email-error"><TriangleAlert className="size-4 shrink-0" aria-hidden="true" /><span>{t(`${login ? "login" : "signup"}.${emailError}`)}</span></FieldError> : null}</Field>
             <Field data-invalid={passwordInvalid ? true : undefined}>
-              <div className="flex items-center justify-between gap-3"><FieldLabel htmlFor="auth-password">{login ? t("login.password") : t("signup.password")}</FieldLabel>{login ? <Link className="text-xs font-medium text-muted-foreground hover:text-foreground" href={localizePublicPath("/forgot-password", authLocale)}>{t("login.forgotPassword")}</Link> : null}</div>
+              <div className="flex items-center justify-between gap-3"><FieldLabel htmlFor="auth-password">{login ? t("login.password") : t("signup.password")}</FieldLabel>{login ? <Link className="text-xs font-medium text-muted-foreground hover:text-foreground" href={forgotPasswordPath}>{t("login.forgotPassword")}</Link> : null}</div>
               <Input aria-describedby={passwordError ? "auth-password-error" : passwordInvalid ? "auth-password-criteria" : undefined} aria-invalid={passwordInvalid ? true : undefined} autoComplete={login ? "current-password" : "new-password"} className={cn("h-11", passwordInvalid && invalidInputClassName)} id="auth-password" minLength={8} onChange={(event) => setPassword(event.target.value)} onFocus={() => setHasFocusedPassword(true)} placeholder={login ? t("login.passwordPlaceholder") : t("signup.passwordPlaceholder")} ref={passwordInputRef} required type="password" value={password} />
               {passwordError ? <FieldError className="flex items-center gap-2 font-medium" id="auth-password-error"><TriangleAlert className="size-4 shrink-0" aria-hidden="true" /><span>{t(`${login ? "login" : "signup"}.${passwordError}`)}</span></FieldError> : null}
               {!login && hasFocusedPassword ? <ul aria-live="polite" className="flex flex-col gap-1 pt-0.5 text-sm font-medium" id="auth-password-criteria">{passwordCriteria.map((criterion) => <li className={cn("flex items-center gap-2", criterion.isMet ? "text-emerald-700" : passwordInvalid ? "text-destructive" : "text-muted-foreground")} key={criterion.label}><span aria-hidden="true" className="w-3 text-center">{criterion.isMet ? "✓" : "×"}</span><span>{criterion.label}</span></li>)}</ul> : null}

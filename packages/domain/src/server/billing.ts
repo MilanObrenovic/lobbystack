@@ -1,15 +1,19 @@
-import { and, desc, eq, gt, inArray, like, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, like, lt, or, sql } from "drizzle-orm";
 
-import { billingAccounts, billingCheckoutRequests, billingTransactions, billingUsageEvents, businesses, enqueueOutbox, providerEvents, users, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
-import { billingErrorCodes, billingPlanCatalog, DEFAULT_WEB_CALL_MAX_DURATION_MS, isPaidSubscription, liveSubscriptionStates, MAX_WEB_CALL_MAX_DURATION_MS, type BillingPlanSlug } from "@lobbystack/shared";
+import { billingAccounts, billingCheckoutRequests, billingTransactions, billingUsageEvents, businesses, enqueueOutbox, partnerBillingAccounts, providerEvents, users, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
+import { billingErrorCodes, DEFAULT_WEB_CALL_MAX_DURATION_MS, hasLiveEntitlement, liveSubscriptionStates, MAX_WEB_CALL_MAX_DURATION_MS, type BillingPlanSlug } from "@lobbystack/shared";
 import { getPostHogDistinctIdForBusinessSystem } from "@lobbystack/telemetry";
 
 import type { DomainContext } from "./context";
 import { recordAffiliateCommissionInTransaction } from "./affiliates";
+import { requireBusinessCapability } from "./businessAccess";
+import { loadEntitlement } from "./entitlement";
 import { keepBusinessNumbersInTransaction, queuePlanCancelNoticeInTransaction, scheduleNumberReleaseInTransaction } from "./numberTrials";
+import { poolLeft, readPartnerPoolInTransaction } from "./partnerPool";
+import { subscriptionEventEffect } from "./polarSubscriptions";
 import { recordProductEventInTransaction } from "./productEvents";
 import { requireBusinessAdmin } from "../authz";
-import { correctUsageInTransaction, enqueueUsageSyncInTransaction, getUsageStatusInTransaction, getVoiceSecondsLeftInTransaction, loadBillingContext, readUsageStatusInTransaction, readVoiceSecondsLeftInTransaction, reserveUsageInTransaction } from "./usage";
+import { correctUsageInTransaction, enqueueUsageSyncInTransaction, getUsageStatusInTransaction, getVoiceSecondsLeftInTransaction, loadBillingContext, periodKeyFor, readUsageStatusInTransaction, readVoiceSecondsLeftInTransaction, reserveUsageInTransaction } from "./usage";
 
 export type BillingCheckoutTarget = "starter" | "pro";
 export type BillingInterval = "monthly" | "annual";
@@ -48,9 +52,11 @@ export async function reserveWebVoiceUsageInTransaction(
   tx: DatabaseTransaction,
   input: { businessId: string; callId: string; maxDurationMs?: number },
 ): Promise<WebVoiceBillingAllowance> {
-  const allowance = webVoiceBillingAllowance(await getVoiceSecondsLeftInTransaction(tx, { businessId: input.businessId }), input.maxDurationMs);
+  const left = await getVoiceSecondsLeftInTransaction(tx, { businessId: input.businessId });
+  const allowance = webVoiceBillingAllowance(left, input.maxDurationMs);
   if (!allowance.allowed) return allowance;
-  if (allowance.plan === "self_host") return allowance;
+  // A self-hosted server has no limit to reserve against.
+  if (left.entitlement.source === "unlimited") return allowance;
   const reservation = await reserveUsageInTransaction(tx, { businessId: input.businessId, usageKind: "voice_seconds", sourceKey: `voice:${input.callId}`, quantity: allowance.maxDurationMs / 1_000 });
   if (!reservation.allowed) {
     return { allowed: false, errorCode: billingErrorCodes.voiceLimitReached, maxDurationMs: 0, plan: allowance.plan };
@@ -81,13 +87,12 @@ export async function getWidgetChatAllowance(
   return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
     // Decides whether to offer the chat without writing; each chat's reservation counts again.
     const status = await readUsageStatusInTransaction(tx, { businessId: input.businessId });
-    const entitlement = billingPlanCatalog[status.plan];
-    if (entitlement.chatAiTokensIncluded === null || entitlement.overagesBillable) {
-      return { allowed: true, errorCode: null, plan: status.plan };
-    }
-    if (status.chatAiBlocked || Math.max(0, entitlement.chatAiTokensIncluded - status.chatAiTokensUsed) < 1) {
-      return { allowed: false, errorCode: billingErrorCodes.chatAiLimitReached, plan: status.plan };
-    }
+    const { allowance, overage, poolPartnerId } = await loadEntitlement(tx, input.businessId);
+    const refused = { allowed: false, errorCode: billingErrorCodes.chatAiLimitReached, plan: status.plan };
+    // Past its allowance, a chat needs overage, and room under the cap when a package prices it.
+    if (allowance.chats !== null && (status.chatAiBlocked || (!overage.enabled && Math.max(0, allowance.chats - status.chatAiTokensUsed) < 1))) return refused;
+    // A partner's business also needs a chat left in its partner's pool: its tier's, or the one its host set.
+    if (poolPartnerId && poolLeft(await readPartnerPoolInTransaction(tx, { partnerId: poolPartnerId, periodKey: periodKeyFor() }), "chat_ai_tokens") < 1) return refused;
     return { allowed: true, errorCode: null, plan: status.plan };
   });
 }
@@ -96,10 +101,13 @@ export async function reserveWidgetChatUsageInTransaction(
   tx: DatabaseTransaction,
   input: { businessId: string; conversationId: string },
 ): Promise<WidgetChatBillingAllowance> {
-  const { plan } = await loadBillingContext(tx, input.businessId);
-  if (billingPlanCatalog[plan].chatAiTokensIncluded !== null) {
+  const { plan, entitlement } = await loadBillingContext(tx, input.businessId);
+  // A partner's business counts its chats with no allowance too: they draw on its partner's pool, and the console shows them.
+  if (entitlement.allowance.chats !== null || entitlement.poolPartnerId !== null) {
     const reservation = await reserveUsageInTransaction(tx, { businessId: input.businessId, usageKind: "chat_ai_tokens", sourceKey: `chat:${input.conversationId}`, quantity: 1 });
     if (!reservation.allowed) return { allowed: false, errorCode: billingErrorCodes.chatAiLimitReached, plan };
+    // A chat past the partner's pool is overage the partner pays for, which syncs to Polar.
+    if (entitlement.poolPartnerId !== null && reservation.syncNeeded && reservation.usageEventId) await enqueueUsageSyncInTransaction(tx, { businessId: input.businessId, usageEventId: reservation.usageEventId });
   }
   return { allowed: true, errorCode: null, plan };
 }
@@ -137,9 +145,11 @@ export async function createBillingCheckoutRequestInTransaction(
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`billing-checkout:${input.businessId}`}, 0))`);
   // The lock a managed plan takes, so a checkout and a managed plan can't both start at once.
   await lockBillingAccount(tx, input.businessId);
+  // A partner's business pays its partner, never the host through Polar.
+  await requireBusinessCapability(tx, { businessId: input.businessId, capability: "billing" });
   const account = (await tx.select({ source: billingAccounts.source, plan: billingAccounts.plan, subscriptionState: billingAccounts.subscriptionState }).from(billingAccounts).where(eq(billingAccounts.businessId, input.businessId)).limit(1))[0];
   if (isManagedBillingAccount(account)) throw Object.assign(new Error("This business is on a managed plan, so LobbyStack bills it directly."), { status: 409 });
-  if (isPaidSubscription(account?.plan, account?.subscriptionState)) {
+  if ((await loadEntitlement(tx, input.businessId)).live) {
     throw Object.assign(new Error("This workspace already has a paid plan. Change it from Manage subscription."), { status: 409, code: billingErrorCodes.subscriptionActive });
   }
   const open = (await tx.select({ id: billingCheckoutRequests.id, requestedByUserId: billingCheckoutRequests.requestedByUserId, target: billingCheckoutRequests.target, billingInterval: billingCheckoutRequests.billingInterval })
@@ -201,10 +211,13 @@ async function lockBillingAccount(tx: DatabaseTransaction, businessId: string): 
  * paid plan unlocks while the operator bills the business directly. A business
  * with a live Polar subscription, for any product, is refused, so no one pays
  * twice. A spending cap left from an earlier Starter or Pro plan is cleared,
- * because on enterprise a cap leaves calls nothing to reserve. Callers check
- * that an operator asked.
+ * because on enterprise a cap leaves calls nothing to reserve. A partner's
+ * business is refused too: its partner bills it, and the host bills the
+ * partner for its tier. Callers check that an operator asked.
  */
-export async function setManagedPlanInTransaction(tx: DatabaseTransaction, input: { businessId: string }): Promise<"set" | "unchanged" | "paid_through_polar"> {
+export async function setManagedPlanInTransaction(tx: DatabaseTransaction, input: { businessId: string }): Promise<"set" | "unchanged" | "paid_through_polar" | "partner_business"> {
+  const [business] = await tx.select({ partnerId: businesses.partnerId }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1);
+  if (business?.partnerId) return "partner_business";
   await lockBillingAccount(tx, input.businessId);
   const [account] = await tx.select({ source: billingAccounts.source, plan: billingAccounts.plan, subscriptionState: billingAccounts.subscriptionState, overageSpendingCapCents: billingAccounts.overageSpendingCapCents }).from(billingAccounts).where(eq(billingAccounts.businessId, input.businessId)).limit(1);
   if (isManagedBillingAccount(account) && account?.plan === "enterprise" && account.overageSpendingCapCents === null) return "unchanged";
@@ -357,6 +370,8 @@ export async function setOverageSpendingCap(
 ): Promise<{ overageSpendingCapCents: number | null; overageSpendCents: number; overageSpendingCapReached: boolean }> {
   return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
     await requireBusinessAdmin(tx, input);
+    // A partner's business has no billing with the host, whatever route asked.
+    await requireBusinessCapability(tx, { businessId: input.businessId, capability: "billing" });
     return await setOverageSpendingCapInTransaction(tx, input);
   });
 }
@@ -456,6 +471,50 @@ export async function loadBillingUsageEvent(
   });
 }
 
+/**
+ * A usage event that drew on a partner's pool, as the worker reports its
+ * overage to Polar: what the event put past the pool and what that costs at
+ * the tier's rates, under the partner's customer. The business pays the host
+ * nothing, so the event syncs nothing else. Null for usage on no pool.
+ */
+export async function loadPoolUsageEvent(
+  context: DomainContext,
+  input: { businessId: string; usageEventId: string },
+): Promise<{
+  id: string;
+  businessId: string;
+  usageKind: string;
+  isFinal: boolean;
+  syncStatus: string;
+  createdAt: Date;
+  partnerId: string;
+  overageQuantity: number;
+  overageCents: number;
+  /** The partner's Polar customer, or null when Polar never billed it. */
+  customerId: string | null;
+} | null> {
+  return await withBusinessTransaction(context.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
+    const [row] = await tx.select({
+      id: billingUsageEvents.id,
+      businessId: billingUsageEvents.businessId,
+      usageKind: billingUsageEvents.usageKind,
+      isFinal: billingUsageEvents.isFinal,
+      syncStatus: billingUsageEvents.syncStatus,
+      createdAt: billingUsageEvents.createdAt,
+      partnerId: billingUsageEvents.poolPartnerId,
+      overageQuantity: billingUsageEvents.poolOverageQuantity,
+      overageCents: billingUsageEvents.poolOverageCents,
+      customerId: partnerBillingAccounts.customerId,
+    })
+      .from(billingUsageEvents)
+      .leftJoin(partnerBillingAccounts, eq(partnerBillingAccounts.partnerId, billingUsageEvents.poolPartnerId))
+      .where(and(eq(billingUsageEvents.id, input.usageEventId), eq(billingUsageEvents.businessId, input.businessId), isNotNull(billingUsageEvents.poolPartnerId)))
+      .limit(1);
+    if (!row?.partnerId) return null;
+    return { ...row, partnerId: row.partnerId, overageQuantity: row.overageQuantity ?? 0, overageCents: row.overageCents ?? 0 };
+  });
+}
+
 export async function markBillingUsageSynced(
   context: DomainContext,
   input: { businessId: string; usageEventId: string },
@@ -518,8 +577,11 @@ function dateField(source: Record<string, unknown>, ...keys: string[]): Date | u
  * subscription active until then, so only its newest snapshot says so.
  */
 export async function scheduledSubscriptionEndInTransaction(tx: DatabaseTransaction, businessId: string): Promise<string | null> {
+  // The customer may hold other subscriptions, so only the plan's own subscription says when the plan ends.
+  const subscriptionId = (await tx.select({ subscriptionId: billingAccounts.subscriptionId }).from(billingAccounts).where(eq(billingAccounts.businessId, businessId)).limit(1))[0]?.subscriptionId;
+  if (!subscriptionId) return null;
   const latest = (await tx.select({ payload: providerEvents.payload }).from(providerEvents)
-    .where(and(eq(providerEvents.businessId, businessId), eq(providerEvents.provider, "polar"), like(providerEvents.eventType, "subscription.%"), eq(providerEvents.status, "processed")))
+    .where(and(eq(providerEvents.businessId, businessId), eq(providerEvents.provider, "polar"), like(providerEvents.eventType, "subscription.%"), eq(providerEvents.status, "processed"), sql`${providerEvents.payload}->>'subscriptionId' = ${subscriptionId}`))
     .orderBy(sql`${providerEvents.payload}->>'subscriptionModifiedAt' desc nulls last`, desc(providerEvents.createdAt))
     .limit(1))[0]?.payload;
   if (latest?.cancel_at_period_end !== true || !["active", "trialing"].includes(String(latest.status))) return null;
@@ -537,8 +599,8 @@ export function detectSubscriptionStart(
   previous: { plan: string | null; subscriptionState: string | null } | undefined,
   next: { plan: string | null; subscriptionState: string | null; billingInterval: string | null },
 ): SubscriptionStart | null {
-  if (!isPaidSubscription(next.plan, next.subscriptionState)) return null;
-  if (isPaidSubscription(previous?.plan ?? null, previous?.subscriptionState ?? null)) return null;
+  if (!hasLiveEntitlement(next)) return null;
+  if (hasLiveEntitlement(previous)) return null;
   return { plan: next.plan!, billingInterval: next.billingInterval, previousPlan: previous?.plan ?? null };
 }
 
@@ -576,7 +638,9 @@ export async function reconcileBillingProviderEvent(
     const billingKey = stringField(transactionPayload, "billingKey", "externalCustomerId", "customerId") ?? stringField(payload, "billingKey", "externalCustomerId", "customerId") ?? stringField(customer, "id", "externalId") ?? existing?.billingKey;
     if (billingKey) {
       const customerId = stringField(transactionPayload, "customerId", "externalCustomerId") ?? stringField(payload, "customerId", "externalCustomerId") ?? stringField(customer, "id", "externalId") ?? existing?.customerId;
-      const subscriptionId = stringField(transactionPayload, "subscriptionId", "subscription_id") ?? stringField(payload, "subscriptionId", "subscription_id") ?? stringField(subscription, "id") ?? existing?.subscriptionId;
+      // The subscription this event is about, if it names one. The account's own stays in existing.
+      const eventSubscriptionId = stringField(transactionPayload, "subscriptionId", "subscription_id") ?? stringField(payload, "subscriptionId", "subscription_id") ?? stringField(subscription, "id");
+      const subscriptionId = eventSubscriptionId ?? existing?.subscriptionId;
       // An unmapped product (a retired or legacy product id) keeps the stored plan rather than a display name.
       const plan = stringField(transactionPayload, "plan") ?? stringField(payload, "plan");
       const billingInterval = stringField(transactionPayload, "billingInterval", "billing_interval", "interval") ?? stringField(payload, "billingInterval", "billing_interval", "interval") ?? stringField(subscription, "billingInterval", "billing_interval", "interval");
@@ -585,11 +649,39 @@ export async function reconcileBillingProviderEvent(
       const subscriptionState = stringField(transactionPayload, "subscriptionState") ?? stringField(payload, "subscriptionState") ?? (event.eventType.startsWith("subscription.") ? stringField(payload, "status") ?? event.eventType.slice("subscription.".length) : undefined);
       const currentPeriodStart = dateField(transactionPayload, "currentPeriodStart", "current_period_start") ?? dateField(payload, "currentPeriodStart", "current_period_start") ?? dateField(subscription, "currentPeriodStart", "current_period_start");
       const currentPeriodEnd = dateField(transactionPayload, "currentPeriodEnd", "current_period_end") ?? dateField(payload, "currentPeriodEnd", "current_period_end") ?? dateField(subscription, "currentPeriodEnd", "current_period_end");
+      // One Polar customer can hold several subscriptions, so the event changes the plan only
+      // when it's about the subscription the account stores, or a live plan that replaces it.
+      // A support plan, or a product from the other catalog, sells this account nothing.
+      const sellsNothing = payload.selfHostedSupport === true || payload.foreignProduct === true;
+      const effect = subscriptionEventEffect({
+        storedSubscriptionId: existing?.subscriptionId,
+        eventSubscriptionId,
+        sellsNothing,
+        startsLivePlan: (plan === "starter" || plan === "pro") && isLiveSubscriptionState(subscriptionState),
+      });
+      // A support plan this account doesn't follow is someone's purchase of support, not a payment for the business.
+      if (sellsNothing && effect === "ignore") {
+        await tx.update(providerEvents).set({ status: "ignored", updatedAt: new Date() }).where(eq(providerEvents.id, event.id));
+        return { reconciled: false, started: null };
+      }
+      // The plan's own subscription now sells support, so the hosted plan ends with it.
+      const ends = effect === "end";
+      const appliedPlan = ends ? undefined : plan;
+      const appliedInterval = ends ? undefined : billingInterval;
+      const appliedState = ends ? "canceled" : subscriptionState;
+      const appliedPeriodStart = ends ? undefined : currentPeriodStart;
+      const appliedPeriodEnd = ends ? undefined : currentPeriodEnd;
       // A Polar retry or replay can arrive after a newer snapshot of the subscription was applied.
+      // Only the same subscription's snapshots count: another of the customer's subscriptions is no newer copy of this one.
       // Both sides are normalized ISO strings (polar-event.ts), so text order is time order.
       const modifiedAt = stringField(payload, "subscriptionModifiedAt");
       const stale = modifiedAt !== undefined && (await tx.select({ id: providerEvents.id }).from(providerEvents)
-        .where(and(eq(providerEvents.businessId, input.businessId), eq(providerEvents.status, "processed"), sql`${providerEvents.payload}->>'subscriptionModifiedAt' > ${modifiedAt}`))
+        .where(and(
+          eq(providerEvents.businessId, input.businessId),
+          eq(providerEvents.status, "processed"),
+          sql`${providerEvents.payload}->>'subscriptionModifiedAt' > ${modifiedAt}`,
+          ...(eventSubscriptionId ? [sql`${providerEvents.payload}->>'subscriptionId' = ${eventSubscriptionId}`] : []),
+        ))
         .limit(1)).length > 0;
       // An account whose plan the operator managed, now or before, changes only when the business
       // starts a live Starter or Pro subscription in Polar, which then takes over. Every other event,
@@ -597,22 +689,24 @@ export async function reconcileBillingProviderEvent(
       // map to a plan, leaves the account as the operator set it: a live managed plan stays live,
       // and an ended one keeps its enterprise plan from turning live again without a price.
       const managedSource = existing?.source === MANAGED_BILLING_SOURCE;
-      const takesOver = managedSource && (plan === "starter" || plan === "pro") && isLiveSubscriptionState(subscriptionState);
+      const takesOver = managedSource && (appliedPlan === "starter" || appliedPlan === "pro") && isLiveSubscriptionState(appliedState);
       const keepsManagedPlan = managedSource && !takesOver;
-      const subscriptionFields = stale || keepsManagedPlan ? {} : {
+      // Another of the customer's subscriptions leaves the plan as it is; its orders are still recorded below.
+      const leavesPlan = stale || keepsManagedPlan || effect === "ignore";
+      const subscriptionFields = leavesPlan ? {} : {
         ...(takesOver ? { source: "polar" } : {}),
         ...(subscriptionId ? { subscriptionId } : {}),
-        ...(plan ? { plan } : {}),
-        ...(billingInterval ? { billingInterval } : {}),
-        ...(subscriptionState ? { subscriptionState } : {}),
-        ...(currentPeriodStart ? { currentPeriodStart } : {}),
-        ...(currentPeriodEnd ? { currentPeriodEnd } : {}),
+        ...(appliedPlan ? { plan: appliedPlan } : {}),
+        ...(appliedInterval ? { billingInterval: appliedInterval } : {}),
+        ...(appliedState ? { subscriptionState: appliedState } : {}),
+        ...(appliedPeriodStart ? { currentPeriodStart: appliedPeriodStart } : {}),
+        ...(appliedPeriodEnd ? { currentPeriodEnd: appliedPeriodEnd } : {}),
       };
       // A takeover starts a Polar subscription even though the managed plan already counted as paid.
-      startedSubscription = stale || keepsManagedPlan ? null : detectSubscriptionStart(takesOver ? { plan: existing?.plan ?? null, subscriptionState: null } : existing, {
-        plan: plan ?? existing?.plan ?? null,
-        subscriptionState: subscriptionState ?? existing?.subscriptionState ?? null,
-        billingInterval: billingInterval ?? existing?.billingInterval ?? null,
+      startedSubscription = leavesPlan ? null : detectSubscriptionStart(takesOver ? { plan: existing?.plan ?? null, subscriptionState: null } : existing, {
+        plan: appliedPlan ?? existing?.plan ?? null,
+        subscriptionState: appliedState ?? existing?.subscriptionState ?? null,
+        billingInterval: appliedInterval ?? existing?.billingInterval ?? null,
       });
       await tx.insert(billingAccounts).values({
         businessId: input.businessId,
@@ -629,20 +723,21 @@ export async function reconcileBillingProviderEvent(
         },
       });
       // A managed plan the event left alone keeps its numbers as they are.
-      if (!stale && !keepsManagedPlan) {
+      if (!leavesPlan) {
         // A live paid plan keeps the business's numbers, including a trial number.
         // When a paid plan ends, the numbers stay 30 more days, then go.
-        const wasPaid = isPaidSubscription(existing?.plan ?? null, existing?.subscriptionState ?? null);
-        const isPaid = isPaidSubscription(plan ?? existing?.plan ?? null, subscriptionState ?? existing?.subscriptionState ?? null);
+        const wasPaid = hasLiveEntitlement(existing);
+        const isPaid = hasLiveEntitlement({ plan: appliedPlan ?? existing?.plan ?? null, subscriptionState: appliedState ?? existing?.subscriptionState ?? null });
         if (isPaid) await keepBusinessNumbersInTransaction(tx, { businessId: input.businessId });
         else if (wasPaid) await scheduleNumberReleaseInTransaction(tx, { businessId: input.businessId });
         // Polar sends subscription.canceled when the owner cancels at the end of the period, while the plan is still live.
-        if (isPaid && event.eventType === "subscription.canceled" && currentPeriodEnd) await queuePlanCancelNoticeInTransaction(tx, { businessId: input.businessId, periodEnd: currentPeriodEnd });
+        if (isPaid && event.eventType === "subscription.canceled" && appliedPeriodEnd) await queuePlanCancelNoticeInTransaction(tx, { businessId: input.businessId, periodEnd: appliedPeriodEnd });
       }
     }
 
     // Refunds arrive as order.refunded (refund.* payloads name no business, so the webhook route drops them).
-    const transactionKind = event.eventType.startsWith("order.") ? "order" : undefined;
+    // A support plan's orders pay for support, so they're no hosted payment and earn no commission.
+    const transactionKind = event.eventType.startsWith("order.") && payload.selfHostedSupport !== true ? "order" : undefined;
     const sourceId = stringField(transactionPayload, "id", "orderId") ?? stringField(payload, "id", "orderId") ?? event.providerEventId;
     const amountCents = numberField(transactionPayload, "totalAmount", "total_amount", "amountCents", "amount") ?? numberField(payload, "totalAmount", "total_amount", "amountCents", "amount");
     const currency = stringField(transactionPayload, "currency") ?? stringField(payload, "currency");

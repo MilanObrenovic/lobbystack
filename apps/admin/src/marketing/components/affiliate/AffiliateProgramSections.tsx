@@ -1,3 +1,4 @@
+import { eyebrow } from "@/marketing/lib/eyebrows"
 import { buttonVariants } from "@/marketing/components/ui/button"
 import {
   Card,
@@ -90,6 +91,11 @@ const copy = {
             local business growth, or missed-call recovery
           </>,
         ],
+        whiteLabel: {
+          prefix: "To sell LobbyStack under your own brand, see the ",
+          link: "white-label partner program",
+          suffix: ".",
+        },
       },
     },
     guidelines: {
@@ -196,6 +202,11 @@ const copy = {
             d'appels manqués
           </>,
         ],
+        whiteLabel: {
+          prefix: "Pour vendre LobbyStack sous votre propre marque, consultez le ",
+          link: "programme partenaire en marque blanche",
+          suffix: ".",
+        },
       },
     },
     guidelines: {
@@ -302,6 +313,11 @@ const copy = {
             de llamadas perdidas
           </>,
         ],
+        whiteLabel: {
+          prefix: "Para vender LobbyStack con su propia marca, consulte el ",
+          link: "programa de socios de marca blanca",
+          suffix: ".",
+        },
       },
     },
     guidelines: {
@@ -343,9 +359,9 @@ const copy = {
   },
   sr: {
     hero: {
-      headingPrefix: "Postanite",
+      headingPrefix: "Preporučite",
       headingAccent: "LobbyStack",
-      headingSuffix: "partner",
+      headingSuffix: "i zaradite",
       subhead:
         "Preporučite hostovane LobbyStack pakete drugim firmama i zaradite 20% njihovih uplata tokom 12 meseci. Preporučeni klijenti štede 5% kada se registruju preko Vašeg linka.",
       cta: "Pridružite se programu",
@@ -378,12 +394,12 @@ const copy = {
         heading: "Kako funkcioniše",
         steps: [
           <>
-            Prijavite se i otvorite <strong>Partnerski program</strong> preko
+            Prijavite se i otvorite <strong>Program preporuka</strong> preko
             ikonice poklona u gornjem desnom uglu.
           </>,
           <>
-            Dodajte svoju <strong>PayPal e-adresu</strong> u podešavanjima
-            partnerskog programa za isplate.
+            Dodajte svoju <strong>PayPal e-adresu</strong> za isplate u
+            podešavanjima programa preporuka.
           </>,
           "Delite svoj link za preporuke u biltenima, na sajtovima, u video snimcima i kroz direktne preporuke.",
           "Pratite klikove, preporuke, provizije na čekanju i isplate na kontrolnoj tabli.",
@@ -409,6 +425,11 @@ const copy = {
             alatima, rastu lokalnih firmi ili vraćanju propuštenih poziva
           </>,
         ],
+        whiteLabel: {
+          prefix: "Da biste prodavali LobbyStack pod svojim brendom, pogledajte ",
+          link: "white-label partnerski program",
+          suffix: ".",
+        },
       },
     },
     guidelines: {
@@ -445,7 +466,7 @@ const copy = {
       ],
       footerPrefix: "Imate pitanja? Pišite na",
       footerMiddle: "ili pročitajte",
-      footerDocsLabel: "dokumentaciju partnerskog programa",
+      footerDocsLabel: "dokumentaciju programa preporuka",
     },
   },
 } satisfies Record<
@@ -474,6 +495,7 @@ const copy = {
       whoShouldApply: {
         heading: string
         items: Array<React.ReactNode>
+        whiteLabel: { prefix: string; link: string; suffix: string }
       }
     }
     guidelines: {
@@ -517,13 +539,12 @@ export function AffiliateProgramHero({
 
   return (
     <section className="relative overflow-hidden" id="hero">
-      <div className="mx-auto max-w-site px-6 pt-16 pb-8 md:pt-20 md:pb-10 lg:pt-24 lg:pb-12">
+      <div className="mx-auto max-w-site px-6 pt-10 pb-8 md:pt-11 md:pb-10">
         <div className="mx-auto max-w-4xl text-center">
-          <h1 className="display-heading">
+          <p className="eyebrow">{eyebrow(locale, "affiliate.hero")}</p>
+          <h1 className="display-heading mt-4">
             {t.headingPrefix}{" "}
-            <span className="underline decoration-2 underline-offset-4">
-              {t.headingAccent}
-            </span>
+            {t.headingAccent}
             {t.headingSuffix ? ` ${t.headingSuffix}` : ""}
           </h1>
 
@@ -535,8 +556,7 @@ export function AffiliateProgramHero({
             <a
               href={appAffiliateSignupUrl(locale)}
               className={cn(
-                buttonVariants({ size: "lg" }),
-                "h-11 rounded-full px-7 text-sm"
+                buttonVariants()
               )}
             >
               {t.cta}
@@ -558,7 +578,8 @@ export function AffiliateProgramBenefits({
     <section className="section-spacing" id="benefits">
       <div className="mx-auto max-w-site px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="section-heading">{t.heading}</h2>
+          <p className="eyebrow">{eyebrow(locale, "affiliate.benefits")}</p>
+          <h2 className="section-heading mt-4">{t.heading}</h2>
         </div>
 
         <div className="mt-16 grid gap-6 md:grid-cols-3">
@@ -570,7 +591,7 @@ export function AffiliateProgramBenefits({
                 className="rounded-2xl border-border/70 py-0"
               >
                 <CardHeader className="gap-4 px-8 pt-8">
-                  <div className="inline-flex size-12 items-center justify-center rounded-2xl bg-muted">
+                  <div className="inline-flex size-11 items-center justify-center rounded-lg border border-border/80 bg-background shadow-[0_1px_2px_oklch(0_0_0/6%)]">
                     <Icon className="size-6 text-foreground" />
                   </div>
                   <CardTitle className="font-heading text-xl font-medium tracking-[-0.03em]">
@@ -597,11 +618,12 @@ export function AffiliateProgramDetails({
   const t = copy[locale].details
 
   return (
-    <section className="section-spacing bg-muted/30" id="details">
+    <section className="section-spacing" id="details">
       <div className="mx-auto max-w-site px-6">
         <div className="grid gap-16 lg:grid-cols-2">
           <div>
-            <h2 className="section-heading">{t.howItWorks.heading}</h2>
+            <p className="eyebrow">{eyebrow(locale, "affiliate.details")}</p>
+          <h2 className="section-heading mt-4">{t.howItWorks.heading}</h2>
             <ul className="mt-8 flex flex-col gap-4">
               {t.howItWorks.steps.map((step, index) => (
                 <CheckListItem key={index}>{step}</CheckListItem>
@@ -616,6 +638,16 @@ export function AffiliateProgramDetails({
                 <CheckListItem key={index}>{item}</CheckListItem>
               ))}
             </ul>
+            <p className="mt-6 text-base leading-relaxed text-muted-foreground">
+              {t.whoShouldApply.whiteLabel.prefix}
+              <a
+                href={localizeHref(locale, "/white-label/")}
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                {t.whoShouldApply.whiteLabel.link}
+              </a>
+              {t.whoShouldApply.whiteLabel.suffix}
+            </p>
           </div>
         </div>
       </div>
@@ -633,7 +665,8 @@ export function AffiliateProgramGuidelines({
     <section className="section-spacing" id="guidelines">
       <div className="mx-auto max-w-site px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="section-heading">{t.heading}</h2>
+          <p className="eyebrow">{eyebrow(locale, "affiliate.guidelines")}</p>
+          <h2 className="section-heading mt-4">{t.heading}</h2>
         </div>
 
         <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">

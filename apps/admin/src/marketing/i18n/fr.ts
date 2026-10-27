@@ -37,6 +37,11 @@ export const fr = {
       description:
         "Comparez les forfaits Free, Starter, Pro et Enterprise de LobbyStack, avec minutes vocales, facturation annuelle, SMS et dépassements transparents.",
     },
+    "/pricing/self-hosted/": {
+      title: "Tarifs de la réceptionniste IA auto-hébergée | LobbyStack",
+      description:
+        "Auto-hébergez gratuitement la réceptionniste IA de LobbyStack avec toutes ses fonctions, ou ajoutez le Support Premium ou Enterprise par courriel ou Slack.",
+    },
     "/solutions/": {
       title: "Solutions de réceptionniste IA | LobbyStack",
       description:
@@ -96,6 +101,16 @@ export const fr = {
       title: "Recherche - LobbyStack",
       description:
         "Recherchez dans les pages LobbyStack, les articles, les ressources produit, les tarifs et la documentation publique.",
+    },
+    "/features/mcp/": {
+      title: "Serveur MCP de réceptionniste IA pour Claude et ChatGPT | LobbyStack",
+      description:
+        "Connectez Claude ou ChatGPT au serveur MCP de réceptionniste IA de LobbyStack. Demandez qui a appelé, réservez des rendez-vous et changez vos heures.",
+    },
+    "/white-label/": {
+      title: "Réceptionniste IA open source en marque blanche | LobbyStack",
+      description:
+        "Revendez une réceptionniste IA en marque blanche sous le nom et le domaine de votre agence. Facturez vos clients sur votre Stripe et commencez gratuitement.",
     },
     "/affiliate-program/": {
       title: "Programme d'affiliation LobbyStack | 20 % de commission",

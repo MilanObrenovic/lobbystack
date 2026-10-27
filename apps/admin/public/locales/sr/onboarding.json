@@ -2,7 +2,8 @@
   "shell": {
     "signOut": "Odjavi se",
     "terms": "Uslovi",
-    "privacy": "Privatnost"
+    "privacy": "Privatnost",
+    "support": "Podrška"
   },
   "errors": {
     "tooManyBusinesses": "Već posedujete 10 radnih prostora, što je ograničenje za jedan nalog."
@@ -152,7 +153,10 @@
       "notify": "Javite mi kada budu dostupni",
       "joined": "Važi. Pisaćemo Vam.",
       "continue": "Nastavi bez broja",
-      "failed": "Nešto nije u redu. Pokušajte ponovo."
+      "failed": "Nešto nije u redu. Pokušajte ponovo.",
+      "partnerTitle": "Još ne možemo da potvrdimo telefone u ovoj zemlji ({{country}}).",
+      "partnerBody": "Podešavanje možete da završite bez potvrđenog telefona.",
+      "partnerContinue": "Nastavi"
     }
   },
   "greeting": {
@@ -197,6 +201,8 @@
     "searchFailed": "Trenutno ne možemo da pretražimo brojeve.",
     "claimFailed": "Nismo mogli da aktiviramo taj broj. Pokušajte ponovo.",
     "claimRateLimited": "Probali ste nekoliko brojeva. Sačekajte malo pre nego što pokušate ponovo.",
+    "partnerTierRequired": "Partner ove firme mora da plaća nivo da bi dodao brojeve telefona.",
+    "partnerNumbersUnavailable": "Brojevi telefona još nisu dostupni za ovu firmu.",
     "offerExpired": "Ova ponuda je istekla. Ponovo pretražite i izaberite broj.",
     "trialAccountPurchaseLimit": "Ovaj Twilio nalog još ne može da kupi taj broj. Probni nalozi mogu da kupe samo odgovarajuće probne brojeve. Oslobodite postojeći broj ili nadogradite nalog, pa pokušajte ponovo.",
     "skipFailed": "Trenutno ne možemo da preskočimo ovaj korak. Pokušajte ponovo.",
@@ -204,7 +210,8 @@
     "unavailable": "Neko je upravo uzeo taj broj. Izaberite drugi sa osvežene liste.",
     "selectedTitle": "Broj telefona AI recepcionera",
     "selectedNumberLabel": "Izabrani broj",
-    "continue": "Nastavi"
+    "continue": "Nastavi",
+    "numbersUnavailable": "Brojevi telefona još nisu podešeni na ovoj kontrolnoj tabli. Zamolite osobu koja njome upravlja da poveže telefonskog provajdera."
   },
   "attribution": {
     "title": "Kako ste čuli za {{appName}}?",
@@ -260,5 +267,12 @@
     "continue": "Nastavi",
     "continuing": "Nastavljanje...",
     "continueFailed": "Trenutno ne možemo da nastavimo. Pokušajte ponovo."
+  },
+  "noBusinesses": {
+    "title": "Ovde još nemate firmu",
+    "description": "{{appName}} još nije dodao {{email}} u firmu. Zamolite ih da Vas pozovu, pa otvorite link iz njihovog imejla.",
+    "switchAccount": "Prijavite se drugim nalogom",
+    "released": "{{email}} više nema firmu na ovoj kontrolnoj tabli. Firma koju posedujete prešla je na vaš nalog, pa otvorite svoju kontrolnu tablu da biste njome upravljali.",
+    "openDashboard": "Otvorite kontrolnu tablu"
   }
 }

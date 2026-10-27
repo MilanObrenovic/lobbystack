@@ -10,6 +10,14 @@ export * from "./receptionist";
 export * from "./chatChannels";
 export * from "./branding";
 export * from "./brandLinks";
+export * from "./brand";
+export * from "./hosts";
+export * from "./partnerFeatures";
+export * from "./partners";
+export * from "./partnerDomains";
+export * from "./partnerStripe";
+export * from "./selfHostedSupport";
+export * from "./businessSetup";
 export { isCertificationMode, assertCertificationRecipient, assertCertificationOperationAllowed, assertCertificationCalendar, assertCertificationBillingSandbox } from "./certification";
 
 export type DeploymentMode = "cloud" | "self_hosted_standard" | "development";

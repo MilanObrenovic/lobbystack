@@ -57,6 +57,20 @@ export function getSafeOnboardingErrorMessage(
     return t("number.claimRateLimited");
   }
 
+  if (code === "partner_number_limit_reached") {
+    return t("number.partnerTierRequired");
+  }
+
+  // The deployment has no Twilio account, so no business here can get a number.
+  if (code === "phone_numbers_unavailable") {
+    return t("number.numbersUnavailable");
+  }
+
+  // No tier the partner could pay for would help, as on the cloud without tier billing.
+  if (code === "partner_numbers_unavailable") {
+    return t("number.partnerNumbersUnavailable");
+  }
+
   if (includesAny(message, ["Trial accounts can only buy eligible trial numbers"])) {
     return t("number.trialAccountPurchaseLimit");
   }

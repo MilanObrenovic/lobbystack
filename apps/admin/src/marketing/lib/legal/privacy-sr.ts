@@ -3,7 +3,7 @@ import type { LegalDocument } from "./types"
 const support = `<a href="mailto:support@lobbystack.com">support@lobbystack.com</a>`
 
 export const privacySr: LegalDocument = {
-  updated: "Poslednje ažuriranje: 8. oktobar 2026.",
+  updated: "Poslednje ažuriranje: 26. oktobar 2026.",
   h1: "Politika privatnosti",
   intro: `Ova Politika privatnosti objašnjava kako Lobbystack Inc. („LobbyStack“, „mi“, „naš“ ili „nas“) prikuplja, koristi, deli i štiti podatke o ličnosti kada posećujete naše sajtove, koristite hostovanu uslugu LobbyStack, pozovete firmu koja koristi LobbyStack ili se s njom dopisujete putem četa, primite SMS poruku poslatu putem usluge LobbyStack ili nas kontaktirate.`,
   sections: [
@@ -13,7 +13,7 @@ export const privacySr: LegalDocument = {
       title: "1. Ko smo mi i šta obuhvata ova Politika",
       blocks: [
         `1.1 LobbyStack je AI recepcioner za mala preduzeća. Firme ga koriste da odgovaraju na telefonske pozive i pozive iz pregledača, dopisuju se s posetiocima sajta putem četa, zakazuju termine, primaju poruke i preusmeravaju pozive svojim zaposlenima. Sedište nam je u Kanadi.`,
-        `1.2 Ova Politika obuhvata naše sajtove, uključujući lobbystack.com, hostovanu uslugu LobbyStack („Usluga“), našu podršku i naš partnerski program.`,
+        `1.2 Ova Politika obuhvata naše sajtove, uključujući lobbystack.com, hostovanu uslugu LobbyStack („Usluga“), našu podršku i naš program preporuka.`,
         `1.3 Ova Politika ne obuhvata kopije softvera LobbyStack koje druga lica pokreću na sopstvenim serverima. Pogledajte odeljak 20.`,
       ],
     },
@@ -22,7 +22,7 @@ export const privacySr: LegalDocument = {
       nav: "Naša uloga",
       title: "2. Naša uloga",
       blocks: [
-        `2.1 <strong>Kada mi odlučujemo kako se podaci koriste.</strong> U svojstvu rukovaoca ili privrednog subjekta odgovorni smo za podatke o ličnosti posetilaca naših sajtova, nosilaca naloga, Ovlašćenih korisnika naloga klijenata, kontakata za naplatu, partnera i lica koja nas kontaktiraju.`,
+        `2.1 <strong>Kada mi odlučujemo kako se podaci koriste.</strong> U svojstvu rukovaoca ili privrednog subjekta odgovorni smo za podatke o ličnosti posetilaca naših sajtova, nosilaca naloga, Ovlašćenih korisnika naloga klijenata, kontakata za naplatu, preporučilaca i lica koja nas kontaktiraju.`,
         `2.2 <strong>Kada firma odlučuje kako se podaci koriste.</strong> Kada firma koristi LobbyStack za komunikaciju sa svojim pozivaocima, posetiocima sajta ili klijentima („Pozivaoci“), ta firma odlučuje zašto i kako se njihovi podaci obrađuju. Mi postupamo kao njen pružalac usluga ili obrađivač i obrađujemo podatke Pozivalaca u njeno ime, u skladu sa našim <a href="/sr/terms/">Uslovima korišćenja</a>. Primenjuje se obaveštenje o privatnosti te firme. Ako ste Pozivalac, pogledajte odeljak 18.`,
       ],
     },
@@ -54,7 +54,7 @@ export const privacySr: LegalDocument = {
         `IP adresa, tip pregledača i uređaja, pregledane stranice, stranice sa kojih ste došli, klikovi, približna lokacija izvedena iz IP adrese, evidencije grešaka i način na koji koristite kontrolnu tablu. Uz Vaš pristanak prikupljamo i snimke sesija na našem sajtu, pri čemu su unosi u obrasce maskirani. Pogledajte odeljak 10 i našu <a href="/sr/cookie-policy/">Politiku kolačića</a>.`,
         { h3: "3.6 Komunikacija i podrška" },
         `Imejlovi, zahtevi za podršku, povratne informacije i odgovori na ankete koje nam pošaljete.`,
-        { h3: "3.7 Podaci o partnerskom programu i preporukama" },
+        { h3: "3.7 Podaci o programu preporuka" },
         `Kodovi za preporuku, vreme klikova, stranice sa kojih su posetioci došli, pripisivanje registracija, evidencije provizija i PayPal imejl adresa koja se koristi za isplate.`,
         { h3: "3.8 Izvori" },
         `Podatke prikupljamo direktno od Vas, od Pozivalaca kada firma koristi Uslugu, iz Vašeg povezanog naloga Google Calendar, sa Vašeg sajta kada ga uvezete, od naših pružalaca usluga (na primer, status plaćanja od kompanije Polar i status poziva od kompanije Twilio) i automatski sa Vašeg uređaja.`,
@@ -75,7 +75,7 @@ export const privacySr: LegalDocument = {
             `slali servisne i bezbednosne poruke, poruke o naplati i administrativne poruke;`,
             `pratili rad Usluge, otklanjali probleme i unapređivali njen kvalitet i pouzdanost;`,
             `otkrivali i sprečavali prevare, neželjene poruke, zloupotrebe i bezbednosne incidente;`,
-            `vodili partnerski program;`,
+            `vodili program preporuka;`,
             `razumeli kako ljudi koriste naš sajt i proizvod, uz pristanak tamo gde to zakon zahteva;`,
             `postupali u skladu sa zakonom, pravilima operatera i pravnim zahtevima i sprovodili naše Uslove.`,
           ],
@@ -159,7 +159,7 @@ export const privacySr: LegalDocument = {
             `<strong>Google:</strong> pristup kalendaru, samo kada povežete Google Calendar;`,
             `<strong>Firecrawl:</strong> čitanje Vašeg javnog sajta, samo kada ga uvezete u znanje svoje firme;`,
             `<strong>Resend:</strong> imejlovi u vezi sa nalogom i obaveštenjima;`,
-            `<strong>PayPal:</strong> isplate partnerima;`,
+            `<strong>PayPal:</strong> isplate preporučiocima;`,
             `pružaoci usluga nadzora i evidentiranja koji nam pomažu da otkrivamo greške i održavamo rad Usluge.`,
           ],
         },
@@ -296,7 +296,7 @@ export const privacySr: LegalDocument = {
       nav: "Samostalno hostovanje",
       title: "20. Samostalno hostovan LobbyStack",
       blocks: [
-        `Izvorni kod softvera LobbyStack je otvoren (open source). Kada neka organizacija pokreće LobbyStack na sopstvenim serverima, ne primamo, ne pristupamo niti obrađujemo bilo kakve podatke iz te instalacije. Organizacija koja je pokreće odgovorna je za svoju praksu zaštite privatnosti. Sa svim pitanjima obratite se toj organizaciji.`,
+        `Izvorni kod softvera LobbyStack je otvoren (open source). Kada neka organizacija pokreće LobbyStack na sopstvenim serverima, ne primamo, ne pristupamo niti obrađujemo bilo kakve podatke iz te instalacije, osim logova, snimaka ekrana ili drugih podataka koje nam organizacija pošalje da bi dobila pomoć u okviru paketa podrške za samostalno hostovanje. Te podatke obrađujemo kako je opisano u odeljku 18.10 naših Uslova korišćenja. Organizacija koja je pokreće odgovorna je za svoju praksu zaštite privatnosti. Sa svim pitanjima obratite se toj organizaciji.`,
       ],
     },
     {

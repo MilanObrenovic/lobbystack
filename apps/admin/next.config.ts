@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withPostHogConfig } from "@posthog/nextjs-config";
+import { partnerFeatures } from "@lobbystack/shared";
 
 import { resolve } from "node:path";
 
@@ -11,6 +12,12 @@ import { brandLogoSecurityHeaders, embeddableSecurityHeaders, securityHeaders, t
 // maps uploaded to PostHog, and the deployment ID below.
 const serviceVersion = releaseVersion();
 
+/** Partners' subdomains, as an allowedDevOrigins pattern, when partnerFeatures accepts the base domain. */
+function partnerBaseDomainOrigins(): string | undefined {
+  const { baseDomain } = partnerFeatures(process.env);
+  return baseDomain ? `*.${baseDomain}` : undefined;
+}
+
 const nextConfig: NextConfig = {
   // PostHog's source map step writes the release ID into each JS chunk after
   // Turbopack has named it, so a chunk that did not change keeps its URL while
@@ -19,8 +26,9 @@ const nextConfig: NextConfig = {
   // asset URL, so each deploy's chunks are fetched fresh.
   ...(serviceVersion === "development" ? {} : { deploymentId: serviceVersion }),
   // Extra hosts (e.g. an ngrok tunnel) that may load dev-only resources such as HMR.
-  // The marketing hosts (lobbystack.localhost in development) count as extra hosts too.
-  allowedDevOrigins: [process.env.ALLOWED_DEV_ORIGINS, process.env.MARKETING_HOSTS]
+  // The marketing hosts (lobbystack.localhost in development) count as extra hosts too,
+  // and so do partners' subdomains of the partner base domain (partners.localhost in development).
+  allowedDevOrigins: [process.env.ALLOWED_DEV_ORIGINS, process.env.MARKETING_HOSTS, partnerBaseDomainOrigins()]
     .flatMap((hosts) => (hosts ?? "").split(","))
     .map((host) => host.trim())
     .filter(Boolean),
@@ -114,7 +122,11 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     // The widget page moved out of Settings; keep old bookmarks and alert links working.
-    return [{ source: "/settings/widget", destination: "/widget", permanent: true }];
+    // The partner console's Stripe page is Payments now; Stripe's onboarding links may still return to the old address.
+    return [
+      { source: "/settings/widget", destination: "/widget", permanent: true },
+      { source: "/partner/:partnerId/stripe", destination: "/partner/:partnerId/payments", permanent: true },
+    ];
   },
 };
 

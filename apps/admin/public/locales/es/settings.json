@@ -15,11 +15,13 @@
     "appearance": "Preferencias",
     "integrations": "Integraciones",
     "billing": "Plan",
+    "subscription": "Facturación",
     "usage": "Uso",
     "notifications": "Notificaciones",
     "widget": "Widget del sitio web",
     "apiKeys": "Claves de API",
-    "connectedApps": "Aplicaciones conectadas"
+    "connectedApps": "Aplicaciones conectadas",
+    "partnerAccess": "Acceso del socio"
   },
   "widget": {
     "title": "Widget del sitio web",
@@ -199,11 +201,13 @@
     },
     "usage": {
       "title": "Uso incluido",
+      "allowanceTitle": "Uso de este mes",
       "description": "Se reinicia el {{resetAt}}.",
       "paygTitle": "Uso de pago por consumo",
       "paygDescription": "Uso facturable adicional en este período. Se reinicia el {{resetAt}}.",
       "knowledgeTitle": "Base de conocimiento",
       "voiceTitle": "Minutos de voz",
+      "chatsTitle": "Chats",
       "voiceValue": "{{minutes}} minutos usados",
       "voiceRemaining": "{{minutes}} minutos restantes",
       "alertSmsTitle": "Alertas por SMS",
@@ -230,10 +234,15 @@
         "voice": "min",
         "outboundAttempts": "intentos",
         "segments": "segmentos",
-        "storage": "MB"
+        "storage": "MB",
+        "chats": "chats"
       },
       "unavailable": "Los datos de uso no están disponibles.",
-      "customAllowance": "{{used}} {{unit}} usados · Volumen personalizado"
+      "customAllowance": "{{used}} {{unit}} usados · Volumen personalizado",
+      "noLimit": "{{used}} {{unit}} usados · Sin límite",
+      "extraTitle": "Uso adicional",
+      "extraOnDescription": "Su recepcionista sigue contestando después de su volumen incluido, y {{appName}} le cobra los minutos y chats adicionales.",
+      "extraOffDescription": "El uso adicional está desactivado. {{appName}} le cobra los minutos y chats adicionales que usó antes de que se desactivara."
     },
     "spendingCap": {
       "title": "Límite de gasto mensual",
@@ -356,6 +365,41 @@
       "dashboard": "Ir al panel"
     }
   },
+  "subscription": {
+    "loadFailed": "No pudimos cargar su facturación. Actualice la página para intentarlo de nuevo.",
+    "outside": "{{appName}} le factura directamente. Consúlteles sobre su factura.",
+    "packageTitle": "Su paquete",
+    "minutes_one": "{{amount}} minuto",
+    "minutes_many": "{{amount}} minutos",
+    "minutes_other": "{{amount}} minutos",
+    "chats_one": "{{amount}} chat",
+    "chats_many": "{{amount}} chats",
+    "chats_other": "{{amount}} chats",
+    "allowance": "Cada mes incluye {{minutes}} y {{chats}}.",
+    "status": {
+      "awaiting_payment": "Su recepcionista empieza a atender llamadas y chats en cuanto pague.",
+      "active": "Su suscripción está activa.",
+      "renews": "Su suscripción se renueva el {{date}}.",
+      "past_due": "Su último pago falló y lo volveremos a intentar. Actualice su tarjeta para que su recepcionista siga atendiendo.",
+      "inactive": "Su suscripción terminó, así que su recepcionista no atiende llamadas ni chats. Suscríbase de nuevo para reactivarla."
+    },
+    "badge": {
+      "awaiting_payment": "Pago pendiente",
+      "active": "Activa",
+      "past_due": "Pago fallido",
+      "inactive": "Terminada"
+    },
+    "subscribe": "Suscribirse",
+    "manage": "Administrar facturación",
+    "opening": "Abriendo…",
+    "manageHint": "Actualice su tarjeta, descargue facturas o cancele su suscripción.",
+    "paid": "Recibimos su pago. Su recepcionista empieza a atender en un momento.",
+    "errors": {
+      "portal": "El portal de facturación no está disponible en este momento. Consulte a {{appName}}.",
+      "checkout": "No pudimos abrir el pago. Inténtelo de nuevo.",
+      "unavailable": "{{appName}} no puede recibir pagos en este momento. Consúlteles sobre su factura."
+    }
+  },
   "phoneNumber": {
     "current": {
       "label": "Número de teléfono actual",
@@ -375,6 +419,44 @@
       "title": "Los números dedicados están en los planes de pago",
       "description": "Cambie a Starter o Pro para obtener un número local del negocio al que puedan llamar sus clientes.",
       "upgradeCta": "Ver planes"
+    },
+    "partnerTierRequired": {
+      "description": "El socio de este negocio necesita pagar un nivel para agregar números de teléfono."
+    },
+    "partnerNumbersUnavailable": {
+      "description": "Los números de teléfono todavía no están disponibles para este negocio."
+    },
+    "trialPhone": {
+      "title": "Verifique su número de móvil",
+      "description": "Durante la prueba de 14 días, el recepcionista solo transfiere llamadas a este móvil.",
+      "fields": {
+        "mobileNumber": "Número de móvil",
+        "country": "País"
+      },
+      "hint": "Use un móvil que reciba SMS. Los números de internet no funcionan.",
+      "sendCode": "Enviarme un código",
+      "sending": "Enviando…",
+      "errors": {
+        "voip": "Use su número de móvil. Los números de internet no se pueden verificar.",
+        "notMobile": "Use un número de móvil que reciba SMS.",
+        "countryMismatch": "Este número no es del país que eligió.",
+        "invalidNumber": "Escriba un número de móvil válido.",
+        "rateLimited": "Demasiados códigos. Espere un momento y vuelva a intentarlo.",
+        "sendFailed": "No pudimos enviar el código. Inténtelo de nuevo."
+      },
+      "code": {
+        "sentTo": "Escriba el código de 6 dígitos que enviamos al {{phone}}.",
+        "label": "Código de verificación",
+        "checking": "Comprobando…",
+        "invalid_one": "Ese código no funcionó. Le queda {{count}} intento.",
+        "invalid_many": "Ese código no funcionó. Le quedan {{count}} intentos.",
+        "invalid_other": "Ese código no funcionó. Le quedan {{count}} intentos.",
+        "expired": "Este código caducó. Pida uno nuevo.",
+        "locked": "Demasiados intentos. Pida un código nuevo.",
+        "failed": "No pudimos comprobar el código. Inténtelo de nuevo.",
+        "resend": "Enviar un código nuevo",
+        "changeNumber": "Usar otro número"
+      }
     },
     "actions": {
       "requestChange": "Solicitar cambio",
@@ -404,7 +486,8 @@
     "toast": {
       "changed": "Número de teléfono cambiado. Su número anterior seguirá activo durante 30 días.",
       "added": "Número de teléfono agregado."
-    }
+    },
+    "numbersUnavailable": "Los números de teléfono aún no están configurados en este panel. Pida a quien lo administra que conecte un proveedor de telefonía."
   },
   "appearance": {
     "title": "Preferencias",
@@ -662,6 +745,7 @@
       "sent": "Invitación enviada a {{email}}.",
       "errors": {
         "invalidEmail": "Introduzca un correo electrónico válido.",
+        "partnerMember": "{{email}} forma parte del equipo del socio de este negocio. Trabaja aquí desde la consola de socios, así que no puede unirse al equipo.",
         "failed": "No pudimos enviar esa invitación. Inténtelo de nuevo."
       }
     },
@@ -1090,6 +1174,21 @@
       "appointments_write": "Reservar, cancelar y reprogramar citas",
       "messages_read": "Leer los mensajes que tomó la recepcionista",
       "knowledge_write": "Agregar entradas de conocimiento y preguntas frecuentes"
+    }
+  },
+  "partnerAccess": {
+    "title": "Acceso del socio",
+    "description": "Cada vez que alguien del equipo de su socio abrió su panel para ayudarle, y cuándo salió.",
+    "empty": "Nadie del equipo de su socio ha abierto su panel todavía.",
+    "adminsOnly": "Solo los propietarios y administradores ven quién abrió el panel.",
+    "loadFailed": "No pudimos cargar esta lista. Inténtelo de nuevo.",
+    "someone": "Un miembro del equipo de {{partnerName}}",
+    "opened": "Abrió su panel",
+    "left": "Salió",
+    "columns": {
+      "who": "Quién",
+      "what": "Qué",
+      "when": "Cuándo"
     }
   }
 }

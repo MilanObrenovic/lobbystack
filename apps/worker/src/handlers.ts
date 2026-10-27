@@ -4,15 +4,19 @@ import { and, eq, inArray, isNull, lte, ne, or } from "drizzle-orm";
 
 import { hasSummarizableTranscript, type BusinessHoursExtractor, type BusinessSummarizer, type CallSummarizer } from "@lobbystack/agent-core";
 import { realtimeEventSchema, type JobEnvelope } from "@lobbystack/contracts";
-import { getPolarMeteredUsagePayload, intlLocale, normalizeRuntimeLocale, type BillingUsageKind } from "@lobbystack/shared";
+import { HOST_EMAIL_BRAND, billingMeterEventNames, emailSender, getPolarMeteredUsagePayload, intlLocale, isUuid, normalizeRuntimeLocale, parseEmailBrandReference, partnerFeatures, partnerTierProductId, type BillingUsageKind, type EmailBrandReference } from "@lobbystack/shared";
 import { appointments, calls, contacts, enqueueOutbox, knowledgeChunks, knowledgeDocuments, messages, notifications, phoneNumbers, storageObjects, websiteIngestionJobs, withBusinessTransaction, type Database } from "@lobbystack/db";
 import { enqueueKnowledgeDerivedRefresh, finishBusinessSummaryRegenerate, loadBusinessHoursInput, loadBusinessSummaryInput, markBusinessHoursChecked, resetGeneratedBusinessSummary, saveGeneratedBusinessHours, saveGeneratedBusinessSummary, type SummaryRegenerateOutcome } from "@lobbystack/domain";
-import { billingCheckoutLeaseEndsAt, checkKnowledgeStorageLimit, claimBillingCheckoutRequest, countPublishableOutboxMessages, deleteCallRecordingForRetention, deleteExpiredObjectsForBusiness, deleteSentProductEventsBefore, expireProspectDemos, finalizeConversationSession, loadCallSummaryInput, generateAffiliatePayoutRun, indexCrawledWebsitePage, indexDocumentText, loadBillingCheckoutRequest, loadBillingUsageEvent, loadPendingProductEvents, markBillingCheckoutCreated, markBillingCheckoutFailed, markBillingUsageSynced, markKnowledgeDocumentFailed, markProductEventsSent, reconcileBillingProviderEvent, recordAiGenerationEvent, recordCallProviderPricing, loadLiveCallForPricing, recordProductEvent, recordSmsProviderPricing, refreshBusinessSnapshot, runPrivacyRetentionSweep, updateNotificationDeliveryStatus, updateOperatorNotificationDeliveryStatus, chunkText, upsertWebsiteDocument, queueOnboardingFollowupEmail, type DurableAiUsage, type GeneratedCallSummary, type OnboardingFollowupSender } from "@lobbystack/domain";
+import { billingCheckoutLeaseEndsAt, checkKnowledgeStorageLimit, claimBillingCheckoutRequest, countPublishableOutboxMessages, deleteCallRecordingForRetention, deleteExpiredObjectsForBusiness, deleteStoredObjects, deleteSentProductEventsBefore, expireProspectDemos, finalizeConversationSession, loadCallSummaryInput, generateAffiliatePayoutRun, indexCrawledWebsitePage, indexDocumentText, loadBillingCheckoutRequest, loadBillingUsageEvent, loadPendingProductEvents, markBillingCheckoutCreated, markBillingCheckoutFailed, markBillingUsageSynced, markKnowledgeDocumentFailed, markProductEventsSent, reconcileBillingProviderEvent, recordAiGenerationEvent, recordCallProviderPricing, loadLiveCallForPricing, recordProductEvent, recordSmsProviderPricing, refreshBusinessSnapshot, runPrivacyRetentionSweep, updateNotificationDeliveryStatus, updateOperatorNotificationDeliveryStatus, chunkText, upsertWebsiteDocument, queueOnboardingFollowupEmail, type DurableAiUsage, type GeneratedCallSummary, type OnboardingFollowupSender } from "@lobbystack/domain";
 import { deliverOutbound, markFeedbackEmailFailed, markFeedbackEmailSent, queueDailyOperatorSummaries, refreshUnitEconomicsMonth } from "@lobbystack/domain";
-import { claimNumberProvisioning, completeNumberProvisioning, desiredNumberRouting, failNumberProvisioning, loadNumberReleaseEmail, loadNumberTrialEmail, numberProvisioningLeaseEndsAt, sharedSmsSender, sweepNumberReleases, sweepNumberTrial } from "@lobbystack/domain";
+import { claimNumberProvisioning, completeNumberProvisioning, desiredNumberRouting, failNumberProvisioning, isSharedSmsSender, loadNumberReleaseEmail, loadNumberTrialEmail, numberProvisioningLeaseEndsAt, sharedSmsSender, sweepNumberReleases, sweepNumberTrial } from "@lobbystack/domain";
 import { createWebhookSender, processWebhookDelivery, pruneApiHistory, type WebhookSender } from "@lobbystack/domain";
 import { LIVE_RECORDING_ATTEMPTS, listBusinessesWithOpenLiveCalls, listOpenLiveCalls, liveCallHasRecording, persistCallRecording, retryLiveCallRecording, type OpenLiveCall } from "@lobbystack/domain";
 import { expireTeamRequest } from "@lobbystack/domain";
+import { syncBusinessOverage } from "@lobbystack/domain";
+import { advancePartnerLifecycles, claimPartnerCheckoutRequest, keepPartnerTrialNumber, loadPartnerCheckoutRequest, loadPoolUsageEvent, markPartnerCheckoutCreated, markPartnerCheckoutFailed, partnerBillingKey, partnerCheckoutLeaseEndsAt, reconcilePartnerTier, settlePartnerNumberCharges } from "@lobbystack/domain";
+import { checkPartnerCustomDomains, provisionPartnerCustomDomain, removePartnerCustomHostname, type CustomDomainProviders } from "@lobbystack/domain";
+import { brandForEmail, businessExists, businessGetsHostEmails, hostBrandFromEnvironment, isHostOnlyEmailTemplate } from "@lobbystack/domain";
 import type { DomainContext } from "@lobbystack/domain";
 import { numberReleaseEmailSubject, numberTrialEmailSubject, type SmtpEmailProvider } from "@lobbystack/providers/email/smtp";
 import type { RuntimeStorageProvider } from "@lobbystack/providers/storage/provider";
@@ -57,9 +61,11 @@ export type WorkerDependencies = {
   domain: DomainContext;
   storage?: RuntimeStorageProvider;
   email?: Pick<SmtpEmailProvider, "sendTemplate">;
-  twilio?: Pick<TwilioProvider, "sendSms"> & Partial<Pick<TwilioProvider, "getMessagePricing" | "getCallPricing" | "findTrunkCall" | "releasePhoneNumber" | "verifyPhone" | "findOwnedPhoneNumber" | "purchasePhoneNumber" | "addNumberToSipTrunk" | "routeNumber">>;
+  twilio?: Pick<TwilioProvider, "sendSms"> & Partial<Pick<TwilioProvider, "getMessagePricing" | "getCallPricing" | "findTrunkCall" | "releasePhoneNumber" | "verifyPhone" | "findOwnedPhoneNumber" | "purchasePhoneNumber" | "addNumberToSipTrunk" | "routeNumber" | "getPhoneNumberMonthlyPrice">>;
   twilioAlerts?: Pick<TwilioProvider, "sendSms"> & { from: string };
   polar?: { recordUsage(input: { eventName: string; externalCustomerId: string; quantity: number; timestamp: string; idempotencyKey: string; businessId: string; usageKind: string }): Promise<void>; createCheckout?(input: { productId: string; customerEmail: string; externalCustomerId: string; successUrl: string; returnUrl: string; idempotencyKey?: string }): Promise<{ checkoutUrl: string; checkoutId: string }> };
+  /** Sets partners' own domains up: Cloudflare for SaaS or Caddy, as partnerFeatures decides, and DNS for partners' TXT records. Without it, their jobs are skipped. */
+  customDomains?: CustomDomainProviders;
   embeddings?: { fingerprint?: string; embed(values: string[], onUsage?: (usage: DurableAiUsage) => Promise<void> | void): Promise<number[][]> };
   crawler?: { crawl(input: { url: string; limit?: number }): Promise<Array<{ url: string; title?: string; markdown?: string }>> };
   calendar?: CalendarOperations;
@@ -94,6 +100,29 @@ export type JobResult = { status: "completed" | "skipped"; entityId?: string } |
 // before the lease ends. Run it again once the lease ends instead of dropping it.
 function retryAfterLease(leaseEndsAt: Date | null, entityId: string): JobResult {
   return leaseEndsAt ? { status: "deferred", entityId, retryAt: leaseEndsAt } : { status: "skipped", entityId };
+}
+
+const BRAND_FAILURE_LOG_INTERVAL_MS = 60_000;
+let lastBrandFailureLogAt = 0;
+
+/**
+ * The brand an email goes out under, read when it's sent. When the host's
+ * saved branding can't be read, a host email still goes out under the brand
+ * the environment sets, as pages do; an email under a business's or a
+ * partner's brand waits for the database instead of going out under the wrong one.
+ */
+async function emailBrand(domain: DomainContext, reference: EmailBrandReference) {
+  try {
+    return await brandForEmail(domain, reference);
+  } catch (error) {
+    if (reference.kind !== "host") throw error;
+    const now = Date.now();
+    if (now - lastBrandFailureLogAt >= BRAND_FAILURE_LOG_INTERVAL_MS) {
+      lastBrandFailureLogAt = now;
+      console.warn("[worker] Sending under the environment's branding: the saved branding could not be read.", error instanceof Error ? error.message : error);
+    }
+    return hostBrandFromEnvironment();
+  }
 }
 
 function businessIdOrThrow(job: JobEnvelope): string {
@@ -160,7 +189,7 @@ async function recordWorkflowEvent(
 
 async function recordBillingUsageSyncFailed(
   dependencies: WorkerDependencies,
-  input: { businessId: string },
+  input: { businessId: string; provider?: "polar" | "stripe" },
 ): Promise<void> {
   try {
     await recordProductEvent(dependencies.domain, {
@@ -168,11 +197,111 @@ async function recordBillingUsageSyncFailed(
       businessId: input.businessId,
       distinctId: getPostHogDistinctIdForBusinessSystem(input.businessId),
       actorType: "worker",
-      properties: { provider: "polar" },
+      // Polar for what the host bills, Stripe for a business's overage on its partner's account.
+      properties: { provider: input.provider ?? "polar" },
     });
   } catch {
     // Billing sync telemetry is best-effort and must not mask the provider error.
   }
+}
+
+/**
+ * Sends Polar the overage one usage event put past its partner's pool, priced
+ * at the tier's rate when the event was recorded: a meter event whose
+ * quantity is that price in US cents, under the partner's customer. Polar
+ * charges each event once, by its id. Usage within the pool, and usage past
+ * it while the partner paid for no overage, sends nothing.
+ */
+async function syncPoolOverage(
+  dependencies: WorkerDependencies,
+  event: NonNullable<Awaited<ReturnType<typeof loadPoolUsageEvent>>>,
+  polar: NonNullable<WorkerDependencies["polar"]>,
+): Promise<JobResult> {
+  if (event.syncStatus === "synced") return { status: "completed", entityId: event.id };
+  if (event.syncStatus !== "pending" || !event.isFinal || event.overageCents <= 0 || !event.customerId) return { status: "skipped", entityId: event.id };
+  if (event.usageKind !== "voice_seconds" && event.usageKind !== "chat_ai_tokens") return { status: "skipped", entityId: event.id };
+  try {
+    await polar.recordUsage({
+      eventName: event.usageKind === "voice_seconds" ? billingMeterEventNames.partnerPoolVoiceOverage : billingMeterEventNames.partnerPoolChatOverage,
+      externalCustomerId: partnerBillingKey(event.partnerId),
+      quantity: event.overageCents,
+      timestamp: event.createdAt.toISOString(),
+      idempotencyKey: `partner-pool:${event.id}`,
+      businessId: event.businessId,
+      usageKind: event.usageKind,
+    });
+  } catch (error) {
+    await recordBillingUsageSyncFailed(dependencies, { businessId: event.businessId });
+    throw error;
+  }
+  await markBillingUsageSynced(dependencies.domain, { businessId: event.businessId, usageEventId: event.id });
+  return { status: "completed", entityId: event.id };
+}
+
+/**
+ * Sends Polar what a usage event owes the host: a direct business's billable
+ * usage on Starter or Pro, or for usage on a partner's pool, only what it put
+ * past the pool, to the partner's Polar customer.
+ */
+async function syncPolarUsage(
+  dependencies: WorkerDependencies,
+  polar: NonNullable<WorkerDependencies["polar"]>,
+  input: { businessId: string; usageEventId: string },
+): Promise<JobResult> {
+  const pooled = await loadPoolUsageEvent(dependencies.domain, input);
+  if (pooled) return await syncPoolOverage(dependencies, pooled, polar);
+  const event = await loadBillingUsageEvent(dependencies.domain, input);
+  if (!event) return { status: "skipped", entityId: input.usageEventId };
+  if (event.syncStatus === "synced" || event.syncStatus === "succeeded") return { status: "completed", entityId: event.id };
+  if (event.syncStatus === "skipped" || !event.customerId || !event.isFinal) return { status: "skipped", entityId: event.id };
+  if (event.plan !== "starter" && event.plan !== "pro") return { status: "skipped", entityId: event.id };
+  const knownUsageKinds: BillingUsageKind[] = ["voice_seconds", "alert_sms_segments", "outbound_call_attempts"];
+  const usageKind = knownUsageKinds.includes(event.usageKind as BillingUsageKind) ? event.usageKind as BillingUsageKind : undefined;
+  if (!usageKind) return { status: "skipped", entityId: event.id };
+  const quantity = event.billableQuantity ?? event.quantity;
+  const metered = getPolarMeteredUsagePayload(usageKind, quantity);
+  try {
+    await polar.recordUsage({
+      eventName: metered.eventName,
+      externalCustomerId: event.billingKey,
+      quantity: metered.quantity,
+      timestamp: event.createdAt.toISOString(),
+      idempotencyKey: event.sourceKey,
+      businessId: event.businessId,
+      usageKind,
+    });
+  } catch (error) {
+    // `ops.billing.usage_sync_recovered` is intentionally not emitted here.
+    // `billing_usage_events.sync_status` only models pending/skipped/synced
+    // (plus a legacy "succeeded" read), and `markBillingUsageSynced`
+    // transitions only from "pending", so there is no durable failure state
+    // to recover from. Emitting a recovery event would require a persisted
+    // failed marker (schema/state change), which is out of scope for this
+    // phase and must not be fabricated.
+    await recordBillingUsageSyncFailed(dependencies, { businessId: event.businessId });
+    throw error;
+  }
+  await markBillingUsageSynced(dependencies.domain, { businessId: event.businessId, usageEventId: event.id });
+  return { status: "completed", entityId: event.id };
+}
+
+/**
+ * Sends a partner's Stripe what a usage event of one of its businesses on a
+ * package put past the business's allowance, as a meter event on the
+ * partner's account. Null when the deployment has no Stripe Connect or the
+ * event has no such overage, so the Polar sync decides the job's result.
+ */
+async function syncStripeOverage(dependencies: WorkerDependencies, input: { businessId: string; usageEventId: string }): Promise<JobResult | null> {
+  if (!dependencies.domain.stripeConnect) return null;
+  let outcome: Awaited<ReturnType<typeof syncBusinessOverage>>;
+  try {
+    outcome = await syncBusinessOverage(dependencies.domain, input);
+  } catch (error) {
+    await recordBillingUsageSyncFailed(dependencies, { businessId: input.businessId, provider: "stripe" });
+    throw error;
+  }
+  if (outcome === "none") return null;
+  return { status: outcome === "synced" ? "completed" : "skipped", entityId: input.usageEventId };
 }
 
 /**
@@ -264,7 +393,8 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
 
       if (!url || !dependencies.crawler) {
         if (documentId) await markKnowledgeDocumentFailed(dependencies.domain, { businessId: businessIdOrThrow(job), documentId, ...(source ? { expectedRevision: source.revision } : {}), error: "Website crawling is not configured." });
-        if (websiteIngestionJobId && !documentId) await updateWebsiteIngestion(dependencies.domain.db, { businessId: businessIdOrThrow(job), websiteIngestionJobId, status: "failed", error: "Website crawling is not configured." });
+        // A demo's crawl that can't run here is unavailable rather than failed, so the demo can still publish without website knowledge.
+        if (websiteIngestionJobId && !documentId) await updateWebsiteIngestion(dependencies.domain.db, { businessId: businessIdOrThrow(job), websiteIngestionJobId, status: url ? "unavailable" : "failed", error: url ? "Website crawling is not configured." : "The website address is missing." });
         return { status: "skipped", entityId: String(job.payload.jobId ?? "") };
       }
       const progress = async (status: string, importedCount = 0, indexedCount = 0) => {
@@ -378,6 +508,7 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
     case "calendar.deleteEvent":
       return await deleteReleasedCalendarEvent(dependencies, { businessId: businessIdOrThrow(job), appointmentId: String(job.payload.appointmentId ?? ""), connectionId: String(job.payload.connectionId ?? ""), calendarId: String(job.payload.calendarId ?? ""), eventId: String(job.payload.eventId ?? "") });
     case "email.send":
+    case "email.sendNotice":
       if (!dependencies.email) {
         if (["verify_email", "password_reset", "existing_account", "account_setup"].includes(String(job.payload.template))) {
           throw new Error("Authentication email delivery requires SMTP configuration.");
@@ -385,21 +516,35 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
         return { status: "skipped" };
       }
       {
-        const template = job.payload.template === "existing_account" || job.payload.template === "account_setup" || job.payload.template === "verify_email" || job.payload.template === "password_reset" || job.payload.template === "invitation" || job.payload.template === "operator_alert" || job.payload.template === "feedback_submission" || job.payload.template === "onboarding_followup"
+        const template = job.payload.template === "existing_account" || job.payload.template === "account_setup" || job.payload.template === "verify_email" || job.payload.template === "password_reset" || job.payload.template === "invitation" || job.payload.template === "operator_alert" || job.payload.template === "feedback_submission" || job.payload.template === "onboarding_followup" || job.payload.template === "partner_pool_alert" || job.payload.template === "business_allowance_alert" || job.payload.template === "partner_business_allowance_alert" || (job.type === "email.sendNotice" && (job.payload.template === "business_released" || job.payload.template === "business_deleted"))
           ? job.payload.template
           : "operator_alert";
         const variables = typeof job.payload.variables === "object" && job.payload.variables !== null
           ? Object.fromEntries(Object.entries(job.payload.variables).map(([key, value]) => [key, String(value)]))
           : { message: String(job.payload.message ?? ""), url: String(job.payload.url ?? "") };
         const feedbackSubmissionId = typeof job.payload.feedbackSubmissionId === "string" ? job.payload.feedbackSubmissionId : undefined;
+        // The host's own emails, such as the founder's check-in, never reach a partner's business, whenever they were queued.
+        if (businessId && isHostOnlyEmailTemplate(template) && !await businessGetsHostEmails(dependencies.domain.db, businessId)) return { status: "skipped", entityId: businessId };
         try {
+          // An email queued before payloads carried a brand goes out under the host's.
+          const reference = parseEmailBrandReference(job.payload.brand);
+          // A business deleted after it queued this email has no one left to write to, and its brand went with it.
+          // A pool alert only rode in the business's outbox: it's for the partner's owners and admins, who are still there.
+          const about = reference.kind === "business" ? reference.businessId : template === "partner_pool_alert" ? null : businessId;
+          if (about && !await businessExists(dependencies.domain.db, about)) return { status: "skipped", entityId: about };
+          const brand = await emailBrand(dependencies.domain, reference);
           const sent = await dependencies.email.sendTemplate({
             template,
             to: String(job.payload.to ?? job.payload.email ?? ""),
-            subject: String(job.payload.subject ?? "LobbyStack notification"),
+            // Without a subject of its own, the template writes one under the brand.
+            ...(job.payload.subject === undefined || job.payload.subject === null ? {} : { subject: String(job.payload.subject) }),
             variables,
+            brand,
             idempotencyKey: job.idempotencyKey,
-            ...(typeof job.payload.from === "string" && job.payload.from ? { from: job.payload.from } : {}),
+            ...emailSender(brand, {
+              from: typeof job.payload.from === "string" ? job.payload.from : null,
+              replyTo: typeof job.payload.replyTo === "string" ? job.payload.replyTo : null,
+            }),
           });
           if (feedbackSubmissionId) await markFeedbackEmailSent(dependencies.domain, { feedbackSubmissionId, ...(businessId ? { businessId } : {}), providerMessageId: sent.messageId });
         } catch (error) {
@@ -514,44 +659,26 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
       return { status: acted > 0 ? "completed" : "skipped", entityId: String(acted) };
     }
     case "billing.syncUsage": {
-      if (!dependencies.polar) {
-        return { status: "skipped", entityId: String(job.payload.usageEventId ?? "") };
-      }
       const usageEventId = String(job.payload.usageEventId ?? "");
-      if (!usageEventId) return { status: "skipped" };
-      const event = await loadBillingUsageEvent(dependencies.domain, { businessId: businessIdOrThrow(job), usageEventId });
-      if (!event) return { status: "skipped", entityId: usageEventId };
-      if (event.syncStatus === "synced" || event.syncStatus === "succeeded") return { status: "completed", entityId: event.id };
-      if (event.syncStatus === "skipped" || !event.customerId || !event.isFinal) return { status: "skipped", entityId: event.id };
-      if (event.plan !== "starter" && event.plan !== "pro") return { status: "skipped", entityId: event.id };
-      const knownUsageKinds: BillingUsageKind[] = ["voice_seconds", "alert_sms_segments", "outbound_call_attempts"];
-      const usageKind = knownUsageKinds.includes(event.usageKind as BillingUsageKind) ? event.usageKind as BillingUsageKind : undefined;
-      if (!usageKind) return { status: "skipped", entityId: event.id };
-      const quantity = event.billableQuantity ?? event.quantity;
-      const metered = getPolarMeteredUsagePayload(usageKind, quantity);
-      try {
-        await dependencies.polar.recordUsage({
-          eventName: metered.eventName,
-          externalCustomerId: event.billingKey,
-          quantity: metered.quantity,
-          timestamp: event.createdAt.toISOString(),
-          idempotencyKey: event.sourceKey,
-          businessId: event.businessId,
-          usageKind,
-        });
-      } catch (error) {
-        // `ops.billing.usage_sync_recovered` is intentionally not emitted here.
-        // `billing_usage_events.sync_status` only models pending/skipped/synced
-        // (plus a legacy "succeeded" read), and `markBillingUsageSynced`
-        // transitions only from "pending", so there is no durable failure state
-        // to recover from. Emitting a recovery event would require a persisted
-        // failed marker (schema/state change), which is out of scope for this
-        // phase and must not be fabricated.
-        await recordBillingUsageSyncFailed(dependencies, { businessId: event.businessId });
-        throw error;
-      }
-      await markBillingUsageSynced(dependencies.domain, { businessId: event.businessId, usageEventId: event.id });
-      return { status: "completed", entityId: event.id };
+      const businessId = usageEventId ? businessIdOrThrow(job) : null;
+      const polarClient = dependencies.polar;
+      // A business on a package owes its partner's Stripe for its own overage, whatever the event owes Polar.
+      // Each half runs whatever happens to the other, so a partner's Stripe that keeps failing never holds
+      // back the host's own Polar bill. The job then fails, and its retry sends only what's still pending.
+      const failures: unknown[] = [];
+      const attempt = async (half: () => Promise<JobResult | null>): Promise<JobResult | null> => {
+        try {
+          return await half();
+        } catch (error) {
+          failures.push(error);
+          return null;
+        }
+      };
+      const stripe = businessId ? await attempt(async () => await syncStripeOverage(dependencies, { businessId, usageEventId })) : null;
+      const polar = businessId && polarClient ? await attempt(async () => await syncPolarUsage(dependencies, polarClient, { businessId, usageEventId })) : null;
+      if (failures.length) throw failures[0];
+      if (stripe?.status === "completed") return stripe;
+      return polar ?? stripe ?? (polarClient ? { status: "skipped" } : { status: "skipped", entityId: usageEventId });
     }
     case "billing.reconcile": {
       const providerEventId = String(job.payload.providerEventId ?? "");
@@ -595,6 +722,101 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
         await markBillingCheckoutFailed(dependencies.domain, { businessId, requestId, error: "Polar checkout creation failed." });
         throw error;
       }
+    }
+    case "billing.createPartnerCheckout": {
+      // A partner's tier belongs to no business, so the job names the partner.
+      const partnerId = String(job.payload.partnerId ?? "");
+      const requestId = String(job.payload.requestId ?? "");
+      if (!isUuid(partnerId) || !isUuid(requestId)) return { status: "skipped", entityId: requestId };
+      const request = { partnerId, requestId };
+      if (!await claimPartnerCheckoutRequest(dependencies.domain, request)) return retryAfterLease(await partnerCheckoutLeaseEndsAt(dependencies.domain, request), requestId);
+      if (!dependencies.polar?.createCheckout) {
+        await markPartnerCheckoutFailed(dependencies.domain, { ...request, error: "Billing checkout provider is not configured." });
+        return { status: "skipped", entityId: requestId };
+      }
+      const checkoutRequest = await loadPartnerCheckoutRequest(dependencies.domain, request);
+      if (!checkoutRequest) return { status: "skipped", entityId: requestId };
+      const productId = partnerTierProductId(process.env, checkoutRequest.tier, checkoutRequest.billingInterval);
+      if (!productId) {
+        await markPartnerCheckoutFailed(dependencies.domain, { ...request, error: "The tier's Polar product is not configured." });
+        return { status: "skipped", entityId: requestId };
+      }
+      try {
+        const billingUrl = `${checkoutRequest.returnOrigin}/partner/${partnerId}/billing`;
+        const checkout = await dependencies.polar.createCheckout({
+          productId,
+          customerEmail: checkoutRequest.customerEmail,
+          externalCustomerId: checkoutRequest.externalCustomerId,
+          successUrl: `${billingUrl}?checkout=${encodeURIComponent(requestId)}`,
+          // Polar's back arrow: someone leaving checkout hasn't paid, so they land on the page they left.
+          returnUrl: billingUrl,
+          idempotencyKey: `partner-checkout:${requestId}`,
+        });
+        await markPartnerCheckoutCreated(dependencies.domain, { ...request, ...checkout });
+        return { status: "completed", entityId: requestId };
+      } catch (error) {
+        await markPartnerCheckoutFailed(dependencies.domain, { ...request, error: "Polar checkout creation failed." });
+        throw error;
+      }
+    }
+    case "billing.reconcilePartner": {
+      const partnerId = String(job.payload.partnerId ?? "");
+      const providerEventId = String(job.payload.providerEventId ?? "");
+      if (!isUuid(partnerId) || !isUuid(providerEventId)) return { status: "skipped", entityId: providerEventId };
+      const reconciled = await reconcilePartnerTier(dependencies.domain, { partnerId, providerEventId });
+      // A tier the partner now pays for keeps its trial number. A retry converts it if this run died first.
+      if (reconciled) await keepPartnerTrialNumber(dependencies.domain, { partnerId });
+      return { status: reconciled ? "completed" : "skipped", entityId: providerEventId };
+    }
+    case "billing.chargePartnerNumbers": {
+      // Polar charges a partner, under its own customer, what the host pays for each month of each number past its tier's included ones.
+      // A deployment that bills no tiers charges no month, so its months settle without Polar.
+      const tierBilling = partnerFeatures(process.env).tierBilling;
+      const polar = dependencies.polar;
+      if (tierBilling && !polar) return { status: "skipped" };
+      const result = await settlePartnerNumberCharges(dependencies.domain, {
+        tierBilling,
+        report: async (charge) => {
+          if (!polar) throw new Error("Polar isn't configured, so a partner's extra number can't be charged.");
+          await polar.recordUsage({
+            eventName: billingMeterEventNames.partnerExtraNumbers,
+            externalCustomerId: partnerBillingKey(charge.partnerId),
+            quantity: charge.amountCents,
+            timestamp: charge.periodStart.toISOString(),
+            idempotencyKey: charge.idempotencyKey,
+            businessId: charge.businessId,
+            usageKind: "partner_extra_number",
+          });
+        },
+      });
+      return { status: result.settled > 0 ? "completed" : "skipped", entityId: `${result.settled}:${result.charged}` };
+    }
+    case "partnerLifecycle.advance": {
+      // The clock moves each partner whose tier ended on: its businesses pause after 30 days, and at 90 the host deletes them.
+      const result = await advancePartnerLifecycles(dependencies.domain);
+      return { status: result.moved > 0 || result.deleted > 0 ? "completed" : "skipped", entityId: `${result.moved}:${result.deleted}` };
+    }
+    case "partnerDomain.provision": {
+      // A partner's domain belongs to no business, so the job names it.
+      const domainId = String(job.payload.domainId ?? "");
+      if (!isUuid(domainId) || !dependencies.customDomains) return { status: "skipped", entityId: domainId };
+      const outcome = await provisionPartnerCustomDomain(dependencies.domain, dependencies.customDomains, { domainId });
+      return { status: outcome === "provisioned" ? "completed" : "skipped", entityId: domainId };
+    }
+    case "partnerDomain.check": {
+      if (!dependencies.customDomains) return { status: "skipped" };
+      // A domain the provider or DNS couldn't answer for waits for its next check; only a run where nothing answered fails.
+      const result = await checkPartnerCustomDomains(dependencies.domain, dependencies.customDomains);
+      return { status: result.checked > 0 ? "completed" : "skipped", entityId: `${result.checked}:${result.activated}:${result.failed}:${result.unanswered}` };
+    }
+    case "partnerDomain.remove": {
+      const hostname = String(job.payload.hostname ?? "");
+      const providerHostnameId = String(job.payload.providerHostnameId ?? "");
+      // A domain another provider set up stays with it: this deployment can't reach that provider any more.
+      const hostnames = dependencies.customDomains?.hostnames;
+      if (!hostname || !providerHostnameId || !hostnames || job.payload.provider !== hostnames.kind) return { status: "skipped", entityId: providerHostnameId };
+      const outcome = await removePartnerCustomHostname(dependencies.domain, hostnames, { hostname, providerHostnameId });
+      return { status: outcome === "removed" ? "completed" : "skipped", entityId: providerHostnameId };
     }
     case "notification.dispatch": {
       const businessId = businessIdOrThrow(job);
@@ -672,6 +894,13 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
       const deleted = await deleteCallRecordingForRetention(dependencies.domain, input, dependencies.storage);
       return { status: deleted ? "completed" : "skipped", entityId: callId };
     }
+    case "privacy.deleteStoredObjects": {
+      // Queued when a business is deleted, so the job names no business.
+      const objectKeys = Array.isArray(job.payload.objectKeys) ? job.payload.objectKeys.filter((key): key is string => typeof key === "string" && key.length > 0) : [];
+      if (!dependencies.storage || objectKeys.length === 0) return { status: "skipped", entityId: String(objectKeys.length) };
+      const deleted = await deleteStoredObjects(dependencies.storage, objectKeys);
+      return { status: "completed", entityId: String(deleted) };
+    }
     case "privacy.cleanupPendingUpload": {
       if (!dependencies.storage) return { status: "skipped", entityId: businessIdOrThrow(job) };
       const deleted = await deleteExpiredObjectsForBusiness(dependencies.domain, { businessId: businessIdOrThrow(job) }, dependencies.storage);
@@ -693,6 +922,14 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
       const smsUrl = `${baseUrl}/api/webhooks/twilio/sms`; const statusCallbackUrl = `${baseUrl}/api/webhooks/twilio/status`;
       let purchased = false; let providerPhoneId: string | undefined;
       try {
+        // A number that counts against a partner's tier costs the partner what the host pays for it, so read that before buying it.
+        let monthlyCostCents: number | undefined;
+        if (claim.countsForPartner) {
+          const kind = claim.selection?.kind;
+          if (!dependencies.twilio.getPhoneNumberMonthlyPrice) throw new Error("The Twilio provider can't read number prices.");
+          if (typeof claim.selection?.countryCode !== "string" || (kind !== "local" && kind !== "mobile" && kind !== "toll_free")) throw new Error("The number claim doesn't say which country and kind of number it buys.");
+          monthlyCostCents = (await dependencies.twilio.getPhoneNumberMonthlyPrice({ countryCode: claim.selection.countryCode, kind })).monthlyCents;
+        }
         const owned = await dependencies.twilio.findOwnedPhoneNumber({ e164: claim.e164 });
         if (owned) providerPhoneId = owned.providerPhoneId;
         else {
@@ -706,7 +943,7 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
           providerPhoneId = result.providerPhoneId; purchased = true;
         }
         await addNumberToSipTrunk({ trunkSid: sipTrunkSid, providerPhoneId });
-        const phoneNumberId = await completeNumberProvisioning(dependencies.domain, { businessId, claimId, e164: claim.e164, providerPhoneId, voiceUrl: `sip-trunk:${sipTrunkSid}`, smsUrl });
+        const phoneNumberId = await completeNumberProvisioning(dependencies.domain, { businessId, claimId, e164: claim.e164, providerPhoneId, voiceUrl: `sip-trunk:${sipTrunkSid}`, smsUrl, ...(monthlyCostCents !== undefined ? { monthlyCostCents } : {}) });
         return { status: "completed", entityId: phoneNumberId };
       } catch (error) {
         if (purchased && providerPhoneId && dependencies.twilio.releasePhoneNumber) await dependencies.twilio.releasePhoneNumber({ providerPhoneId }).catch(() => undefined);
@@ -755,6 +992,23 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
         throw error;
       }
     }
+    case "phoneNumber.releaseDeleted": {
+      // Queued when a business is deleted, so the job names no business and its number has no row left.
+      const providerPhoneId = typeof job.payload.providerPhoneId === "string" ? job.payload.providerPhoneId : "";
+      const e164 = typeof job.payload.e164 === "string" ? job.payload.e164 : null;
+      if (!providerPhoneId) return { status: "skipped", entityId: "" };
+      // Every hosted business texts from the shared sender, so it's never released.
+      if (isSharedSmsSender(e164)) return { status: "skipped", entityId: providerPhoneId };
+      if (!dependencies.twilio?.releasePhoneNumber) throw new Error("Twilio phone-number release is not configured.");
+      try {
+        await dependencies.twilio.releasePhoneNumber({ providerPhoneId });
+      } catch (error) {
+        // A number the provider no longer has is released already, such as by a reclaim that was under way.
+        if ((error as { status?: unknown } | null)?.status !== 404) throw error;
+        return { status: "skipped", entityId: providerPhoneId };
+      }
+      return { status: "completed", entityId: providerPhoneId };
+    }
     case "phoneNumber.route": {
       const businessId = businessIdOrThrow(job);
       const phoneNumberId = String(job.payload.phoneNumberId ?? "");
@@ -784,6 +1038,9 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
       if (!dependencies.email || !dependencies.onboardingFollowupSender) return { status: "skipped", entityId: phoneNumberId };
       const content = await loadNumberReleaseEmail(dependencies.domain, { businessId, phoneNumberId });
       if (!content) return { status: "skipped", entityId: phoneNumberId };
+      // The host's own email, with the host's prices, from the founder. A
+      // partner's businesses never get it, so its job carries no brand.
+      const brand = await emailBrand(dependencies.domain, HOST_EMAIL_BRAND);
       const date = (value: unknown) => (typeof value === "string" ? new Intl.DateTimeFormat(intlLocale(content.locale), { month: "long", day: "numeric", timeZone: content.timezone }).format(new Date(value)) : "");
       const variables = {
         kind,
@@ -792,10 +1049,10 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
         number: content.number,
         periodEnd: date(job.payload.periodEnd),
         releaseDate: date(job.payload.releaseAt),
-        url: `${(process.env.APP_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "")}/settings/plan`,
+        url: `${brand.origin}/settings/plan`,
         senderName: dependencies.onboardingFollowupSender.name,
       };
-      await dependencies.email.sendTemplate({ template: "number_release", to: content.to, from: dependencies.onboardingFollowupSender.from, subject: numberReleaseEmailSubject(variables), variables, idempotencyKey: job.idempotencyKey });
+      await dependencies.email.sendTemplate({ template: "number_release", to: content.to, subject: numberReleaseEmailSubject(variables), variables, brand, idempotencyKey: job.idempotencyKey, ...emailSender(brand, { from: dependencies.onboardingFollowupSender.from }) });
       return { status: "completed", entityId: `${phoneNumberId}:${kind}` };
     }
     case "numberTrial.sendEmail": {
@@ -806,6 +1063,9 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
       if (!trialId || (kind !== "day10" && kind !== "day13" && kind !== "ended" && kind !== "minutes_out")) throw new Error("Invalid number trial email payload.");
       const content = await loadNumberTrialEmail(dependencies.domain, { businessId, trialId, email: kind });
       if (!content) return { status: "skipped", entityId: trialId };
+      // The host's own email, with the host's prices, from the founder. A
+      // partner's businesses never get it, so its job carries no brand.
+      const brand = await emailBrand(dependencies.domain, HOST_EMAIL_BRAND);
       const endDate = content.endsAt
         // The trial's last day is the day before endsAt, which is midnight that ends it.
         ? new Intl.DateTimeFormat(intlLocale(content.locale), { month: "long", day: "numeric", timeZone: content.timezone }).format(new Date(content.endsAt.getTime() - 1))
@@ -819,10 +1079,10 @@ async function dispatchJob(job: JobEnvelope, dependencies: WorkerDependencies, e
         forwardTo: content.forwardTo ?? "",
         endDate,
         calls: String(content.callsAnswered),
-        url: `${(process.env.APP_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "")}/settings/plan`,
+        url: `${brand.origin}/settings/plan`,
         senderName: dependencies.onboardingFollowupSender.name,
       };
-      await dependencies.email.sendTemplate({ template: "number_trial", to: content.to, from: dependencies.onboardingFollowupSender.from, subject: numberTrialEmailSubject(variables), variables, idempotencyKey: job.idempotencyKey });
+      await dependencies.email.sendTemplate({ template: "number_trial", to: content.to, subject: numberTrialEmailSubject(variables), variables, brand, idempotencyKey: job.idempotencyKey, ...emailSender(brand, { from: dependencies.onboardingFollowupSender.from }) });
       return { status: "completed", entityId: `${trialId}:${kind}` };
     }
     case "prospectDemo.expire": {

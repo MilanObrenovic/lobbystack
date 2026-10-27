@@ -15,11 +15,13 @@
     "appearance": "Préférences",
     "integrations": "Intégrations",
     "billing": "Forfait",
+    "subscription": "Facturation",
     "usage": "Utilisation",
     "notifications": "Notifications",
     "widget": "Widget de site web",
     "apiKeys": "Clés API",
-    "connectedApps": "Applications connectées"
+    "connectedApps": "Applications connectées",
+    "partnerAccess": "Accès du partenaire"
   },
   "widget": {
     "title": "Widget de site web",
@@ -199,11 +201,13 @@
     },
     "usage": {
       "title": "Utilisation incluse",
+      "allowanceTitle": "Utilisation ce mois-ci",
       "description": "Réinitialisation le {{resetAt}}.",
       "paygTitle": "Utilisation à l'usage",
       "paygDescription": "Utilisation supplémentaire facturable pour cette période. Réinitialisation le {{resetAt}}.",
       "knowledgeTitle": "Base de connaissances",
       "voiceTitle": "Minutes vocales",
+      "chatsTitle": "Discussions",
       "voiceValue": "{{minutes}} minutes utilisées",
       "voiceRemaining": "{{minutes}} minutes restantes",
       "alertSmsTitle": "Segments SMS d'alerte",
@@ -230,10 +234,15 @@
         "voice": "min",
         "outboundAttempts": "tentatives",
         "segments": "segments",
-        "storage": "MB"
+        "storage": "MB",
+        "chats": "discussions"
       },
       "unavailable": "Les données d’utilisation sont indisponibles.",
-      "customAllowance": "{{used}} {{unit}} utilisés · Volume sur mesure"
+      "customAllowance": "{{used}} {{unit}} utilisés · Volume sur mesure",
+      "noLimit": "Utilisation : {{used}} {{unit}} · Sans limite",
+      "extraTitle": "Utilisation supplémentaire",
+      "extraOnDescription": "Votre réceptionniste continue de répondre au-delà de votre volume inclus, et {{appName}} vous facture les minutes et discussions supplémentaires.",
+      "extraOffDescription": "L'utilisation supplémentaire est désactivée. {{appName}} vous facture les minutes et discussions supplémentaires que vous avez utilisées avant sa désactivation."
     },
     "spendingCap": {
       "title": "Plafond mensuel de dépenses",
@@ -356,6 +365,41 @@
       "dashboard": "Aller au tableau de bord"
     }
   },
+  "subscription": {
+    "loadFailed": "Impossible de charger votre facturation. Actualisez la page pour réessayer.",
+    "outside": "{{appName}} vous facture directement. Posez-lui vos questions sur votre facture.",
+    "packageTitle": "Votre formule",
+    "minutes_one": "{{amount}} minute",
+    "minutes_many": "{{amount}} minutes",
+    "minutes_other": "{{amount}} minutes",
+    "chats_one": "{{amount}} clavardage",
+    "chats_many": "{{amount}} clavardages",
+    "chats_other": "{{amount}} clavardages",
+    "allowance": "Chaque mois comprend {{minutes}} et {{chats}}.",
+    "status": {
+      "awaiting_payment": "Votre réceptionniste répond aux appels et aux clavardages dès que vous payez.",
+      "active": "Votre abonnement est actif.",
+      "renews": "Votre abonnement se renouvelle le {{date}}.",
+      "past_due": "Votre dernier paiement a échoué, et nous allons réessayer. Mettez à jour votre carte pour que votre réceptionniste continue de répondre.",
+      "inactive": "Votre abonnement a pris fin, donc votre réceptionniste ne répond plus aux appels ni aux clavardages. Abonnez-vous de nouveau pour le réactiver."
+    },
+    "badge": {
+      "awaiting_payment": "Paiement en attente",
+      "active": "Actif",
+      "past_due": "Paiement échoué",
+      "inactive": "Terminé"
+    },
+    "subscribe": "S'abonner",
+    "manage": "Gérer la facturation",
+    "opening": "Ouverture…",
+    "manageHint": "Mettez à jour votre carte, téléchargez vos factures ou annulez votre abonnement.",
+    "paid": "Paiement reçu. Votre réceptionniste commence à répondre dans un instant.",
+    "errors": {
+      "portal": "Le portail de facturation n'est pas disponible pour le moment. Contactez {{appName}}.",
+      "checkout": "Impossible d'ouvrir le paiement. Réessayez.",
+      "unavailable": "{{appName}} ne peut pas recevoir de paiements pour le moment. Contactez-les au sujet de votre facture."
+    }
+  },
   "phoneNumber": {
     "current": {
       "label": "Numéro de téléphone actuel",
@@ -375,6 +419,44 @@
       "title": "Les numéros dédiés sont réservés aux forfaits payants",
       "description": "Passez à Starter ou Pro pour obtenir un numéro local que les appelants peuvent composer.",
       "upgradeCta": "Voir les forfaits"
+    },
+    "partnerTierRequired": {
+      "description": "Le partenaire de cette entreprise doit payer un palier pour ajouter des numéros de téléphone."
+    },
+    "partnerNumbersUnavailable": {
+      "description": "Les numéros de téléphone ne sont pas encore disponibles pour cette entreprise."
+    },
+    "trialPhone": {
+      "title": "Vérifiez votre numéro de mobile",
+      "description": "Pendant l'essai de 14 jours, le réceptionniste transfère les appels uniquement vers ce mobile.",
+      "fields": {
+        "mobileNumber": "Numéro de mobile",
+        "country": "Pays"
+      },
+      "hint": "Utilisez un mobile qui reçoit les SMS. Les numéros Internet ne fonctionnent pas.",
+      "sendCode": "M'envoyer un code",
+      "sending": "Envoi…",
+      "errors": {
+        "voip": "Utilisez votre numéro de mobile. Les numéros Internet ne peuvent pas être vérifiés.",
+        "notMobile": "Utilisez un numéro de mobile qui reçoit les SMS.",
+        "countryMismatch": "Ce numéro ne vient pas du pays choisi.",
+        "invalidNumber": "Entrez un numéro de mobile valide.",
+        "rateLimited": "Trop de codes demandés. Patientez un moment, puis réessayez.",
+        "sendFailed": "Impossible d'envoyer le code. Réessayez."
+      },
+      "code": {
+        "sentTo": "Entrez le code à 6 chiffres envoyé au {{phone}}.",
+        "label": "Code de vérification",
+        "checking": "Vérification…",
+        "invalid_one": "Ce code ne fonctionne pas. Il vous reste {{count}} essai.",
+        "invalid_many": "Ce code ne fonctionne pas. Il vous reste {{count}} essais.",
+        "invalid_other": "Ce code ne fonctionne pas. Il vous reste {{count}} essais.",
+        "expired": "Ce code a expiré. Demandez-en un nouveau.",
+        "locked": "Trop d'essais. Demandez un nouveau code.",
+        "failed": "Impossible de vérifier le code. Réessayez.",
+        "resend": "Envoyer un nouveau code",
+        "changeNumber": "Utiliser un autre numéro"
+      }
     },
     "actions": {
       "requestChange": "Demander un changement",
@@ -404,7 +486,8 @@
     "toast": {
       "changed": "Numéro de téléphone modifié. Votre ancien numéro restera actif pendant 30 jours.",
       "added": "Numéro de téléphone ajouté."
-    }
+    },
+    "numbersUnavailable": "Les numéros de téléphone ne sont pas encore configurés sur ce tableau de bord. Demandez à la personne qui le gère de connecter un fournisseur de téléphonie."
   },
   "appearance": {
     "title": "Préférences",
@@ -662,6 +745,7 @@
       "sent": "Invitation envoyée à {{email}}.",
       "errors": {
         "invalidEmail": "Entrez une adresse courriel valide.",
+        "partnerMember": "{{email}} fait partie de l'équipe du partenaire de cette entreprise. Cette personne y travaille depuis la console partenaire et ne peut donc pas rejoindre l'équipe.",
         "failed": "Impossible d'envoyer cette invitation. Veuillez réessayer."
       }
     },
@@ -1090,6 +1174,21 @@
       "appointments_write": "Réserver, annuler et déplacer des rendez-vous",
       "messages_read": "Lire les messages pris par la réceptionniste",
       "knowledge_write": "Ajouter des entrées de connaissances et des FAQ"
+    }
+  },
+  "partnerAccess": {
+    "title": "Accès du partenaire",
+    "description": "Chaque fois qu'une personne de l'équipe de votre partenaire a ouvert votre tableau de bord pour vous aider, et quand elle l'a quitté.",
+    "empty": "Personne de l'équipe de votre partenaire n'a encore ouvert votre tableau de bord.",
+    "adminsOnly": "Seuls les propriétaires et les administrateurs voient qui a ouvert le tableau de bord.",
+    "loadFailed": "Nous n'avons pas pu charger cette liste. Réessayez.",
+    "someone": "Un membre de l'équipe de {{partnerName}}",
+    "opened": "Ouverture de votre tableau de bord",
+    "left": "Départ",
+    "columns": {
+      "who": "Qui",
+      "what": "Quoi",
+      "when": "Quand"
     }
   }
 }

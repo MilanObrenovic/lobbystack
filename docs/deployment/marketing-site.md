@@ -1,6 +1,6 @@
 # Serve lobbystack.com from the admin app
 
-The admin app serves the marketing site on every hostname listed in `MARKETING_HOSTS`, and the dashboard on every other hostname. This guide explains how requests reach the marketing pages, how to run and check them, how Cloudflare caches them, and how to roll back a bad release.
+The admin app serves the marketing site on every hostname listed in `MARKETING_HOSTS`, and the dashboard on the host's other hostnames and on partners' domains. Any hostname outside those gets a 404, as [Which brand a hostname gets](../branding.md#which-brand-a-hostname-gets) describes. An image built without the marketing site serves the dashboard on the `MARKETING_HOSTS` hostnames instead. This guide explains how requests reach the marketing pages, how to run and check them, how Cloudflare caches them, and how to roll back a bad release.
 
 ## How a request reaches a marketing page
 

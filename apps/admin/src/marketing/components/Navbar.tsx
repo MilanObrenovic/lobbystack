@@ -21,9 +21,11 @@ import {
   Moon,
   Newspaper,
   PhoneCall,
+  Plug,
   Scissors,
   Server,
   Stethoscope,
+  Tag,
   WashingMachine,
   Wind,
   Wrench,
@@ -65,6 +67,7 @@ const labels = {
     blog: "Blog",
     changelog: "Changelog",
     helpCenter: "Help Center",
+    mcpServer: "MCP server",
     calculator: "Missed call calculator",
     affiliateProgram: "Affiliate Program",
     navigationMenu: "Navigation menu",
@@ -81,6 +84,7 @@ const labels = {
     blog: "Blog",
     changelog: "Journal des changements",
     helpCenter: "Centre d'aide",
+    mcpServer: "Serveur MCP",
     calculator: "Calculateur d'appels manqués",
     affiliateProgram: "Programme d'affiliation",
     navigationMenu: "Menu de navigation",
@@ -97,6 +101,7 @@ const labels = {
     blog: "Blog",
     changelog: "Registro de cambios",
     helpCenter: "Centro de ayuda",
+    mcpServer: "Servidor MCP",
     calculator: "Calculadora de llamadas perdidas",
     affiliateProgram: "Programa de afiliados",
     navigationMenu: "Menú de navegación",
@@ -113,8 +118,9 @@ const labels = {
     blog: "Blog",
     changelog: "Dnevnik izmena",
     helpCenter: "Centar za pomoć",
+    mcpServer: "MCP server",
     calculator: "Kalkulator propuštenih poziva",
-    affiliateProgram: "Partnerski program",
+    affiliateProgram: "Program preporuka",
     navigationMenu: "Meni za navigaciju",
     mobileNavigation: "Mobilna navigacija",
   },
@@ -131,6 +137,7 @@ const solutionLabelMap = {
     dental: "Dental offices",
     salons: "Salons and spas",
     selfHosted: "Self-hosted AI receptionist",
+    whiteLabel: "White-label AI receptionist",
     trades: "By Trade",
     plumbers: "Plumbers",
     hvac: "HVAC",
@@ -152,6 +159,7 @@ const solutionLabelMap = {
     dental: "Cabinets dentaires",
     salons: "Salons et spas",
     selfHosted: "Réceptionniste IA auto-hébergé",
+    whiteLabel: "Réceptionniste IA en marque blanche",
     trades: "Métiers",
     plumbers: "Plombiers",
     hvac: "CVC",
@@ -173,6 +181,7 @@ const solutionLabelMap = {
     dental: "Clínicas dentales",
     salons: "Salones y spas",
     selfHosted: "Recepcionista con IA autoalojada",
+    whiteLabel: "Recepcionista con IA de marca blanca",
     trades: "Por oficio",
     plumbers: "Plomeros",
     hvac: "Climatización",
@@ -194,6 +203,7 @@ const solutionLabelMap = {
     dental: "Stomatološke ordinacije",
     salons: "Saloni i spa centri",
     selfHosted: "Samostalno hostovan AI recepcioner",
+    whiteLabel: "White-label AI recepcioner",
     trades: "Po zanatu",
     plumbers: "Vodoinstalateri",
     hvac: "Grejanje i klimatizacija",
@@ -216,6 +226,11 @@ const resourceLinks = (locale: Locale) =>
       href: "https://docs.lobbystack.com/introduction",
       external: true,
       icon: BookOpen,
+    },
+    {
+      label: labels[locale].mcpServer,
+      href: "/features/mcp/",
+      icon: Plug,
     },
     {
       label: labels[locale].calculator,
@@ -250,6 +265,11 @@ const solutionLinks = (locale: Locale) =>
       label: solutionLabelMap[locale].selfHosted,
       href: "/solutions/self-hosted-ai-receptionist/",
       icon: Server,
+    },
+    {
+      label: solutionLabelMap[locale].whiteLabel,
+      href: "/white-label/",
+      icon: Tag,
     },
   ] satisfies NavChildLink[]
 
@@ -384,7 +404,7 @@ export function Navbar({ locale = "en" }: NavbarProps) {
         {/* Logo */}
         <a
           href={localizePath(locale, "/")}
-          className="flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="flex shrink-0 items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           <img
             src="/lobbystack-logo.svg"
@@ -396,8 +416,8 @@ export function Navbar({ locale = "en" }: NavbarProps) {
           />
         </a>
 
-        {/* Desktop Nav */}
-        <nav className="hidden items-center gap-1 md:flex">
+        {/* Desktop Nav. French, Spanish and Serbian labels need about 850px beside the logo and buttons, so tablets get the menu. */}
+        <nav className="hidden items-center gap-1 lg:flex">
           {navLinks(locale).map((link) => (
             <div key={link.label} className="group relative">
               {link.type === "group" ? (
@@ -508,7 +528,7 @@ export function Navbar({ locale = "en" }: NavbarProps) {
         </nav>
 
         {/* Desktop CTAs */}
-        <div className="hidden items-center gap-1 md:flex">
+        <div className="hidden items-center gap-1 lg:flex">
           <a
             href="https://github.com/lobbystack/lobbystack"
             target="_blank"
@@ -530,7 +550,7 @@ export function Navbar({ locale = "en" }: NavbarProps) {
           </a>
           <a
             href={appSignupUrl(locale)}
-            className={cn(buttonVariants(), "ml-2 rounded-full px-5")}
+            className={cn(buttonVariants(), "ml-2")}
             data-ph-signup-cta
             data-ph-capture-attribute-section="navbar"
             data-ph-capture-attribute-action="try_for_free"
@@ -540,7 +560,7 @@ export function Navbar({ locale = "en" }: NavbarProps) {
           </a>
         </div>
 
-        <details className="group/mobile-menu md:hidden">
+        <details className="group/mobile-menu lg:hidden">
           <summary
             className="inline-flex size-9 cursor-pointer list-none items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden"
             aria-controls={mobileMenuId}
@@ -682,7 +702,7 @@ export function Navbar({ locale = "en" }: NavbarProps) {
               </a>
               <a
                 href={appSignupUrl(locale)}
-                className={cn(buttonVariants(), "rounded-full")}
+                className={buttonVariants()}
                 data-ph-signup-cta
                 data-ph-capture-attribute-section="mobile_navbar"
                 data-ph-capture-attribute-action="try_for_free"

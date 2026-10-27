@@ -16,6 +16,19 @@ Do not duplicate ownership between runtimes unless there is a specific analytics
 - `web.auth.login_succeeded`
 - `web.auth.signup_succeeded`
 - `web.workspace.business_switched`
+- `web.partner.signup_succeeded`: someone signed a company up as a partner at `/partner/signup`. It carries `partnerId`, `invited` (whether they used the host's signup invitation) and `subdomain` (whether signup reserved a subdomain of the partner base domain). The signup page belongs to no partner, so it queues the event. The new partner's console sends it once it reads the partner's telemetry setting, which starts on, and keeps `/partner/signup` as its `pathname`. With the setting off, the console drops it. A partner member with no business of their own counts like anyone else.
+- `web.partner.business_created`: an owner or admin created a business on the console's Businesses page. It carries `partnerId`, `businessId` (the new business) and `accessLevel` (`full` or `activity`). Like every console event, it goes out only while the partner has telemetry on, whatever the person's own business says, and a partner's domain never sends it.
+- `web.partner.business_opened`: someone on a partner's team opened one of its businesses from the console's Businesses page, or a prospect demo's business from its Demos page, just before the browser goes to its dashboard. It carries `partnerId` and `businessId` (the business opened). The business's audit log records the same open as `partner.business_opened`. The same rule applies.
+- `web.partner.business_released`: an owner or admin released one of the partner's businesses to its owner from the console's Businesses page, once the server accepted it. It carries `partnerId` and `businessId` (the business released). The business's audit log records the same release as `partner.business_released`. The same rule applies.
+- `web.partner.business_deleted`: an owner or admin deleted one of the partner's businesses from the console's Businesses page, or a closed demo's business from its Demos page, once the server accepted it. It carries `partnerId` and `businessId` (the business deleted, which no longer exists). The same rule applies.
+- `web.partner.stripe_onboarding_started`: an owner opened Stripe's onboarding from the console's Stripe page, by clicking or because Stripe sent them back with an expired link. It carries `partnerId` and `resumed` (`true` when the partner already had an account and continued its onboarding, `false` when the click connects a new account). The same rule applies.
+- `web.partner.package_created`: an owner or admin created a package on the console's Packages page. It carries `partnerId`, `packageId`, `currency` (the connected account's, which the package is priced in) and `setupFee` (whether it charges one). It never carries the price. The same rule applies.
+- `web.partner.tier_started`: an owner paid for a tier at Polar's checkout, and the console's Billing page saw the partner's tier change to it. It carries `partnerId`, `tier` (`starter`, `growth` or `scale`) and `billingInterval` (`monthly` or `annual`). The same rule applies.
+- `web.partner.template_saved`: an owner or admin saved a business's setup as a template, from the console's Templates page or a business's row on its Businesses page, once the server accepted it. It carries `partnerId`, `templateId` (the new template) and `businessId` (the business it was saved from). The same rule applies.
+- `web.partner.template_deleted`: an owner or admin deleted one of the partner's templates from the console's Templates page, once the server accepted it. It carries `partnerId` and `templateId` (the template deleted). The same rule applies.
+- `web.partner.demo_created`: someone on a partner's team made a prospect demo from the console's Demos page, once the server accepted it. It carries `partnerId`, `prospectDemoId` (the new demo, as the `prospect_demo.*` events name it), `businessId` (the demo's business, one of the partner's) and `accessLevel` (what the business gives its operators once someone claims it, always `full` for a demo a member made). The same rule applies.
+- `web.partner.demo_published`: someone on a partner's team published one of its demos from the Demos page, once the server accepted it. It carries `partnerId`, `prospectDemoId` and `businessId`. The same rule applies.
+- `web.partner.demo_revoked`: someone on a partner's team turned off one of its demos from the Demos page, once the server accepted it. It carries `partnerId`, `prospectDemoId` and `businessId`. The same rule applies.
 - `web.page.home_viewed`
 - `web.page.calls_viewed`
 - `web.page.call_detail_viewed`
@@ -126,8 +139,11 @@ The answer gap skips caller speech that ended while the receptionist was still t
 
 `billing.subscription_canceled` fires when an owner or admin cancels the plan from **Settings → Plan** and Polar accepts the request. The admin route records it after Polar schedules the end of the current period, so the plan stays active until then. `reason` holds the answer to the dialog's optional question: `setup`, `quality`, `price`, `missing_feature`, `other`, or `none` when the operator skips it. The event carries `hasComment` but never the comment itself. Polar stores the comment with the subscription.
 
+`billing.package_subscription_started` fires once, when a partner's business starts paying for its package on the partner's Stripe account. The Connect webhook records it in the transaction that writes the live subscription to the business's billing account. Redeliveries and later news of the same live subscription don't repeat it. It carries `partnerId`, `packageId` and `currency`, the package's, and never the price.
+
 - `billing.subscription_started`
 - `billing.subscription_canceled`
+- `billing.package_subscription_started`
 
 ### Operations events
 
@@ -301,6 +317,7 @@ PostHog should be modeled around `business` groups:
 - browser events identify operators as `user:{userId}`
 - business outcome events use `system:business:{businessId}`
 - grouped analytics use `business:{businessId}`
+- the partner console's events, and a queued sign-in event the console sends, carry `partnerId` and no business group, and go out only while the partner has telemetry on
 - customers are never PostHog persons
 
 ## AI traces

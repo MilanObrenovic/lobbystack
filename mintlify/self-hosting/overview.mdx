@@ -49,7 +49,9 @@ Set `FIRECRAWL_API_KEY` on the `worker` service. Without it, website import fail
 
 In Google Cloud, enable the Google Calendar API and create an OAuth client for a web application. Add `https://your_admin_domain/api/calendar/google/callback` as an authorized redirect URI. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the `admin` service. The template fills in `GOOGLE_REDIRECT_URI`, and the worker reads all three from the admin.
 
-With both values set, the sign-in and sign-up pages also offer **Continue with Google**. Add `https://your_admin_domain/api/auth/callback/google` to the same OAuth client as a second authorized redirect URI.
+With both values set, the sign-in and sign-up pages also offer **Continue with Google**. Add `https://your_admin_domain/api/auth/callback/google` to the same OAuth client as a second authorized redirect URI. Your partners' domains don't offer it: people sign in there with email and password.
+
+Your partners' businesses connect their calendars on the partner's domain through the same `/api/calendar/google/callback` redirect URI. Google sends the person back to your admin domain, which passes them on to the partner's domain to finish.
 
 #### Use a custom domain
 
@@ -60,6 +62,8 @@ Add the domain to the `admin` service, then set `APP_BASE_URL` on the `admin` se
 
 A deployment from an older version of the template has the Railway domain written into each of these variables, so edit them all. Then point the OpenAI webhook and both Google redirect URIs at the new domain. Phone numbers you provisioned before the change keep their old SMS and status callback URLs in Twilio until you update them there.
 
+The dashboard answers only on the hostname in `APP_BASE_URL`, the exact origins in `AUTH_TRUSTED_ORIGINS`, and your partners' domains. After the change, the Railway domain gets a 404. To keep it, add its origin to `AUTH_TRUSTED_ORIGINS`. A pattern such as `https://*.example.com` makes no hostname reachable, so list each hostname as its own origin. Health checks and provider webhooks answer on any hostname.
+
 ## Official baseline
 
 The repository's [`docker-compose.yml`](https://github.com/lobbystack/lobbystack/blob/main/docker-compose.yml) runs:
@@ -69,7 +73,7 @@ The repository's [`docker-compose.yml`](https://github.com/lobbystack/lobbystack
 - a persistent Docker volume for recordings and uploaded documents
 - the Next.js admin dashboard and HTTP API
 - the background worker and transactional outbox dispatcher, which also runs each GPT-Live call
-- Caddy to route the dashboard hostname over plain HTTP, behind the proxy or load balancer that terminates HTTPS
+- Caddy to route the dashboard hostname, over plain HTTP behind the proxy or load balancer that terminates HTTPS, or over HTTPS with certificates Caddy issues for your dashboard and your partners' domains
 
 LobbyStack does not add monitoring containers to the Compose stack. Server runtimes can send traces, metrics, and OpenTelemetry logs to a configured OTLP-compatible backend.
 
@@ -96,3 +100,11 @@ Continue with the [Docker Compose deployment guide](/self-hosting/docker-compose
 <Warning>
   Local storage requires the admin and worker to run on the same Docker host. Deployments with application containers on more than one host must set `STORAGE_PROVIDER=s3` and use AWS S3 or a compatible service.
 </Warning>
+
+## Get support
+
+You can get free help from the community or buy a support plan from the LobbyStack team:
+
+- Ask questions on [Discord](https://discord.gg/WKX4wCTTpJ) and report bugs in [GitHub issues](https://github.com/lobbystack/lobbystack/issues). Community help is free.
+- Buy Premium support or Enterprise support for email support with reply-time targets and help installing and upgrading. The [self-hosted pricing page](https://lobbystack.com/pricing/self-hosted/) lists the prices and what each plan includes.
+- If your agency runs the partner program on your own servers, the [white-label page](https://lobbystack.com/white-label/#self-hosted-tiers) lists support plans with one price per agency.

@@ -3,6 +3,7 @@ import {
   appAffiliateLoginUrl,
   appAffiliateSignupUrl,
   appLoginUrl,
+  appPartnerSignupUrl,
   appSignupUrl,
 } from "./app-links"
 
@@ -37,6 +38,12 @@ describe("dashboard auth links", () => {
     )
     expect(appAffiliateLoginUrl("sr")).toBe(
       "https://app.lobbystack.com/sr/login?returnTo=%2Faffiliate"
+    )
+  })
+
+  it("sends partners to White Label signup in their language", () => {
+    expect(appPartnerSignupUrl("fr")).toBe(
+      "https://app.lobbystack.com/partner/signup?lng=fr"
     )
   })
 })

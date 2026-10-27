@@ -36,6 +36,11 @@ export const en = {
       description:
         "Compare LobbyStack AI receptionist pricing for Free, Starter, Pro, and Enterprise plans, including voice minutes, annual billing, SMS alerts, and overage rates.",
     },
+    "/pricing/self-hosted/": {
+      title: "Self-Hosted AI Receptionist Pricing and Support | LobbyStack",
+      description:
+        "Self-host LobbyStack's AI receptionist free with every feature, or add Premium or Enterprise support for email or Slack help, faster replies and upgrades.",
+    },
     "/solutions/": {
       title: "AI Receptionist Solutions | LobbyStack",
       description:
@@ -95,6 +100,16 @@ export const en = {
       title: "Search - LobbyStack",
       description:
         "Search LobbyStack pages, blog posts, product resources, pricing details, and public agent-discovery documentation.",
+    },
+    "/features/mcp/": {
+      title: "AI Receptionist MCP Server for Claude and ChatGPT | LobbyStack",
+      description:
+        "Connect Claude or ChatGPT to the LobbyStack AI receptionist MCP server. Ask who called, book appointments and change your hours from the chat.",
+    },
+    "/white-label/": {
+      title: "Open-source white-label AI receptionist | LobbyStack",
+      description:
+        "Resell a white-label AI receptionist under your agency's brand and domain. Bill clients on your own Stripe, share one pool of minutes, and start free.",
     },
     "/affiliate-program/": {
       title: "LobbyStack Affiliate Program | Earn 20% Commission",

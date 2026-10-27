@@ -1,18 +1,21 @@
-import { eq } from "drizzle-orm";
-
 import type { AuthzRole } from "@lobbystack/contracts";
-import { users, withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
-import { requireBusinessMembership, type DomainContext } from "@lobbystack/domain";
+import { withBusinessTransaction, type DatabaseTransaction } from "@lobbystack/db";
+import { readActiveBusinessId, requireBusinessAccess, type BusinessAccess, type DomainContext } from "@lobbystack/domain";
 import { isUuid } from "@lobbystack/shared";
 
 import { asApiResponse, jsonError, requireApiSession } from "./api-helpers";
 import type { Session } from "./auth";
+import { requestPathCapability } from "./business-capabilities";
 import { createDomainContext } from "./domain-context";
+import { requestBrandScope } from "./request-brand";
 
 // What an operator route handler gets: the verified session, the JSON body,
 // the business the request acts on, and the domain context. A thrown error
-// becomes a response through asApiResponse. Authorization stays in the
-// domain: the operation a route calls checks membership, or `transaction` does.
+// becomes a response through asApiResponse. Before any handler runs, the
+// person's access to the business is checked on the request's brand: a
+// business shows only on its own brand's domains, and the route's capability
+// must be one the business gives them. Role rules stay in the domain: the
+// operation a route calls checks them, or `transaction` does.
 
 /** A signed-in user's request. */
 export type SignedInRequest = {
@@ -28,16 +31,43 @@ export type SignedInRequest = {
 
 /** A signed-in user's request that acts on one business. */
 export type OperatorRequest = Omit<SignedInRequest, "businessId"> & {
-  /** The business the request names, or else the user's active business. */
+  /** The business the request names, or else the user's active business on the request's brand. */
   businessId: string;
-  /** Runs the callback in the business's transaction once the user's membership, and minimum role, check out. */
+  /** The person's access to the business, checked before the handler ran. */
+  access: BusinessAccess;
+  /** Runs the callback in the business's transaction once the user's access, and minimum role, check out again. */
   transaction<T>(callback: (tx: DatabaseTransaction, role: AuthzRole) => Promise<T>, options?: { minimumRole?: AuthzRole }): Promise<T>;
 };
 
 type Route<Params> = (request: Request, context?: { params: Promise<Params> }) => Promise<Response>;
 
-async function readBody(request: Request): Promise<Record<string, unknown>> {
-  const text = await request.text();
+export type RouteOptions = {
+  /** The largest body the route reads, in bytes. A larger one gets a 413 before it fills memory. */
+  maxBodyBytes?: number;
+};
+
+/** The body's text, read no further than the limit. */
+async function readTextWithin(request: Request, maxBytes: number): Promise<string> {
+  const tooLarge = () => jsonError("The request body is too large.", 413, "body_too_large");
+  if (Number(request.headers.get("content-length") ?? 0) > maxBytes) throw tooLarge();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const reader = request.body?.getReader();
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      throw tooLarge();
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function readBody(request: Request, maxBytes?: number): Promise<Record<string, unknown>> {
+  const text = maxBytes === undefined ? await request.text() : await readTextWithin(request, maxBytes);
   if (!text.trim()) return {};
   let body: unknown;
   try {
@@ -58,22 +88,27 @@ function namedBusinessId(request: Request, body: Record<string, unknown>): strin
   return named[0];
 }
 
-async function signIn(request: Request): Promise<SignedInRequest> {
+async function signIn(request: Request, options: RouteOptions = {}): Promise<SignedInRequest> {
   const session = await requireApiSession(request);
-  const body = await readBody(request);
+  const body = await readBody(request, options.maxBodyBytes);
   return { request, session, userId: session.user.id, body, businessId: namedBusinessId(request, body), domain: createDomainContext() };
 }
 
 async function forBusiness(user: SignedInRequest): Promise<OperatorRequest> {
   const { userId, domain } = user;
-  const businessId = user.businessId ?? await withBusinessTransaction(domain.db, { userId, actorType: "operator" }, async (tx) =>
-    (await tx.select({ activeBusinessId: users.activeBusinessId }).from(users).where(eq(users.id, userId)).limit(1))[0]?.activeBusinessId ?? null);
+  const brand = requestBrandScope(user.request.headers);
+  const capability = requestPathCapability(new URL(user.request.url).pathname);
+  if (!capability) throw jsonError("The request path is invalid.", 400, "invalid_path");
+  const businessId = user.businessId ?? await readActiveBusinessId(domain.db, { userId, brand });
   if (!businessId) throw jsonError("A businessId is required.", 400, "business_required");
+  // Many handlers call a domain operation without `transaction`, so the brand and capability are checked here first.
+  const access = await withBusinessTransaction(domain.db, { userId, businessId, actorType: "operator" }, async (tx) => await requireBusinessAccess(tx, { userId, businessId, brand, capability }));
   return {
     ...user,
     businessId,
+    access,
     transaction: (callback, options = {}) => withBusinessTransaction(domain.db, { userId, businessId, actorType: "operator" }, async (tx) => {
-      const { role } = await requireBusinessMembership(tx, { userId, businessId, ...(options.minimumRole ? { minimumRole: options.minimumRole } : {}) });
+      const { role } = await requireBusinessAccess(tx, { userId, businessId, brand, capability, minimumRole: options.minimumRole });
       return await callback(tx, role);
     }),
   };
@@ -90,8 +125,8 @@ function route<Input, Params>(resolve: (request: Request) => Promise<Input>, han
 }
 
 /** A route any signed-in user can call, such as their account or their list of businesses. */
-export function signedInRoute<Params = object>(handler: (user: SignedInRequest, params: Params) => Promise<Response>): Route<Params> {
-  return route(signIn, handler);
+export function signedInRoute<Params = object>(handler: (user: SignedInRequest, params: Params) => Promise<Response>, options: RouteOptions = {}): Route<Params> {
+  return route((request) => signIn(request, options), handler);
 }
 
 /** A route that acts on one business. */

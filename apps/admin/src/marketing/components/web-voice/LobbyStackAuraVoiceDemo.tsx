@@ -11,7 +11,6 @@ import {
 
 import { Button, buttonVariants } from "@/marketing/components/ui/button"
 import { appSignupUrl } from "@/marketing/lib/app-links"
-import { cn } from "@/marketing/lib/utils"
 import type { Locale } from "@/marketing/i18n"
 
 type LobbyStackAuraVoiceDemoProps = {
@@ -289,10 +288,7 @@ export function LobbyStackAuraVoiceDemo({
             </p>
             <a
               href={appSignupUrl(locale)}
-              className={cn(
-                buttonVariants({ size: "sm" }),
-                "rounded-full px-5"
-              )}
+              className={buttonVariants({ size: "sm" })}
               data-ph-signup-cta
               data-ph-capture-attribute-section="voice_demo_ended"
               data-ph-capture-attribute-action="try_for_free"

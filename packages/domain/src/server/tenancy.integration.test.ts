@@ -1,9 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { businesses, businessHours, businessInvitations, businessMemberships, createDatabaseClient, services, staff, users, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
+import { businesses, businessHours, businessInvitations, businessMemberships, createDatabaseClient, outboxMessages, partners, receptionistProfiles, services, staff, users, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
+import { defaultGreeting } from "@lobbystack/shared";
 import { findAvailability } from "./booking";
-import { acceptInvitation, createBusiness, inviteMember, listUserBusinesses, previewInvitation, removeMember, revokeInvitation, updateBusinessInTransaction } from "./tenancy";
+import { HOST_BRAND_SCOPE } from "./businessAccess";
+import { acceptInvitation, createBusiness, createOwnerlessBusiness, insertOwnerlessBusinessInTransaction, inviteMember, listUserBusinesses, previewInvitation, removeMember, revokeInvitation, updateBusinessInTransaction } from "./tenancy";
 
 // Explicit opt-in only; never fall back to DATABASE_URL or load an env file.
 const testUrl = process.env.LOBBYSTACK_RELIABILITY_TEST_DATABASE_URL;
@@ -107,8 +109,8 @@ describe.skipIf(!client)("createBusiness", () => {
       const first = await createBusiness({ db }, { userId, name: "Alpha Dental", timezone: "America/Toronto", businessType: "clinic" });
       const second = await createBusiness({ db }, { userId, name: "Beta Plumbing", timezone: "Europe/Belgrade", businessType: "service_company" });
 
-      expect(await listUserBusinesses(db, userId)).toEqual([
-        expect.objectContaining({ businessId: first.businessId, role: "business_owner", active: false, timezone: "America/Toronto", businessType: "clinic", defaultLocale: "en", websiteUrl: null, onboardingStage: "website", createdAt: expect.stringMatching(/Z$/) }),
+      expect(await listUserBusinesses(db, userId, HOST_BRAND_SCOPE)).toEqual([
+        expect.objectContaining({ businessId: first.businessId, role: "business_owner", active: false, timezone: "America/Toronto", businessType: "clinic", defaultLocale: "en", websiteUrl: null, onboardingStage: "website", createdAt: expect.stringMatching(/Z$/), partnerAccessLevel: null, capabilities: ["activity", "setup", "team", "billing", "api_keys", "mcp"] }),
         expect.objectContaining({ businessId: second.businessId, active: true, timezone: "Europe/Belgrade", businessType: "service_company" }),
       ]);
     });
@@ -125,6 +127,104 @@ describe.skipIf(!client)("createBusiness", () => {
         await createBusiness(context, { userId, name: `Shop ${index}`, timezone: "UTC", businessType: "test" });
       }
       await expect(createBusiness(context, { userId, name: "Shop 11", timezone: "UTC", businessType: "test" })).rejects.toMatchObject({ status: 403 });
+    });
+  });
+
+  it("counts only businesses with no partner toward the cap of 10", async () => {
+    await rollbackTest(async (tx) => {
+      const userId = randomUUID();
+      const email = `${userId}@example.invalid`;
+      await tx.insert(users).values({ id: userId, email, normalizedEmail: email, name: "Sam Owner" });
+      // The account already owns three businesses a partner resells.
+      const partnerId = randomUUID();
+      await tx.insert(partners).values({ id: partnerId, name: "Reseller", slug: `reseller-${partnerId.slice(0, 8)}` });
+      for (let index = 0; index < 3; index++) {
+        const businessId = randomUUID();
+        await tx.insert(businesses).values({ id: businessId, slug: `partner-${businessId}`, name: `Partner shop ${index}`, timezone: "UTC", businessType: "test", partnerId });
+        await tx.insert(businessMemberships).values({ businessId, userId, role: "business_owner", status: "active" });
+      }
+      await tx.execute(sql`set local role lobbystack_app`);
+      const context = { db: tx as unknown as Database };
+      for (let index = 0; index < 10; index++) {
+        await createBusiness(context, { userId, name: `Shop ${index}`, timezone: "UTC", businessType: "test" });
+      }
+      await expect(createBusiness(context, { userId, name: "Shop 11", timezone: "UTC", businessType: "test" })).rejects.toMatchObject({ status: 403, message: "Too many workspaces. One account can own up to 10." });
+      // Each brand's domains list only its own businesses.
+      expect(await listUserBusinesses(context.db, userId, HOST_BRAND_SCOPE)).toHaveLength(10);
+      expect(await listUserBusinesses(context.db, userId, { kind: "partner", partnerId })).toHaveLength(3);
+    });
+  });
+
+  it("keeps a direct business direct, so its owner can't move it out of the cap", async () => {
+    await rollbackTest(async (tx) => {
+      const userId = randomUUID();
+      const email = `${userId}@example.invalid`;
+      await tx.insert(users).values({ id: userId, email, normalizedEmail: email, name: "Sam Owner" });
+      await tx.execute(sql`set local role lobbystack_app`);
+      const { businessId } = await createBusiness({ db: tx as unknown as Database }, { userId, name: "Corner Shop", timezone: "UTC", businessType: "test" });
+      const joined = await withBusinessTransaction(tx as unknown as Database, { userId, businessId, actorType: "operator" }, async (inner) => await inner.update(businesses).set({ partnerId: randomUUID() }).where(eq(businesses.id, businessId))).then(() => null, (error: { cause?: unknown }) => error.cause ?? error);
+      expect(joined).toMatchObject({ code: "42501", message: "direct_business_cannot_join_partner" });
+      await tx.execute(sql`reset role`);
+      // Not even the migrator can, while a partner's business can still leave its partner.
+      await expect(tx.transaction(async (inner) => await inner.update(businesses).set({ partnerId: randomUUID() }).where(eq(businesses.id, businessId)))).rejects.toMatchObject({ cause: { code: "42501" } });
+      const partnerBusinessId = randomUUID();
+      const partnerId = randomUUID();
+      await tx.insert(partners).values({ id: partnerId, name: "Reseller", slug: `reseller-${partnerId.slice(0, 8)}` });
+      await tx.insert(businesses).values({ id: partnerBusinessId, slug: `partner-${partnerBusinessId}`, name: "Partner shop", timezone: "UTC", businessType: "test", partnerId });
+      await tx.update(businesses).set({ partnerId: null }).where(eq(businesses.id, partnerBusinessId));
+      expect(await tx.select({ id: businesses.id }).from(businesses).where(and(eq(businesses.id, businessId), sql`${businesses.partnerId} is null`))).toHaveLength(1);
+    });
+  });
+});
+
+describe.skipIf(!client)("businesses with no owner", () => {
+  /** What a new business holds, read as the migrator. */
+  async function created(tx: DatabaseTransaction, businessId: string) {
+    const [business] = await tx.select({ name: businesses.name, partnerId: businesses.partnerId, deploymentMode: businesses.deploymentMode, onboardingStage: businesses.onboardingStage }).from(businesses).where(eq(businesses.id, businessId));
+    return {
+      business,
+      memberships: await tx.select({ userId: businessMemberships.userId }).from(businessMemberships).where(eq(businessMemberships.businessId, businessId)),
+      staff: await tx.select({ name: staff.name, active: staff.active }).from(staff).where(eq(staff.businessId, businessId)),
+      greetings: (await tx.select({ greeting: receptionistProfiles.greeting }).from(receptionistProfiles).where(eq(receptionistProfiles.businessId, businessId))).map((row) => row.greeting),
+      outbox: await tx.select({ topic: outboxMessages.topic, dedupeKey: outboxMessages.dedupeKey }).from(outboxMessages).where(eq(outboxMessages.businessId, businessId)),
+    };
+  }
+
+  it("creates a business with no owner that still has its staff member, receptionist profile and first snapshot", async () => {
+    vi.stubEnv("DEPLOYMENT_MODE", "cloud");
+    await rollbackTest(async (tx) => {
+      await tx.execute(sql`set local role lobbystack_app`);
+      const { businessId } = await createOwnerlessBusiness({ db: tx as unknown as Database }, { name: "Harbor Dental", timezone: "America/Halifax", businessType: "dental" });
+      await tx.execute(sql`reset role`);
+      expect(await created(tx, businessId)).toEqual({
+        business: { name: "Harbor Dental", partnerId: null, deploymentMode: "cloud", onboardingStage: "website" },
+        memberships: [],
+        staff: [{ name: "Harbor Dental", active: true }],
+        greetings: [defaultGreeting("Harbor Dental")],
+        outbox: [{ topic: "snapshot.refresh", dedupeKey: `business:${businessId}:snapshot:initial` }],
+      });
+      // No account became its owner or moved to it.
+      expect(await tx.select({ id: users.id }).from(users).where(eq(users.activeBusinessId, businessId))).toEqual([]);
+    }).finally(() => vi.unstubAllEnvs());
+  });
+
+  it("creates one in a worker transaction, as the API runs, and refuses an operator's", async () => {
+    await rollbackTest(async (tx) => {
+      const businessId = randomUUID();
+      await tx.execute(sql`set local role lobbystack_worker`);
+      await withBusinessTransaction(tx as unknown as Database, { businessId, actorType: "worker" }, async (inner) => await insertOwnerlessBusinessInTransaction(inner, { businessId, name: "Pier Clinic", timezone: "UTC", businessType: "clinic" }));
+      await tx.execute(sql`reset role`);
+      expect(await created(tx, businessId)).toMatchObject({ memberships: [], staff: [{ name: "Pier Clinic", active: true }], outbox: [{ topic: "snapshot.refresh" }] });
+
+      // An operator acts only in businesses they belong to, and nobody belongs to a business with no owner.
+      const userId = randomUUID();
+      await tx.insert(users).values({ id: userId, email: `${userId}@example.invalid`, normalizedEmail: `${userId}@example.invalid` });
+      const otherId = randomUUID();
+      await tx.execute(sql`set local role lobbystack_app`);
+      const refused = await withBusinessTransaction(tx as unknown as Database, { userId, businessId: otherId, actorType: "operator" }, async (inner) => await insertOwnerlessBusinessInTransaction(inner, { businessId: otherId, name: "Nobody's", timezone: "UTC", businessType: "test" })).then(() => null, (error: { cause?: unknown }) => error.cause ?? error);
+      expect(refused).toMatchObject({ code: "42501", message: expect.stringMatching(/row-level security policy for table "businesses"/) });
+      await tx.execute(sql`reset role`);
+      expect(await tx.select({ id: businesses.id }).from(businesses).where(eq(businesses.id, otherId))).toEqual([]);
     });
   });
 });
@@ -171,6 +271,16 @@ describe.skipIf(!client)("team membership", () => {
     });
   });
 
+  it("queues an invitation under the business's brand, for the worker to read when it sends", async () => {
+    await rollbackTest(async (tx) => {
+      const { context, businessId, people: [owner] } = await seedTeam(tx, ["Ana"]);
+      const { invitationId } = await inviteMember(context, { userId: owner!.id, businessId, email: "new@example.invalid", role: "viewer" });
+      await tx.execute(sql`reset role`);
+      const [email] = await tx.select({ payload: outboxMessages.payload }).from(outboxMessages).where(and(eq(outboxMessages.topic, "email.send"), eq(outboxMessages.aggregateId, invitationId)));
+      expect(email?.payload).toMatchObject({ template: "invitation", email: "new@example.invalid", brand: { kind: "business", businessId }, replyTo: null });
+    });
+  });
+
   it("refuses a viewer who invites, removes a member or revokes an invitation", async () => {
     await rollbackTest(async (tx) => {
       const { context, businessId, people: [owner, viewer, admin], invite, accept, listMembers } = await seedTeam(tx, ["Ana", "Vic", "Ben"]);
@@ -212,7 +322,7 @@ describe.skipIf(!client)("team membership", () => {
     await rollbackTest(async (tx) => {
       const { businessId, people: [owner, admin], invite, accept } = await seedTeam(tx, ["Ana", "Ben"]);
       await accept(admin!, await invite(owner!.id, admin!.email, "business_admin"));
-      await expect(accept(owner!, await invite(admin!.id, owner!.email, "viewer"))).resolves.toEqual({ businessId, role: "business_owner" });
+      await expect(accept(owner!, await invite(admin!.id, owner!.email, "viewer"))).resolves.toEqual({ businessId, role: "business_owner", partnerId: null });
       await tx.execute(sql`reset role`);
       const [membership] = await tx.select({ role: businessMemberships.role, status: businessMemberships.status }).from(businessMemberships).where(and(eq(businessMemberships.businessId, businessId), eq(businessMemberships.userId, owner!.id)));
       expect(membership).toEqual({ role: "business_owner", status: "active" });

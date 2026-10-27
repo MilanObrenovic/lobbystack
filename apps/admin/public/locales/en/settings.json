@@ -15,11 +15,13 @@
     "appearance": "Preferences",
     "integrations": "Integrations",
     "billing": "Plan",
+    "subscription": "Billing",
     "usage": "Usage",
     "notifications": "Notifications",
     "widget": "Website widget",
     "apiKeys": "API keys",
-    "connectedApps": "Connected apps"
+    "connectedApps": "Connected apps",
+    "partnerAccess": "Partner access"
   },
   "widget": {
     "title": "Website widget",
@@ -199,11 +201,13 @@
     },
     "usage": {
       "title": "Included usage",
+      "allowanceTitle": "Usage this month",
       "description": "Resets on {{resetAt}}.",
       "paygTitle": "Pay-as-you-go usage",
       "paygDescription": "Additional billable usage in this period. Resets on {{resetAt}}.",
       "knowledgeTitle": "Knowledge base",
       "voiceTitle": "Voice minutes",
+      "chatsTitle": "Chats",
       "voiceValue": "{{minutes}} minutes used",
       "voiceRemaining": "{{minutes}} minutes remaining",
       "alertSmsTitle": "SMS alerts",
@@ -230,10 +234,15 @@
         "voice": "min",
         "outboundAttempts": "attempts",
         "segments": "segments",
-        "storage": "MB"
+        "storage": "MB",
+        "chats": "chats"
       },
       "unavailable": "Usage data is unavailable.",
-      "customAllowance": "{{used}} {{unit}} used · Custom allowance"
+      "customAllowance": "{{used}} {{unit}} used · Custom allowance",
+      "noLimit": "{{used}} {{unit}} used · No limit",
+      "extraTitle": "Extra usage",
+      "extraOnDescription": "Your receptionist keeps answering past your allowance, and {{appName}} bills you for the extra minutes and chats.",
+      "extraOffDescription": "Extra usage is off. {{appName}} bills you for the extra minutes and chats you used before it went off."
     },
     "spendingCap": {
       "title": "Monthly spending cap",
@@ -352,6 +361,39 @@
       "dashboard": "Go to your dashboard"
     }
   },
+  "subscription": {
+    "loadFailed": "We couldn't load your billing. Refresh to try again.",
+    "outside": "{{appName}} bills you directly. Ask them about your bill.",
+    "packageTitle": "Your package",
+    "minutes_one": "{{amount}} minute",
+    "minutes_other": "{{amount}} minutes",
+    "chats_one": "{{amount}} chat",
+    "chats_other": "{{amount}} chats",
+    "allowance": "Each month includes {{minutes}} and {{chats}}.",
+    "status": {
+      "awaiting_payment": "Your receptionist starts answering calls and chats once you pay.",
+      "active": "Your subscription is active.",
+      "renews": "Your subscription renews on {{date}}.",
+      "past_due": "Your last payment failed, and we'll try again. Update your card to keep your receptionist answering.",
+      "inactive": "Your subscription ended, so your receptionist doesn't answer calls or chats. Subscribe again to turn it back on."
+    },
+    "badge": {
+      "awaiting_payment": "Awaiting payment",
+      "active": "Active",
+      "past_due": "Payment failed",
+      "inactive": "Ended"
+    },
+    "subscribe": "Subscribe",
+    "manage": "Manage billing",
+    "opening": "Opening…",
+    "manageHint": "Update your card, download invoices or cancel your subscription.",
+    "paid": "Payment received. Your receptionist starts answering in a moment.",
+    "errors": {
+      "portal": "The billing portal isn't available right now. Ask {{appName}} about it.",
+      "checkout": "We couldn't open the checkout. Try again.",
+      "unavailable": "{{appName}} can't take payments right now. Ask them about your bill."
+    }
+  },
   "phoneNumber": {
     "current": {
       "label": "Current phone number",
@@ -371,6 +413,43 @@
       "title": "Dedicated numbers are on paid plans",
       "description": "Upgrade to Starter or Pro to claim a local business number callers can dial.",
       "upgradeCta": "View plans"
+    },
+    "partnerTierRequired": {
+      "description": "This business's partner needs a paid tier to add phone numbers."
+    },
+    "partnerNumbersUnavailable": {
+      "description": "Phone numbers aren't available for this business yet."
+    },
+    "trialPhone": {
+      "title": "Verify your mobile number",
+      "description": "During the 14-day trial, the receptionist transfers calls only to this mobile.",
+      "fields": {
+        "mobileNumber": "Mobile number",
+        "country": "Country"
+      },
+      "hint": "Use a mobile that gets texts. Internet phone numbers won't work.",
+      "sendCode": "Text me a code",
+      "sending": "Sending…",
+      "errors": {
+        "voip": "Use your mobile number. Internet phone numbers can't be verified.",
+        "notMobile": "Use a mobile number that gets texts.",
+        "countryMismatch": "This number isn't from the country you picked.",
+        "invalidNumber": "Enter a valid mobile number.",
+        "rateLimited": "Too many codes. Wait a moment and try again.",
+        "sendFailed": "We couldn't send the code. Try again."
+      },
+      "code": {
+        "sentTo": "Enter the 6-digit code we sent to {{phone}}.",
+        "label": "Verification code",
+        "checking": "Checking…",
+        "invalid_one": "That code didn't work. You have {{count}} try left.",
+        "invalid_other": "That code didn't work. You have {{count}} tries left.",
+        "expired": "This code expired. Send a new one.",
+        "locked": "Too many tries. Send a new code.",
+        "failed": "We couldn't check the code. Try again.",
+        "resend": "Send a new code",
+        "changeNumber": "Use another number"
+      }
     },
     "actions": {
       "requestChange": "Request change",
@@ -400,7 +479,8 @@
     "toast": {
       "changed": "Phone number changed. Your previous number will stay active for 30 days.",
       "added": "Phone number added."
-    }
+    },
+    "numbersUnavailable": "Phone numbers aren't set up on this dashboard yet. Ask whoever runs it to connect a phone provider."
   },
   "appearance": {
     "title": "Preferences",
@@ -658,6 +738,7 @@
       "sent": "Invitation sent to {{email}}.",
       "errors": {
         "invalidEmail": "Enter a valid email address.",
+        "partnerMember": "{{email}} is on this business's partner team. They work here from the partner console, so they can't join the team.",
         "failed": "We couldn't send that invitation. Please try again."
       }
     },
@@ -1086,6 +1167,21 @@
       "appointments_write": "Book, cancel and reschedule appointments",
       "messages_read": "Read messages the receptionist took",
       "knowledge_write": "Add knowledge entries and FAQs"
+    }
+  },
+  "partnerAccess": {
+    "title": "Partner access",
+    "description": "Each time someone on your partner's team opened your dashboard to help you, and when they left.",
+    "empty": "No one on your partner's team has opened your dashboard yet.",
+    "adminsOnly": "Only owners and admins can see who opened the dashboard.",
+    "loadFailed": "We couldn't load this list. Try again.",
+    "someone": "A member of {{partnerName}}'s team",
+    "opened": "Opened your dashboard",
+    "left": "Left",
+    "columns": {
+      "who": "Who",
+      "what": "What",
+      "when": "When"
     }
   }
 }

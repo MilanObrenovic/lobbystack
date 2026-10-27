@@ -1,10 +1,11 @@
 import { assertDatabaseRole, businesses, createDatabaseClient, databaseHealthCheck, enqueueOutbox, listReembedBusinesses, listSchedulerBusinesses, listSummaryBackfillBusinesses, withBusinessTransaction, withDispatcherTransaction } from "@lobbystack/db";
 import { createBusinessHoursExtractor, createBusinessSummarizer, createCallSummarizer } from "@lobbystack/agent-core";
-import { assertProductionSecrets, isMaintenanceMode } from "@lobbystack/shared";
-import type { OnboardingFollowupSender } from "@lobbystack/domain";
+import { DEFAULT_EMAIL_FROM, assertProductionSecrets, isMaintenanceMode, partnerFeatureWarnings, partnerFeatures } from "@lobbystack/shared";
+import { brandChangesChannel, encodeBrandChange, listenForBrandChanges, recordPartnerTierBilling, type BrandChangePublisher, type OnboardingFollowupSender } from "@lobbystack/domain";
 import { createQueue, createRedisConnection, createWorkerOptions, enqueueJob, isKnownJobType, jobQueues, type JobEnvelope, type JobQueue } from "@lobbystack/jobs";
 import { createEmbeddingProvider } from "@lobbystack/providers/ai/embeddingProvider";
 import { FirecrawlProvider } from "@lobbystack/providers/crawling/firecrawl";
+import { createCustomHostnameProvider, systemTxtLookup } from "@lobbystack/providers/customHostnames/customHostnames";
 import { SmtpEmailProvider } from "@lobbystack/providers/email/smtp";
 import { GoogleCalendarProvider } from "@lobbystack/providers/google/calendar";
 import { InstagramProvider } from "@lobbystack/providers/instagram/instagram";
@@ -18,6 +19,7 @@ import { DelayedError, Worker } from "bullmq";
 import { and, eq, isNull } from "drizzle-orm";
 import OpenAI from "openai";
 
+import { createWorkerDomainContext } from "./domainContext";
 import { handleJob, type WorkerDependencies } from "./handlers";
 import { startHealthServer } from "./health";
 import { createLiveCallHandler, liveDrainTimeoutMs } from "./liveCalls";
@@ -39,8 +41,8 @@ function createEmailProvider(): SmtpEmailProvider | undefined {
     secure: process.env.SMTP_SECURE === "true",
     username: process.env.SMTP_USERNAME ?? "",
     password: process.env.SMTP_PASSWORD ?? "",
-    from: process.env.EMAIL_FROM || "LobbyStack <no-reply@localhost>",
-    ...(process.env.EMAIL_REPLY_TO ? { replyTo: process.env.EMAIL_REPLY_TO } : {}),
+    from: process.env.EMAIL_FROM || DEFAULT_EMAIL_FROM,
+    // EMAIL_REPLY_TO is the host brand's Reply-To, which the handlers pass per email.
   });
 }
 
@@ -134,11 +136,19 @@ async function main(): Promise<void> {
     "OTP_HASH_SECRET",
     ...(process.env.STORAGE_PROVIDER === "s3" ? [] : ["LOCAL_STORAGE_SIGNING_SECRET"]),
   ]);
+  for (const warning of partnerFeatureWarnings(process.env)) console.warn(`[partners] ${warning}`);
   await initializeTelemetry({ serviceName: "lobbystack-worker" });
   const database = createDatabaseClient("lobbystack_worker");
   const dispatcherDatabase = createDatabaseClient("lobbystack_dispatcher");
   await Promise.all([assertDatabaseRole(database), assertDatabaseRole(dispatcherDatabase)]);
+  // The number claims read whether this deployment bills tiers from the database, which only the environment knows.
+  await recordPartnerTierBilling({ db: database.db }, { enabled: partnerFeatures(process.env).tierBilling });
   const realtime = createRedisConnection({ prefix: process.env.REDIS_PREFIX ?? "lobbystack" });
+  // A partner's saved brand reaches emails at once rather than when the brand cache runs out.
+  const brandChanges = createRedisConnection({ prefix: process.env.REDIS_PREFIX ?? "lobbystack" });
+  // A subscribed connection runs nothing else, so the worker announces its own changes, such as a partner's domain going live, on the realtime one.
+  const brandChangePublisher: BrandChangePublisher = { publish: async (change) => { await realtime.publish(brandChangesChannel(), encodeBrandChange(change)); } };
+  listenForBrandChanges(brandChanges).catch((error: unknown) => console.warn(JSON.stringify({ event: "brand_changes.listen_failed", message: redactOtelExceptionText(error instanceof Error ? error.message : String(error)) })));
   const queues = new Map<JobQueue, ReturnType<typeof createQueue>>();
   for (const queueName of jobQueues) {
     const queue = createQueue(queueName);
@@ -152,7 +162,8 @@ async function main(): Promise<void> {
   };
   const state = { ready: false, redis: false, database: false, storage: false, activeJobs: 0, draining: false };
   const embeddings = createEmbeddingProvider();
-  const liveCalls = createLiveCallHandler({ domain: { db: database.db, snapshotCache: getWorkerSnapshotCache(), ...(embeddings ? { embeddings } : {}) }, attachLock: realtime });
+  const domain = createWorkerDomainContext({ db: database.db, snapshotCache: getWorkerSnapshotCache(), brandChanges: brandChangePublisher, ...(embeddings ? { embeddings } : {}) });
+  const liveCalls = createLiveCallHandler({ domain, attachLock: realtime });
   const health = startHealthServer(workerPort, state, liveCalls.handle);
   const email = createEmailProvider();
   const onboardingFollowupSender = createOnboardingFollowupSender();
@@ -160,6 +171,7 @@ async function main(): Promise<void> {
   const twilioAlerts = createAlertSmsProvider();
   const storage = createStorageProvider();
   const polar = createPolarProvider();
+  const customHostnames = createCustomHostnameProvider(process.env);
   const crawler = createCrawlerProvider();
   const calendar = createCalendarProvider();
   const instagram = createInstagramOperations();
@@ -171,7 +183,7 @@ async function main(): Promise<void> {
   // The recording copy schedules its own retries, so the client doesn't retry a 409.
   const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) : undefined;
   const dependencies: WorkerDependencies = {
-    domain: { db: database.db, snapshotCache: getWorkerSnapshotCache(), ...(embeddings ? { embeddings } : {}) },
+    domain,
     realtime,
     ...(calendar ? { calendar } : {}),
     ...(instagram ? { instagram } : {}),
@@ -189,6 +201,7 @@ async function main(): Promise<void> {
     ...(openai ? { liveSessions: openai.live.sessions } : {}),
     recoverLiveCall: liveCalls.recover,
     ...(polar ? { polar } : {}),
+    ...(customHostnames ? { customDomains: { hostnames: customHostnames, lookupTxt: systemTxtLookup } } : {}),
     enqueueProductEventRetentionContinuation: async (input) => {
       await withBusinessTransaction(database.db, { businessId: input.businessId, actorType: "worker" }, async (tx) => {
         await enqueueOutbox(tx, {
@@ -331,7 +344,7 @@ async function main(): Promise<void> {
     // drain timeout. Both still need Redis, the database pools and the HTTP
     // server (for /internal/live/end), so those close after.
     await Promise.allSettled([liveCalls.drain(liveDrainTimeoutMs()), dispatchLoop, ...workers.map((worker) => worker.close())]);
-    await Promise.allSettled([...[...queues.values()].map((queue) => queue.close()), realtime.quit(), database.pool.end(), dispatcherDatabase.pool.end(), new Promise<void>((resolve) => health.close(() => resolve())), shutdownTelemetry()]);
+    await Promise.allSettled([...[...queues.values()].map((queue) => queue.close()), realtime.quit(), brandChanges.quit(), database.pool.end(), dispatcherDatabase.pool.end(), new Promise<void>((resolve) => health.close(() => resolve())), shutdownTelemetry()]);
   };
   process.once("SIGINT", () => void shutdown().finally(() => process.exit(0)));
   process.once("SIGTERM", () => void shutdown().finally(() => process.exit(0)));

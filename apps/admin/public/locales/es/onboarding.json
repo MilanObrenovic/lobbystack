@@ -2,7 +2,8 @@
   "shell": {
     "signOut": "Cerrar sesión",
     "terms": "Términos",
-    "privacy": "Privacidad"
+    "privacy": "Privacidad",
+    "support": "Soporte"
   },
   "errors": {
     "tooManyBusinesses": "Ya es propietario de 10 espacios de trabajo, el límite para una cuenta."
@@ -152,7 +153,10 @@
       "notify": "Avísenme cuando estén disponibles",
       "joined": "Listo. Le escribiremos.",
       "continue": "Continuar sin número",
-      "failed": "Algo salió mal. Inténtelo de nuevo."
+      "failed": "Algo salió mal. Inténtelo de nuevo.",
+      "partnerTitle": "Todavía no podemos verificar teléfonos en este país ({{country}}).",
+      "partnerBody": "Puede terminar la configuración sin un teléfono verificado.",
+      "partnerContinue": "Continuar"
     }
   },
   "greeting": {
@@ -197,6 +201,8 @@
     "searchFailed": "No pudimos buscar números en este momento.",
     "claimFailed": "No pudimos activar ese número. Inténtelo de nuevo.",
     "claimRateLimited": "Ha probado varios números. Espere un momento antes de volver a intentarlo.",
+    "partnerTierRequired": "El socio de este negocio necesita pagar un nivel para agregar números de teléfono.",
+    "partnerNumbersUnavailable": "Los números de teléfono todavía no están disponibles para este negocio.",
     "offerExpired": "Esta oferta caducó. Vuelva a buscar y elija un número.",
     "trialAccountPurchaseLimit": "Esta cuenta de Twilio aún no puede comprar ese número. Las cuentas de prueba solo pueden comprar números de prueba elegibles; libere un número existente o mejore la cuenta y vuelva a intentarlo.",
     "skipFailed": "No pudimos omitir este paso en este momento. Inténtelo de nuevo.",
@@ -204,7 +210,8 @@
     "unavailable": "Ese número acaba de ser asignado. Elija otro de la lista actualizada.",
     "selectedTitle": "El número de teléfono de su IA",
     "selectedNumberLabel": "Número seleccionado",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "numbersUnavailable": "Los números de teléfono aún no están configurados en este panel. Pida a quien lo administra que conecte un proveedor de telefonía."
   },
   "attribution": {
     "title": "¿Cómo conoció {{appName}}?",
@@ -260,5 +267,12 @@
     "continue": "Continuar",
     "continuing": "Continuando...",
     "continueFailed": "No pudimos continuar en este momento. Inténtelo de nuevo."
+  },
+  "noBusinesses": {
+    "title": "Todavía no hay ningún negocio aquí",
+    "description": "{{appName}} aún no agregó {{email}} a un negocio. Pídale que lo invite y abra el enlace de su correo.",
+    "switchAccount": "Iniciar sesión con otra cuenta",
+    "released": "{{email}} ya no tiene ningún negocio en este panel. Un negocio suyo pasó a su propia cuenta, así que abra su panel para administrarlo.",
+    "openDashboard": "Abrir su panel"
   }
 }

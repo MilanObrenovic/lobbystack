@@ -37,6 +37,11 @@ export const sr = {
       description:
         "Uporedite LobbyStack pakete Free, Starter, Pro i Enterprise: minuti razgovora, godišnja naplata, SMS obaveštenja i cene dodatne potrošnje.",
     },
+    "/pricing/self-hosted/": {
+      title: "Cene AI recepcionera za samostalno hostovanje | LobbyStack",
+      description:
+        "Hostujte LobbyStack AI recepcionera sami i besplatno, sa svim funkcijama, ili dodajte Premium ili Enterprise podršku putem e-pošte ili Slacka.",
+    },
     "/solutions/": {
       title: "Rešenja sa AI recepcionerom | LobbyStack",
       description:
@@ -97,8 +102,18 @@ export const sr = {
       description:
         "Pretražite LobbyStack stranice, članke sa bloga, resurse o proizvodu, cene i javnu dokumentaciju za AI agente.",
     },
+    "/features/mcp/": {
+      title: "MCP server za AI recepcionera za Claude i ChatGPT | LobbyStack",
+      description:
+        "Povežite Claude ili ChatGPT sa LobbyStack MCP serverom za AI recepcionera. Pitajte ko je zvao, zakazujte termine i menjajte radno vreme iz četa.",
+    },
+    "/white-label/": {
+      title: "White-label AI recepcioner otvorenog koda | LobbyStack",
+      description:
+        "Prodajte white-label AI recepcionera pod brendom i domenom svoje agencije. Naplaćujte klijentima preko svog Stripe-a i počnite besplatno.",
+    },
     "/affiliate-program/": {
-      title: "LobbyStack partnerski program | 20% provizije",
+      title: "LobbyStack program preporuka | 20% provizije",
       description:
         "Preporučite hostovane LobbyStack pakete i zaradite 20% njihovih uplata tokom 12 meseci. Preporučeni klijenti štede 5% pri registraciji. Mesečne isplate preko PayPal-a.",
     },

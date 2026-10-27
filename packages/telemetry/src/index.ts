@@ -9,6 +9,19 @@ export const WEB_EVENT_NAMES = [
   "web.auth.login_succeeded",
   "web.auth.signup_succeeded",
   "web.workspace.business_switched",
+  "web.partner.signup_succeeded",
+  "web.partner.business_created",
+  "web.partner.business_opened",
+  "web.partner.business_released",
+  "web.partner.business_deleted",
+  "web.partner.stripe_onboarding_started",
+  "web.partner.package_created",
+  "web.partner.tier_started",
+  "web.partner.template_saved",
+  "web.partner.template_deleted",
+  "web.partner.demo_created",
+  "web.partner.demo_published",
+  "web.partner.demo_revoked",
   "web.page.home_viewed",
   "web.page.calls_viewed",
   "web.page.call_detail_viewed",
@@ -117,6 +130,7 @@ export const WORKFLOW_EVENT_NAMES = [
 export const BILLING_EVENT_NAMES = [
   "billing.subscription_started",
   "billing.subscription_canceled",
+  "billing.package_subscription_started",
 ] as const;
 
 export const OPERATIONS_EVENT_NAMES = [
@@ -234,6 +248,26 @@ export const TELEMETRY_REQUIRED_PROPERTIES_BY_EVENT = {
     "deploymentMode",
     "previousBusinessId",
   ],
+  // invited: signed up with the host's invitation. subdomain: signup reserved one.
+  "web.partner.signup_succeeded": ["deploymentMode", "partnerId", "pathname", "invited", "subdomain"],
+  // accessLevel: what the new business's own operators get, full or activity.
+  "web.partner.business_created": ["deploymentMode", "partnerId", "businessId", "accessLevel", "pathname"],
+  "web.partner.business_opened": ["deploymentMode", "partnerId", "businessId", "pathname"],
+  "web.partner.business_released": ["deploymentMode", "partnerId", "businessId", "pathname"],
+  "web.partner.business_deleted": ["deploymentMode", "partnerId", "businessId", "pathname"],
+  // resumed: the partner already had an account and continued its onboarding, instead of connecting a new one.
+  "web.partner.stripe_onboarding_started": ["deploymentMode", "partnerId", "resumed", "pathname"],
+  // currency: the connected account's, which the package is priced in. setupFee: whether it charges one.
+  "web.partner.package_created": ["deploymentMode", "partnerId", "packageId", "currency", "setupFee", "pathname"],
+  // tier: starter, growth or scale. billingInterval: monthly or annual.
+  "web.partner.tier_started": ["deploymentMode", "partnerId", "tier", "billingInterval", "pathname"],
+  // businessId: the business whose setup the template was saved from.
+  "web.partner.template_saved": ["deploymentMode", "partnerId", "templateId", "businessId", "pathname"],
+  "web.partner.template_deleted": ["deploymentMode", "partnerId", "templateId", "pathname"],
+  // businessId: the demo's business, which is one of the partner's.
+  "web.partner.demo_created": ["deploymentMode", "partnerId", "prospectDemoId", "businessId", "accessLevel", "pathname"],
+  "web.partner.demo_published": ["deploymentMode", "partnerId", "prospectDemoId", "businessId", "pathname"],
+  "web.partner.demo_revoked": ["deploymentMode", "partnerId", "prospectDemoId", "businessId", "pathname"],
   "web.page.home_viewed": ["businessId", "deploymentMode", "pathname"],
   "web.page.calls_viewed": ["businessId", "deploymentMode", "pathname"],
   "web.page.call_detail_viewed": ["businessId", "deploymentMode", "pathname"],
@@ -336,6 +370,8 @@ export const TELEMETRY_REQUIRED_PROPERTIES_BY_EVENT = {
   "billing.subscription_started": ["businessId", "plan", "billingInterval", "previousPlan"],
   // reason: the operator's answer in the cancel dialog, or "none" when they skipped it.
   "billing.subscription_canceled": ["businessId", "plan", "reason"],
+  // A partner's business started paying for its package on the partner's Stripe. currency: the package's. Never the price.
+  "billing.package_subscription_started": ["businessId", "partnerId", "packageId", "currency"],
   "voice.call_started": [
     "businessId",
     "deploymentMode",

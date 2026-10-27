@@ -19,7 +19,8 @@ export type StorageProvider = {
 };
 
 export type BinaryStorageProvider = StorageProvider & {
-  putObject(input: { key: string; body: Uint8Array; contentType: string }): Promise<void>;
+  /** A checksum, the SHA-256 in base64, is kept with the object, so headObject returns it. */
+  putObject(input: { key: string; body: Uint8Array; contentType: string; checksum?: string }): Promise<void>;
 };
 
 export async function createUpload(
@@ -43,14 +44,49 @@ export function planUpload(input: { businessId: string; purpose: string; fileNam
   if (input.purpose === "knowledge" && !input.checksum) throw new Error("Knowledge uploads require a SHA-256 checksum.");
   if (input.purpose === "knowledge" && input.length > KNOWLEDGE_UPLOAD_MAX_BYTES) throw new Error("Documents must be 10 MB or smaller.");
   const objectId = randomUUID();
-  const name = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return { objectId, key: uploadObjectKey(input.businessId, input.purpose, objectId, input.fileName) };
+}
+
+/** Where an upload's bytes are stored: under the business and purpose, in a folder of the object's own, with the file's name made safe for a path. */
+export function uploadObjectKey(businessId: string, purpose: string, objectId: string, fileName: string): string {
+  return `${businessId}/${purpose}/${objectId}/${storageFileName(fileName)}`;
+}
+
+/** A file's name as a storage key's last step: letters, digits, dots, hyphens and underscores. */
+export function storageFileName(fileName: string): string {
+  const name = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
   // A name of only dots, such as "..", would be read as a path step rather than a file.
-  return { objectId, key: `${input.businessId}/${input.purpose}/${objectId}/${/^\.*$/.test(name) ? "file" : name}` };
+  return /^\.*$/.test(name) ? "file" : name;
 }
 
 /** Records an upload that waits for its bytes. Unfinished uploads expire after a day. */
 export async function insertPendingUploadInTransaction(tx: DatabaseTransaction, input: { objectId: string; key: string; businessId: string; purpose: string; fileName: string; contentType: string; length: number; checksum?: string | undefined }): Promise<void> {
   await tx.insert(storageObjects).values({ id: input.objectId, businessId: input.businessId, objectKey: input.key, purpose: input.purpose, fileName: input.fileName, contentType: input.contentType, contentLength: input.length, checksum: input.checksum, status: "pending", expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
+}
+
+/**
+ * The pending upload a route sends a browser's file on to storage for, when
+ * the browser can't reach storage itself: a partner's host can't, since the
+ * bucket accepts browser uploads from the host's origins only. It takes the
+ * access creating the upload took, and returns null when the upload isn't
+ * pending or has expired.
+ */
+export async function pendingUploadTarget(
+  context: DomainContext,
+  input: { userId: string; businessId: string; objectId: string },
+): Promise<{ key: string; contentType: string; length: number; checksum?: string } | null> {
+  return await withBusinessTransaction(context.db, { ...input, actorType: "operator" }, async (tx) => {
+    await requireBusinessMembership(tx, input);
+    const row = (await tx.select().from(storageObjects).where(and(
+      eq(storageObjects.id, input.objectId),
+      eq(storageObjects.businessId, input.businessId),
+      eq(storageObjects.status, "pending"),
+      or(isNull(storageObjects.expiresAt), gte(storageObjects.expiresAt, new Date())),
+    )).limit(1))[0];
+    if (!row || row.contentLength === null) return null;
+    if (row.purpose === "knowledge") await requireBusinessAdmin(tx, input);
+    return { key: row.objectKey, contentType: row.contentType, length: row.contentLength, ...(row.checksum ? { checksum: row.checksum } : {}) };
+  });
 }
 
 export async function finalizeUpload(
@@ -242,6 +278,29 @@ async function claimExpiredObjectsForDeletion(
     extra: ne(storageObjects.purpose, "recording"),
   });
   return [...uploads, ...retained];
+}
+
+/**
+ * Deletes stored files by key, such as the files of a business that was
+ * deleted, whose rows went with it. A key that's already gone counts as
+ * deleted, so running again is safe. It tries every key and then throws the
+ * first failure, so the job runs again for the keys left. Returns how many
+ * it deleted.
+ */
+export async function deleteStoredObjects(storage: StorageProvider, objectKeys: readonly string[]): Promise<number> {
+  const failures: unknown[] = [];
+  let deleted = 0;
+  for (const key of objectKeys) {
+    try {
+      await storage.deleteObject({ key });
+      if (await storage.headObject({ key })) throw new Error(`Storage object is still present after deletion: ${key}`);
+      deleted += 1;
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length) throw failures[0];
+  return deleted;
 }
 
 export async function deleteExpiredObjectsForBusiness(
