@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { billingAccounts, businessMemberships, businesses, createDatabaseClient, feedbackSubmissions, onboardingNumberClaimEvents, outboxMessages, partners, phoneNumbers, productEvents, providerEvents, services, storageObjects, users, type Database, type DatabaseTransaction } from "@lobbystack/db";
+import { billingAccounts, businessMemberships, businesses, createDatabaseClient, feedbackSubmissions, onboardingNumberClaimEvents, outboxMessages, partners, phoneNumbers, productEvents, providerEvents, services, storageObjects, users, withBusinessTransaction, type Database, type DatabaseTransaction } from "@lobbystack/db";
 
 import { deleteBusiness } from "./businessDeletion";
+import { readActiveBusinessIdInTransaction } from "./tenancy";
 
 // Explicit opt-in only; never fall back to DATABASE_URL or load an env file.
 const testUrl = process.env.LOBBYSTACK_RELIABILITY_TEST_DATABASE_URL;
@@ -124,6 +125,29 @@ describe.skipIf(!client)("deleting a business as its owner", () => {
       await tx.insert(onboardingNumberClaimEvents).values({ businessId, userId: ownerId, requestedE164: "+15550001111", selectionContext: {}, claimTokenHash: "hash", idempotencyKey: "key", status: "reserved" });
       await expect(run(ownerId)).rejects.toMatchObject({ status: 409, code: "business_number_in_progress" });
       expect(await exists()).toBe(true);
+    });
+  });
+
+  it("moves everyone who remembered the business to one of their own, so no request is left naming a business that's gone", async () => {
+    await rollbackTest(async (tx) => {
+      const { businessId, ownerId, adminId, run } = await seed(tx);
+      const otherId = randomUUID();
+      await tx.insert(businesses).values({ id: otherId, slug: otherId, name: "Other", timezone: "Europe/Belgrade", businessType: "test", telemetryEnabled: false });
+      await tx.insert(businessMemberships).values({ businessId: otherId, userId: ownerId, role: "business_owner" });
+      await tx.update(users).set({ activeBusinessId: businessId }).where(eq(users.id, ownerId));
+      await tx.update(users).set({ activeBusinessId: businessId }).where(eq(users.id, adminId));
+      await run(ownerId);
+      const remembered = async (userId: string) => {
+        await tx.execute(sql`set local role lobbystack_app`);
+        try {
+          return await withBusinessTransaction(tx as unknown as Database, { userId, actorType: "operator" }, async (inner) => await readActiveBusinessIdInTransaction(inner, { userId, brand: { kind: "host" } }));
+        } finally {
+          await tx.execute(sql`reset role`);
+        }
+      };
+      expect(await remembered(ownerId)).toBe(otherId);
+      // The admin has no other business, so there is none to open.
+      expect(await remembered(adminId)).toBeNull();
     });
   });
 });

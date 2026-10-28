@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -36,6 +37,7 @@ function InviteRoleOptions({ value, onChange, t }: { value: InviteRole; onChange
 export function LiveTeamSurface() {
   const { i18n, t } = useTranslation("settings");
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [businessDialog, setBusinessDialog] = useState(false);
   const [inviteDialog, setInviteDialog] = useState(false);
   const [businessName, setBusinessName] = useState("");
@@ -55,8 +57,8 @@ export function LiveTeamSurface() {
   const invite = useMutation({ mutationFn: () => requestJson("/api/team", { method: "POST", body: JSON.stringify({ businessId: business!.businessId, email: email.trim().toLowerCase(), role }) }), onSuccess: async () => { await invalidate(); setEmail(""); setInviteDialog(false); toast.success(t("workspaceTeam.invite.sent", { email })); }, onError: (cause: Error & { code?: string }) => toast.error(cause.code === "partner_member_not_on_team" ? t("workspaceTeam.invite.errors.partnerMember", { email: email.trim() }) : t("workspaceTeam.invite.errors.failed")) });
   const deleteBusiness = useMutation({
     mutationFn: () => requestJson(`/api/businesses?businessId=${encodeURIComponent(business!.businessId)}`, { method: "DELETE", body: JSON.stringify({ confirmName }) }),
-    // The business is gone, so a full load lets the server pick the next one, or onboarding when there is none.
-    onSuccess: () => { queryClient.clear(); window.location.assign("/"); },
+    // The business is gone: reload the list, where the server's next business is active, then let the home page send them there, or to onboarding when there is none.
+    onSuccess: async () => { setDeleteDialog(false); await queryClient.invalidateQueries({ queryKey: ["businesses"] }); router.replace("/"); },
     onError: (cause: Error & { code?: string }) => toast.error(cause.code === "business_number_in_progress" ? t("workspaceTeam.delete.errors.numberInProgress") : cause.code === "billing_unconfigured" ? t("workspaceTeam.delete.errors.billing") : t("workspaceTeam.delete.errors.failed")),
   });
   const remove = useMutation({ mutationFn: (input: { membershipId?: string; invitationId?: string }) => requestJson(`/api/team?businessId=${encodeURIComponent(business!.businessId)}`, { method: "DELETE", body: JSON.stringify(input) }), onSuccess: invalidate, onError: () => toast.error(t("workspaceTeam.members.removeFailed")) });
