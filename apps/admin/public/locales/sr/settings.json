@@ -763,7 +763,7 @@
       "action": "Obriši firmu",
       "dialogTitle": "Obrisati {{name}}?",
       "dialogDescription": "Sve u ovoj firmi se trajno briše, njen broj telefona se vraća provajderu, a recepcionar prestaje da se javlja. Tim gubi pristup i niko ne može da je vrati.",
-      "confirmLabel": "Upišite {{name}} za potvrdu",
+      "confirmLabel": "Upišite <name>{{name}}</name> za potvrdu",
       "submit": "Obriši",
       "deleting": "Brisanje...",
       "errors": {

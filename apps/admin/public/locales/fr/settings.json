@@ -763,7 +763,7 @@
       "action": "Supprimer l'entreprise",
       "dialogTitle": "Supprimer {{name}} ?",
       "dialogDescription": "Tout ce que contient cette entreprise est effacé définitivement, son numéro de téléphone est rendu à l'opérateur et la réceptionniste cesse de répondre. Son équipe perd l'accès et personne ne peut la restaurer.",
-      "confirmLabel": "Saisissez {{name}} pour confirmer",
+      "confirmLabel": "Saisissez <name>{{name}}</name> pour confirmer",
       "submit": "Supprimer",
       "deleting": "Suppression...",
       "errors": {

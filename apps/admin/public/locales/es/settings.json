@@ -763,7 +763,7 @@
       "action": "Eliminar negocio",
       "dialogTitle": "¿Eliminar {{name}}?",
       "dialogDescription": "Todo lo que hay en este negocio se borra para siempre, su número de teléfono vuelve al proveedor y la recepcionista deja de responder. Su equipo pierde el acceso y nadie puede restaurarlo.",
-      "confirmLabel": "Escribe {{name}} para confirmar",
+      "confirmLabel": "Escribe <name>{{name}}</name> para confirmar",
       "submit": "Eliminar",
       "deleting": "Eliminando...",
       "errors": {

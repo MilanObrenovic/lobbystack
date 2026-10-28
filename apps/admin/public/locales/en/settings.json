@@ -756,7 +756,7 @@
       "action": "Delete business",
       "dialogTitle": "Delete {{name}}?",
       "dialogDescription": "Everything in this business is erased for good, its phone number goes back to the provider, and the receptionist stops answering. Its team loses access, and nobody can restore it.",
-      "confirmLabel": "Type {{name}} to confirm",
+      "confirmLabel": "Type <name>{{name}}</name> to confirm",
       "submit": "Delete",
       "deleting": "Deleting...",
       "errors": {
