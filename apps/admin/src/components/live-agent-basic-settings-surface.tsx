@@ -44,7 +44,7 @@ type TimeZoneItemGroup = { value: string; label: string; items: TimeZoneOption[]
 type CurrencyOption = { id: string; label: string };
 
 type AgentSettings = {
-  business: { defaultLocale: RuntimeLocale; timezone: string; currency?: string } | null;
+  business: { defaultLocale: RuntimeLocale; teamLocale?: RuntimeLocale | null; timezone: string; currency?: string } | null;
   profile: { greeting: string; summary: string; summarySource: "placeholder" | "generated" | "operator"; summaryRegenerateStatus?: "pending" | "completed" | "empty" | "failed" | null; transferNumber: string | null; transferMode: string; appointmentChangePolicy: AppointmentChangePolicy | null; bookingMode: BookingMode } | null;
   hasKnowledgeSources?: boolean;
 };
@@ -117,7 +117,7 @@ export function AgentBasicSettingsPage({
   const configuration = query.data;
   const hours = useBusinessHours(businessId);
   const isLoadingConfiguration = !businessId || query.isLoading;
-  async function saveProfile({ defaultLocale: locale, ...patch }: { businessId: string; defaultLocale?: RuntimeLocale; timezone?: string; currency?: string; greeting?: string; summary?: string; regenerateSummary?: true; transferNumber?: string | null; transferMode?: string; appointmentChangePolicy?: AppointmentChangePolicy; bookingMode?: BookingMode }, refetchType: "active" | "none" = "active") {
+  async function saveProfile({ defaultLocale: locale, ...patch }: { businessId: string; defaultLocale?: RuntimeLocale; teamLocale?: RuntimeLocale | null; timezone?: string; currency?: string; greeting?: string; summary?: string; regenerateSummary?: true; transferNumber?: string | null; transferMode?: string; appointmentChangePolicy?: AppointmentChangePolicy; bookingMode?: BookingMode }, refetchType: "active" | "none" = "active") {
     await requestJson(`/api/agent?businessId=${encodeURIComponent(businessId)}`, { method: "PATCH", body: JSON.stringify({ ...patch, ...(locale ? { locale } : {}) }) });
     await queryClient.invalidateQueries({ queryKey: ["agent-settings", businessId], refetchType });
   }
@@ -213,6 +213,9 @@ export function AgentBasicSettingsPage({
   const [isGreetingSaving, setIsGreetingSaving] = useState(false);
   const [isGreetingOpen, setIsGreetingOpen] = useState(false);
   const [isLocaleSaving, setIsLocaleSaving] = useState(false);
+  // "default" follows the caller language.
+  const [teamLocale, setTeamLocale] = useState<RuntimeLocale | "default">("default");
+  const [isTeamLocaleSaving, setIsTeamLocaleSaving] = useState(false);
   const [isTransferSaving, setIsTransferSaving] = useState(false);
   const [isAppointmentChangeSaving, setIsAppointmentChangeSaving] = useState(false);
   useEffect(() => {
@@ -226,6 +229,7 @@ export function AgentBasicSettingsPage({
     // The sign-up placeholder isn't a summary, so the field starts empty.
     setSummary(profile.summarySource === "placeholder" ? "" : profile.summary);
     setDefaultLocale(configuration.business?.defaultLocale ?? "en");
+    setTeamLocale(configuration.business?.teamLocale ?? "default");
     setTransferNumber(profile.transferNumber ?? "");
     setTransferNumberInputValue(profile.transferNumber ?? "");
     setBookingMode(normalizeBookingMode(profile.bookingMode));
@@ -581,6 +585,55 @@ export function AgentBasicSettingsPage({
                     <SelectTrigger aria-label={t("agent:fields.defaultLocale.label")} className="w-full sm:w-52" id="agent-default-language" loading={isLocaleSaving}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
+                        {runtimeLocales.map((code) => <SelectItem key={code} value={code}>{t(`common:callerLanguage.${code}`)}</SelectItem>)}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+              </ItemActions>
+            </Item>
+
+            <Item
+              className="rounded-none border-x-0 border-t-0 border-b border-border last:border-b-0"
+              variant="default"
+            >
+              <ItemContent>
+                <ItemTitle>{t("agent:fields.teamLocale.label")}</ItemTitle>
+                <ItemDescription>{t("agent:fields.teamLocale.hint")}</ItemDescription>
+              </ItemContent>
+              <ItemActions className="w-full sm:w-auto">
+                {isLoadingConfiguration ? (
+                  <Skeleton className="h-10 w-full rounded-md sm:w-52" />
+                ) : (
+                  <Select
+                    disabled={!canManageTenant || isTeamLocaleSaving}
+                    items={[{ value: "default", label: t("agent:fields.teamLocale.sameAsCaller") }, ...runtimeLocales.map((code) => ({ value: code, label: t(`common:callerLanguage.${code}`) }))]}
+                    onValueChange={(value) => {
+                      const next = ((value as RuntimeLocale | "default" | null) || "default");
+                      setTeamLocale(next);
+                      void (async () => {
+                        if (!canManageTenant || !persistedProfile) {
+                          return;
+                        }
+
+                        setIsTeamLocaleSaving(true);
+                        try {
+                          await saveProfile({ businessId, teamLocale: next === "default" ? null : next });
+                          telemetry.track("web.agent.settings_saved", { businessId, setting: "team_locale" });
+                          toast.success(t("agent:actions.saved"));
+                        } catch {
+                          toast.error(t("agent:actions.saveFailed"));
+                        } finally {
+                          setIsTeamLocaleSaving(false);
+                        }
+                      })();
+                    }}
+                    value={teamLocale}
+                  >
+                    <SelectTrigger aria-label={t("agent:fields.teamLocale.label")} className="w-full sm:w-52" id="agent-team-language" loading={isTeamLocaleSaving}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="default">{t("agent:fields.teamLocale.sameAsCaller")}</SelectItem>
                         {runtimeLocales.map((code) => <SelectItem key={code} value={code}>{t(`common:callerLanguage.${code}`)}</SelectItem>)}
                       </SelectGroup>
                     </SelectContent>
