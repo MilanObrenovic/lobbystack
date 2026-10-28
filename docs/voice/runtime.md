@@ -289,7 +289,21 @@ To take calls and texts on a local stack while a deployment keeps its numbers, s
 
 ### Sell numbers in the UK, Australia and New Zealand
 
-Twilio sells numbers in these countries only under a regulatory bundle it has approved. Create one bundle per country with LobbyStack as the business, and the worker buys every number in that country under it. UK and Australian businesses get mobile numbers, because local numbers there need a local address. New Zealand businesses get local numbers, which take calls but not texts. That's fine, because hosted businesses text from the shared sender.
+Puerto Rico needs no bundle, like the US and Canada. Its local numbers take calls and texts, and the shared toll-free sender can text Puerto Rican numbers. Twilio voice dialing permissions and Messaging geo permissions must both allow Puerto Rico.
+
+Twilio sells numbers in these countries only under a regulatory bundle it has approved. Create one bundle per country with LobbyStack as the business, and the worker buys every number in that country under it. UK and Australian businesses get mobile numbers, because local numbers there need a local address. New Zealand businesses get local numbers, which take calls but not texts.
+
+The shared sender is toll-free and can text only +1 numbers. A hosted business with its own SMS number outside +1, such as a UK or Australian mobile, texts from that number instead, so its callers and team get texts (`resolveSmsSender` in `packages/domain/src/server/smsSender.ts`). A New Zealand business has no SMS number, so its New Zealand callers and team get no texts. Messaging geo permissions in Twilio must allow the UK, Australia and New Zealand.
+
+LobbyStack submitted these bundles on 2026-10-28:
+
+| Country | Bundle | Address |
+| --- | --- | --- |
+| United Kingdom, mobile | `BU74328517f3a6170e1a0ac4a5cecb047d` | `AD9faf799d6caddd21d27040c33613a4a4` |
+| New Zealand, local | `BU69eeaed691e5186b22e2f50ba78f2076` | `AD9faf799d6caddd21d27040c33613a4a4` |
+| Australia, mobile | `BU7b949cb26f8e59f3737347cf2e5bc03a` | `AD9faf799d6caddd21d27040c33613a4a4` |
+
+The UK bundle uses the registered office address only. The New Zealand bundle uses the Form 2 filing, which shows the company's name and address. The Australian bundle uses a printout of the Corporations Canada profile, because Australia also needs the corporation number, 1787776-5, and only the profile shows it. Once Twilio approves a bundle, set its SID on the admin and the worker. For Australia and New Zealand, also set the address SID.
 
 To set up a country:
 
