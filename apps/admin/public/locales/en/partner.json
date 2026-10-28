@@ -558,25 +558,19 @@
   },
   "apiKeys": {
     "title": "API keys",
-    "empty": "No platform keys yet.",
-    "neverUsed": "Never",
-    "createdBy": "{{date}} by {{name}}",
+    "empty": "No API keys yet.",
+    "createdOn": "Created {{date}}",
+    "lastUsed": "Last used {{date}}",
+    "neverUsed": "Never used",
+    "createdBy": "Created {{date}} by {{name}}",
     "revoked": "Revoked {{date}}",
     "restricted": {
-      "title": "Only owners and admins can manage platform keys",
+      "title": "Only owners and admins can manage API keys",
       "description": "Ask an owner or admin to create a key for you."
     },
-    "columns": {
-      "name": "Name",
-      "key": "Key",
-      "scopes": "Access",
-      "created": "Created",
-      "lastUsed": "Last used",
-      "actions": "Actions"
-    },
     "create": {
-      "action": "Create platform key",
-      "title": "Create a platform key",
+      "action": "Create API key",
+      "title": "Create an API key",
       "description": "Name it so you'll recognize it, and give it only the access it needs.",
       "nameLabel": "Name",
       "namePlaceholder": "Client onboarding",
@@ -593,12 +587,22 @@
     },
     "revoke": {
       "action": "Revoke",
-      "title": "Revoke this platform key?",
+      "title": "Revoke this API key?",
       "description": "Anything using {{name}} stops working, and its webhooks turn off. You can't undo this.",
       "confirm": "Revoke key",
       "cancel": "Cancel",
-      "done": "Platform key revoked",
+      "done": "API key revoked",
       "failed": "We couldn't revoke the key. Try again."
+    },
+    "update": {
+      "action": "Update",
+      "title": "Update {{name}}",
+      "description": "Change its name or access. You keep the same key, and apps using it get the new access on their next request.",
+      "submit": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "done": "API key updated",
+      "ownerOnly": "Only an owner can update a key with billing access."
     },
     "scopes": {
       "business_read": "Read the business, its hours, services and receptionist",
@@ -616,7 +620,16 @@
       "team_manage": "Invite and remove team members and change roles",
       "webhooks_manage": "Create and delete webhook endpoints",
       "businesses_create": "Create businesses and invite their owners",
-      "users_create": "Invite owners to create an account"
+      "users_create": "Invite owners to create an account",
+      "partner_read": "Read your partner account: demos, packages, brand, domains, templates and team",
+      "partner_businesses_write": "Release and delete businesses, and set their package and overage",
+      "partner_demos_write": "Make, publish, turn off and delete prospect demos",
+      "partner_packages_write": "Make, rename and archive packages",
+      "partner_branding_write": "Change your brand and connect your own domain",
+      "partner_templates_write": "Save and delete templates",
+      "partner_team_write": "Invite and remove admins and members, and change their roles",
+      "partner_billing_read": "See the Stripe connection, your tier and pool usage. Only owners can grant it",
+      "partner_billing_write": "Start Stripe onboarding and tier checkouts, and set the pool's overage. Only owners can grant it"
     },
     "emptyDescription": "Create one to set up businesses from your own code."
   },
@@ -810,5 +823,25 @@
     "signIn": "Sign in",
     "createAccount": "Create account",
     "switchAccount": "Use another account"
+  },
+  "agencyConnections": {
+    "title": "MCP connections",
+    "description": "AI assistants and other MCP clients your team connected by signing in.",
+    "descriptionOwn": "AI assistants and other MCP clients you connected by signing in.",
+    "empty": "No MCP connections yet. Connect an assistant to the {{appName}} MCP server and choose this agency when you sign in.",
+    "unnamed": "Unnamed app",
+    "connectedOn": "Connected {{date}}",
+    "lastUsed": "Last used {{date}}",
+    "neverUsed": "Never used",
+    "connectedBy": "Connected {{date}} by {{name}}",
+    "revoke": {
+      "action": "Disconnect",
+      "title": "Disconnect {{name}}?",
+      "description": "{{name}} loses access to the agency and its businesses at once. Connect it again to use it.",
+      "confirm": "Disconnect",
+      "cancel": "Cancel",
+      "done": "Connection removed",
+      "failed": "We couldn't disconnect the app. Try again."
+    }
   }
 }

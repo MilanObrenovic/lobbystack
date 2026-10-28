@@ -73,6 +73,8 @@ export type McpCopy = {
     intro: string
     groups: Record<McpToolGroupKey, { title: string; body: string }>
   }
+  /** White label partners, who connect an assistant to their partner instead of one business. */
+  agencies: Split & { cta: string }
   /** The install block under the hero. Text between backticks renders as code. */
   connect: {
     title: string
@@ -157,7 +159,7 @@ const en: McpCopy = {
   control: {
     eyebrow: "Control",
     title: "See every connected assistant and cut one off",
-    body: "Settings > Connected apps lists each assistant with who connected it, what it can do and when it last made a request. Click Disconnect and it loses access right away.",
+    body: "MCP connections, under Settings > API keys, lists each assistant with who connected it, what it can do and when it last made a request. Click Disconnect and it loses access right away.",
     points: [
       "Each change goes in the audit log with the connection and the person who approved it",
       "LobbyStack tells the assistant to check with you before it books, cancels, reschedules or replaces your hours",
@@ -187,6 +189,17 @@ const en: McpCopy = {
         body: "Read your hours, services, staff and booking mode, replace the week's opening hours, and add an FAQ or text entry your receptionist answers from.",
       },
     },
+  },
+  agencies: {
+    eyebrow: "For agencies",
+    title: "Run your white label clients from chat",
+    body: "If you resell LobbyStack under your own brand, connect the assistant to your partner instead of one business. Ask it to make a demo from a prospect's website, set up a client from a template on one of your packages, or invite a teammate. It acts with your role on the team.",
+    points: [
+      "Sign in and pick your agency on the consent page, or use a partner platform key",
+      "Tools for demos, client businesses, packages, templates, branding and your team, with billing for owners",
+      "Each client tool takes the business to work on, and reaches only your own clients",
+    ],
+    cta: "Read the agency guide",
   },
   connect: {
     title: "Install",
@@ -258,7 +271,7 @@ const en: McpCopy = {
     scopeBook: "Book, cancel and reschedule appointments",
     scopeHours: "Update business details and hours",
     allowAccess: "Allow access",
-    connectedApps: "Connected apps",
+    connectedApps: "MCP connections",
     connectedBy: "By Dana W.",
     disconnect: "Disconnect",
     disconnected: "ChatGPT disconnected",
@@ -311,7 +324,7 @@ const fr: McpCopy = {
   control: {
     eyebrow: "Contrôle",
     title: "Voyez chaque assistant connecté et coupez-en un au besoin",
-    body: "Réglages > Applications connectées liste chaque assistant avec la personne qui l'a connecté, ce qu'il peut faire et sa dernière requête. Cliquez sur Déconnecter et il perd l'accès immédiatement.",
+    body: "Connexions MCP, sous Réglages > Clés API, liste chaque assistant avec la personne qui l'a connecté, ce qu'il peut faire et sa dernière requête. Cliquez sur Déconnecter et il perd l'accès immédiatement.",
     points: [
       "Chaque modification est inscrite au journal d'audit avec la connexion et la personne qui l'a approuvée",
       "LobbyStack demande à l'assistant de vérifier avec vous avant de réserver, d'annuler, de déplacer un rendez-vous ou de remplacer vos heures",
@@ -341,6 +354,17 @@ const fr: McpCopy = {
         body: "Lisez vos heures, vos services, votre personnel et votre mode de réservation, remplacez les heures de la semaine et ajoutez une FAQ ou un texte dont votre réceptionniste se sert pour répondre.",
       },
     },
+  },
+  agencies: {
+    eyebrow: "Pour les agences",
+    title: "Gérez vos clients en marque blanche depuis le clavardage",
+    body: "Si vous revendez LobbyStack sous votre propre marque, connectez l'assistant à votre partenaire plutôt qu'à une seule entreprise. Demandez-lui de créer une démo à partir du site d'un prospect, de configurer un client à partir d'un modèle avec l'une de vos formules, ou d'inviter un collègue. Il agit avec votre rôle dans l'équipe.",
+    points: [
+      "Connectez-vous et choisissez votre agence sur la page de consentement, ou utilisez une clé de plateforme partenaire",
+      "Des outils pour les démos, les entreprises clientes, les formules, les modèles, l'image de marque et votre équipe, et la facturation pour les propriétaires",
+      "Chaque outil client prend l'entreprise visée et n'atteint que vos propres clients",
+    ],
+    cta: "Lire le guide des agences",
   },
   connect: {
     title: "Installation",
@@ -412,7 +436,7 @@ const fr: McpCopy = {
     scopeBook: "Réserver, annuler et déplacer des rendez-vous",
     scopeHours: "Modifier les informations et les heures",
     allowAccess: "Autoriser l'accès",
-    connectedApps: "Applications connectées",
+    connectedApps: "Connexions MCP",
     connectedBy: "Par Dana W.",
     disconnect: "Déconnecter",
     disconnected: "ChatGPT déconnecté",
@@ -465,7 +489,7 @@ const es: McpCopy = {
   control: {
     eyebrow: "Control",
     title: "Vea cada asistente conectado y desconecte el que quiera",
-    body: "Configuración > Aplicaciones conectadas muestra cada asistente con quién lo conectó, lo que puede hacer y cuándo hizo su última solicitud. Haga clic en Desconectar y pierde el acceso de inmediato.",
+    body: "Conexiones MCP, en Configuración > Claves de API, muestra cada asistente con quién lo conectó, lo que puede hacer y cuándo hizo su última solicitud. Haga clic en Desconectar y pierde el acceso de inmediato.",
     points: [
       "Cada cambio queda en el registro de auditoría con la conexión y la persona que la aprobó",
       "LobbyStack le indica al asistente que confirme con usted antes de reservar, cancelar, reprogramar o reemplazar su horario",
@@ -495,6 +519,17 @@ const es: McpCopy = {
         body: "Lea su horario, servicios, personal y modo de reserva, reemplace el horario de la semana y agregue una pregunta frecuente o un texto con el que responde su recepcionista.",
       },
     },
+  },
+  agencies: {
+    eyebrow: "Para agencias",
+    title: "Gestione sus clientes de marca blanca desde el chat",
+    body: "Si revende LobbyStack con su propia marca, conecte el asistente a su cuenta de socio en lugar de a un solo negocio. Pídale que cree una demo a partir del sitio web de un cliente potencial, que configure un cliente con una plantilla y uno de sus paquetes, o que invite a un compañero. Actúa con su rol en el equipo.",
+    points: [
+      "Inicie sesión y elija su agencia en la página de consentimiento, o use una clave de plataforma de socio",
+      "Herramientas para demos, negocios clientes, paquetes, plantillas, marca y su equipo, y la facturación para los propietarios",
+      "Cada herramienta de cliente recibe el negocio con el que trabajar y solo llega a sus propios clientes",
+    ],
+    cta: "Leer la guía para agencias",
   },
   connect: {
     title: "Instalación",
@@ -566,7 +601,7 @@ const es: McpCopy = {
     scopeBook: "Reservar, cancelar y reprogramar citas",
     scopeHours: "Actualizar los datos y el horario",
     allowAccess: "Permitir acceso",
-    connectedApps: "Aplicaciones conectadas",
+    connectedApps: "Conexiones MCP",
     connectedBy: "Por Dana W.",
     disconnect: "Desconectar",
     disconnected: "ChatGPT desconectado",
@@ -619,7 +654,7 @@ const sr: McpCopy = {
   control: {
     eyebrow: "Kontrola",
     title: "Vidite svakog povezanog asistenta i prekinite vezu kad želite",
-    body: "Podešavanja > Povezane aplikacije prikazuju svakog asistenta, ko ga je povezao, šta sme da radi i kada je poslednji put poslao zahtev. Kliknite na Prekini vezu i asistent odmah gubi pristup.",
+    body: "Odeljak MCP veze, u Podešavanja > API ključevi, prikazuje svakog asistenta, ko ga je povezao, šta sme da radi i kada je poslednji put poslao zahtev. Kliknite na Prekini vezu i asistent odmah gubi pristup.",
     points: [
       "Svaka izmena se upisuje u dnevnik revizije, sa vezom i osobom koja ju je odobrila",
       "LobbyStack nalaže asistentu da proveri sa Vama pre nego što zakaže, otkaže ili pomeri termin ili zameni radno vreme",
@@ -649,6 +684,17 @@ const sr: McpCopy = {
         body: "Pročitajte radno vreme, usluge, zaposlene i način zakazivanja, zamenite radno vreme za celu nedelju i dodajte često pitanje ili tekst iz kog recepcioner odgovara.",
       },
     },
+  },
+  agencies: {
+    eyebrow: "Za agencije",
+    title: "Vodite svoje white-label klijente iz četa",
+    body: "Ako prodajete LobbyStack pod svojim brendom, povežite asistenta sa partnerskim nalogom umesto sa jednom firmom. Zamolite ga da napravi demo od sajta potencijalnog klijenta, da podesi klijenta iz šablona na jednom od Vaših paketa ili da pozove kolegu. Radi sa Vašom ulogom u timu.",
+    points: [
+      "Prijavite se i izaberite svoju agenciju na stranici za saglasnost, ili koristite partnerski platformski ključ",
+      "Alati za demo verzije, firme klijenata, pakete, šablone, brend i Vaš tim, uz naplatu za vlasnike",
+      "Svaki alat za klijente prima firmu sa kojom radi i dopire samo do Vaših klijenata",
+    ],
+    cta: "Pročitajte vodič za agencije",
   },
   connect: {
     title: "Instalacija",
@@ -720,7 +766,7 @@ const sr: McpCopy = {
     scopeBook: "Zakazivanje, otkazivanje i pomeranje termina",
     scopeHours: "Izmena podataka o firmi i radnog vremena",
     allowAccess: "Dozvoli pristup",
-    connectedApps: "Povezane aplikacije",
+    connectedApps: "MCP veze",
     connectedBy: "Povezala Dana W.",
     disconnect: "Prekini vezu",
     disconnected: "Veza sa ChatGPT-jem prekinuta",
@@ -734,6 +780,12 @@ export function getMcpCopy(locale: Locale): McpCopy {
 }
 
 /** The docs guide for a page, in the docs' language when it has one. Serbian readers get English docs. */
+/** The Help Center guide for agencies, which lives with the white label pages. */
+export function mcpAgencyDocsUrl(locale: Locale) {
+  const prefix = locale === "fr" || locale === "es" ? `/${locale}` : ""
+  return `https://docs.lobbystack.com${prefix}/white-label/mcp-for-agencies`
+}
+
 export function mcpDocsUrl(locale: Locale, page: "mcp" | "connect-claude" | "connect-chatgpt" | "connect-other-clients") {
   const prefix = locale === "fr" || locale === "es" ? `/${locale}` : ""
   return `https://docs.lobbystack.com${prefix}/ai/${page}`

@@ -1,12 +1,13 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { listGrantableBusinesses } from "@lobbystack/domain";
-import { oauthGrantableScopes } from "@lobbystack/shared";
+import { listGrantableBusinesses, listGrantablePartners } from "@lobbystack/domain";
 
 import { OAuthConsentSurface, type OAuthConsentProps } from "@/components/oauth-consent-surface";
 import { getAppDatabase } from "@/lib/api-helpers";
 import { getAuth, getSession } from "@/lib/auth";
+import { createDomainContext } from "@/lib/domain-context";
+import { agencyConsentScopes, businessConsentScopes } from "@/lib/oauth-consent";
 
 export const dynamic = "force-dynamic";
 
@@ -31,15 +32,6 @@ function verifiedClientHost(clientId: string): string | null {
   }
 }
 
-/** Where the browser goes after approval. The plugin already checked it against the client's registration. */
-function redirectHost(redirectUri: string | null): string | null {
-  if (!redirectUri) return null;
-  try {
-    return new URL(redirectUri).host || null;
-  } catch {
-    return null;
-  }
-}
 
 async function loadConsent(params: Record<string, string | string[] | undefined>, requestHeaders: Headers): Promise<OAuthConsentProps | { kind: "sign-in"; query: string }> {
   const oauthQuery = toQueryString(params);
@@ -57,13 +49,17 @@ async function loadConsent(params: Record<string, string | string[] | undefined>
   }
   const requested = (query.get("scope") ?? "").split(" ");
   const businesses = await listGrantableBusinesses(getAppDatabase().db, session.user.id);
+  // An agency connection is offered only when the client asked for a partner scope.
+  const partners = (await listGrantablePartners(createDomainContext(), session.user.id))
+    .map((partner) => ({ partnerId: partner.partnerId, name: partner.name, scopes: agencyConsentScopes(requested, partner.role) }))
+    .filter((partner) => partner.scopes.some((scope) => !businessConsentScopes(requested).includes(scope)));
   return {
     kind: "consent",
     oauthQuery,
-    client: { name: clientName, host: verifiedClientHost(clientId), redirectHost: redirectHost(query.get("redirect_uri")) },
-    email: session.user.email ?? "",
+    client: { name: clientName, host: verifiedClientHost(clientId) },
     businesses: businesses.map(({ businessId, name, active }) => ({ businessId, name, active })),
-    scopes: oauthGrantableScopes.filter((scope) => requested.includes(scope)),
+    scopes: businessConsentScopes(requested),
+    partners,
   };
 }
 

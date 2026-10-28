@@ -1,6 +1,6 @@
 # How partners resell LobbyStack
 
-A partner resells LobbyStack to businesses under its own brand, domain, and bills. This page records what v1 of the partner program does, as decided on 2026-10-24. The code builds it, except where a line below says otherwise, and the Help Center's [white label pages](../mintlify/white-label/overview.mdx) describe it for partners. [`GLOSSARY.md`](../GLOSSARY.md) defines the terms, and [the white-label research](../research/white-label-reseller-programs.md) compares 30 competitors. [Build the partner program](white-label-build-plan.md) lays out the work in phases, and [the partner architecture](architecture/partners.md) defines its modules.
+A partner resells LobbyStack to businesses under its own brand, domain, and bills. This page records what v1 of the partner program does, as decided on 2026-10-24. The code builds it, except where a line below says otherwise, and the Help Center's [white label pages](../mintlify/white-label/overview.mdx) describe it for partners. [`GLOSSARY.md`](../GLOSSARY.md) defines the terms. [Build the partner program](white-label-build-plan.md) lays out the work in phases, and [the partner architecture](architecture/partners.md) defines its modules.
 
 ## Terms
 
@@ -80,6 +80,7 @@ The console has these pages in v1:
 - A person has one account across every brand. Each domain lists only its own brand's businesses.
 - The partner creates each business in the console and sends the owner a link. The link opens on the partner's domain and sends the owner to Stripe Checkout on the partner's Stripe account, under the partner's name, or to sign-in for a business billed outside LobbyStack.
 - The partner gives each business one of two access levels. Full access has today's owner and admin powers, minus billing, API keys, and MCP. Activity only shows calls, chats, appointments, contacts, and messages.
+- The partner's own team can run the console from an AI assistant. Someone on the team connects an MCP client to the partner by signing in, or the partner uses one of its platform keys, and the client then works on the partner's businesses with that person's role, or an admin's for a key ([ADR 0011](adr/0011-agency-mcp-grants.md)).
 - The business's billing page opens the partner's Stripe customer portal, at either access level, since the business pays the partner itself. Its dashboard shows usage against its allowance, and only Stripe invoices show prices.
 - Partners can save a business's setup as a template in the `lobbystack onboard` file format, then apply it to new businesses.
 - Partners can make prospect demos under their own brand.
@@ -96,6 +97,7 @@ A business stays with its partner:
 Partners make their own platform keys in the console ([ADR 0010](adr/0010-partners-make-their-own-platform-keys.md)):
 
 - A partner's keys reach only its businesses, through today's Platform endpoints and `lobbystack onboard`.
+- With the partner scopes, a partner's key also does what the console does through the v1 Partner endpoints: demos, packages, brand, domain, templates, team, Stripe and tier billing. It acts as an admin, and only an owner grants the billing scopes.
 - Keys in `PLATFORM_API_KEYS` belong to the host.
 - Each entry's `partner` field becomes `group`, and `platform_partner_businesses` becomes `platform_key_businesses`. Entries keep accepting `partner`, so existing self-hosted keys keep working.
 - Webhooks stay per business, as today. Partner-wide webhooks come after v1.
@@ -125,7 +127,7 @@ A partner's businesses never get the host's marketing, onboarding, or founder em
 
 ## Texts
 
-Every business, direct or partner, texts from the host's verified toll-free number. Carriers expect that number's verified brand in the first text and in HELP and STOP replies. [The research's SMS section](../research/white-label-reseller-programs.md#sms-sender-rules) has the sources. A toll-free number can text only US, Canadian and Puerto Rican numbers, so a business with its own UK or Australian mobile number texts from that number instead.
+Every business, direct or partner, texts from the host's verified toll-free number. Carriers expect that number's verified brand in the first text and in HELP and STOP replies. A toll-free number can text only US, Canadian and Puerto Rican numbers, so a business with its own UK or Australian mobile number texts from that number instead.
 
 - The first text to each customer of each business confirms the opt-in and names the host and the business.
 - HELP and START replies name the host and the business. STOP gets Twilio's own reply, because Twilio blocks every text to a phone once it sends STOP.

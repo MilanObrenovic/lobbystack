@@ -566,25 +566,19 @@
   },
   "apiKeys": {
     "title": "Claves de API",
-    "empty": "Aún no hay claves de plataforma.",
-    "neverUsed": "Nunca",
-    "createdBy": "{{date}} por {{name}}",
+    "empty": "Aún no hay claves de API.",
+    "createdOn": "Creada el {{date}}",
+    "lastUsed": "Último uso el {{date}}",
+    "neverUsed": "Nunca usada",
+    "createdBy": "Creada el {{date}} por {{name}}",
     "revoked": "Revocada el {{date}}",
     "restricted": {
-      "title": "Solo los propietarios y administradores pueden gestionar las claves de plataforma",
+      "title": "Solo los propietarios y administradores pueden gestionar las claves de API",
       "description": "Pida a un propietario o administrador que cree una clave para usted."
     },
-    "columns": {
-      "name": "Nombre",
-      "key": "Clave",
-      "scopes": "Acceso",
-      "created": "Creada",
-      "lastUsed": "Último uso",
-      "actions": "Acciones"
-    },
     "create": {
-      "action": "Crear clave de plataforma",
-      "title": "Crear una clave de plataforma",
+      "action": "Crear clave de API",
+      "title": "Crear una clave de API",
       "description": "Póngale un nombre que reconozca y dele solo el acceso que necesita.",
       "nameLabel": "Nombre",
       "namePlaceholder": "Alta de clientes",
@@ -601,12 +595,22 @@
     },
     "revoke": {
       "action": "Revocar",
-      "title": "¿Revocar esta clave de plataforma?",
+      "title": "¿Revocar esta clave de API?",
       "description": "Todo lo que use {{name}} dejará de funcionar y sus webhooks se desactivarán. No podrá deshacerlo.",
       "confirm": "Revocar clave",
       "cancel": "Cancelar",
-      "done": "Clave de plataforma revocada",
+      "done": "Clave de API revocada",
       "failed": "No pudimos revocar la clave. Inténtelo de nuevo."
+    },
+    "update": {
+      "action": "Actualizar",
+      "title": "Actualizar {{name}}",
+      "description": "Cambie su nombre o su acceso. Conserva la misma clave, y las aplicaciones que la usan reciben el nuevo acceso en su próxima solicitud.",
+      "submit": "Guardar",
+      "saving": "Guardando…",
+      "cancel": "Cancelar",
+      "done": "Clave de API actualizada",
+      "ownerOnly": "Solo un propietario puede actualizar una clave con acceso a la facturación."
     },
     "scopes": {
       "business_read": "Leer el negocio, su horario, sus servicios y su recepcionista",
@@ -624,7 +628,16 @@
       "team_manage": "Invitar y quitar miembros del equipo y cambiar roles",
       "webhooks_manage": "Crear y eliminar endpoints de webhook",
       "businesses_create": "Crear negocios e invitar a sus propietarios",
-      "users_create": "Invitar a propietarios a crear una cuenta"
+      "users_create": "Invitar a propietarios a crear una cuenta",
+      "partner_read": "Leer tu cuenta de partner: demos, paquetes, marca, dominios, plantillas y equipo",
+      "partner_businesses_write": "Ceder y eliminar negocios, y elegir su paquete y su excedente",
+      "partner_demos_write": "Crear, publicar, desactivar y eliminar demos para prospectos",
+      "partner_packages_write": "Crear, renombrar y archivar paquetes",
+      "partner_branding_write": "Cambiar tu marca y conectar tu propio dominio",
+      "partner_templates_write": "Guardar y eliminar plantillas",
+      "partner_team_write": "Invitar y quitar administradores y miembros, y cambiar sus roles",
+      "partner_billing_read": "Ver la conexión con Stripe, tu nivel y el uso del bolsón compartido. Solo los propietarios pueden concederlo",
+      "partner_billing_write": "Iniciar el registro en Stripe y los pagos de nivel, y ajustar el excedente del bolsón compartido. Solo los propietarios pueden concederlo"
     },
     "emptyDescription": "Cree una para configurar sus negocios desde su propio código."
   },
@@ -822,5 +835,25 @@
     "signIn": "Iniciar sesión",
     "createAccount": "Crear cuenta",
     "switchAccount": "Usar otra cuenta"
+  },
+  "agencyConnections": {
+    "title": "Conexiones MCP",
+    "description": "Asistentes de IA y otros clientes MCP que su equipo conectó al iniciar sesión.",
+    "descriptionOwn": "Asistentes de IA y otros clientes MCP que usted conectó al iniciar sesión.",
+    "empty": "Aún no hay conexiones MCP. Conecte un asistente al servidor MCP de {{appName}} y elija esta agencia al iniciar sesión.",
+    "unnamed": "Aplicación sin nombre",
+    "connectedOn": "Conectada el {{date}}",
+    "lastUsed": "Último uso el {{date}}",
+    "neverUsed": "Nunca usada",
+    "connectedBy": "Conectada el {{date}} por {{name}}",
+    "revoke": {
+      "action": "Desconectar",
+      "title": "¿Desconectar {{name}}?",
+      "description": "{{name}} pierde al instante el acceso a la agencia y a sus negocios. Vuelve a conectarla para usarla.",
+      "confirm": "Desconectar",
+      "cancel": "Cancelar",
+      "done": "Conexión eliminada",
+      "failed": "No pudimos desconectar la aplicación. Inténtalo de nuevo."
+    }
   }
 }

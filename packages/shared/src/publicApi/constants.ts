@@ -30,11 +30,59 @@ export const apiKeyScopes = [
   "team:manage",
   "businesses:create",
   "users:create",
+  "partner:read",
+  "partner.businesses:write",
+  "partner.demos:write",
+  "partner.packages:write",
+  "partner.branding:write",
+  "partner.templates:write",
+  "partner.team:write",
+  "partner.billing:read",
+  "partner.billing:write",
 ] as const;
 export type ApiKeyScope = (typeof apiKeyScopes)[number];
 
+/**
+ * Scopes for the Partner endpoints, which act on the partner itself: its
+ * demos, packages, brand, templates, team and billing. Only a key a partner
+ * made in its console can hold them; a host's key has no partner to act on.
+ */
+export const partnerScopes = [
+  "partner:read",
+  "partner.businesses:write",
+  "partner.demos:write",
+  "partner.packages:write",
+  "partner.branding:write",
+  "partner.templates:write",
+  "partner.team:write",
+  "partner.billing:read",
+  "partner.billing:write",
+] as const satisfies readonly ApiKeyScope[];
+export type PartnerScope = (typeof partnerScopes)[number];
+
+/**
+ * Partner scopes that reach the partner's Stripe account and its billing,
+ * which only owners open in the console, so only an owner grants them.
+ */
+export const partnerOwnerScopes = ["partner.billing:read", "partner.billing:write"] as const satisfies readonly PartnerScope[];
+
+// A scope a key holds by holding another. partner.billing:write reads billing
+// too, so a key that starts a tier checkout can read it back.
+const scopesImplying: Partial<Record<ApiKeyScope, readonly ApiKeyScope[]>> = {
+  "partner.billing:read": ["partner.billing:write"],
+};
+
+/** Whether a key's scopes grant `scope`, itself or through a scope that implies it. */
+export function keyHasScope(scopes: readonly string[], scope: ApiKeyScope): boolean {
+  return scopes.includes(scope) || (scopesImplying[scope] ?? []).some((implying) => scopes.includes(implying));
+}
+
+export function isPartnerScope(value: unknown): value is PartnerScope {
+  return typeof value === "string" && (partnerScopes as readonly string[]).includes(value);
+}
+
 /** Scopes that act outside a single business, so only a platform key can hold them. */
-export const platformOnlyScopes = ["businesses:create", "users:create"] as const satisfies readonly ApiKeyScope[];
+export const platformOnlyScopes = ["businesses:create", "users:create", ...partnerScopes] as const satisfies readonly ApiKeyScope[];
 export type PlatformOnlyScope = (typeof platformOnlyScopes)[number];
 export type BusinessApiKeyScope = Exclude<ApiKeyScope, PlatformOnlyScope>;
 
@@ -55,6 +103,14 @@ export type OAuthGrantableScope = (typeof mcpToolScopes)[number];
 
 /** Scopes an MCP client can be granted with OAuth. Scopes without MCP tools, such as webhooks:manage, are never offered. */
 export const oauthGrantableScopes = apiKeyScopes.filter((scope): scope is OAuthGrantableScope => (mcpToolScopes as readonly string[]).includes(scope));
+
+/**
+ * Scopes an agency connection can be granted with OAuth on top of the
+ * per-business ones: the partner scopes, and creating businesses. The billing
+ * scopes are offered to owners only, as for a partner's platform keys.
+ */
+export const oauthPartnerGrantableScopes = ["businesses:create", ...partnerScopes] as const satisfies readonly ApiKeyScope[];
+export type OAuthPartnerGrantableScope = (typeof oauthPartnerGrantableScopes)[number];
 
 export function isApiKeyScope(value: unknown): value is ApiKeyScope {
   return typeof value === "string" && (apiKeyScopes as readonly string[]).includes(value);

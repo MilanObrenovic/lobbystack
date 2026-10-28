@@ -9,6 +9,8 @@ LobbyStack runs a Model Context Protocol (MCP) server. Connect an AI assistant t
 
 The assistant works through the same rules as the [REST API](/api/overview). It sees one business, it can do only what its API key allows, and every change it makes lands in the business's audit log.
 
+White label partners can connect an assistant to their partner instead of one business. It then gets the partner console's tools too, and passes a `business_id` to each tool below. See [Run the partner console from an AI assistant](/white-label/mcp-for-agencies).
+
 ## Connect
 
 | Setting | Value |
@@ -33,12 +35,12 @@ LobbyStack runs an OAuth 2.1 authorization server for MCP clients, as the [MCP a
 When you connect, LobbyStack asks you to:
 
 1. Sign in, if you aren't signed in already.
-2. Pick the business. You see only businesses where you're an owner or admin.
+2. Pick the business. You see only businesses where you're an owner or admin. If you're on a white label partner's team, you can pick the partner under **Your agencies** instead.
 3. Choose what the assistant can do. Every permission it asked for starts checked; uncheck the ones you don't want.
 
 The assistant then gets access to that one business. Access tokens last an hour, and the assistant renews them for up to 30 days of inactivity without asking you again. Each renewal replaces the previous refresh token, and reusing an old one ends the connection.
 
-Owners and admins see every connected assistant for the business in **Settings** > **Connected apps**, with who connected it, its permissions, and when it last made a request. Click **Disconnect** to cut it off right away. If the person who connected it stops being an owner or admin, the connection stops working too.
+Owners and admins see every connected assistant for the business under **MCP connections** in **Settings** > **API keys**, with who connected it and when it last made a request. Click **Disconnect** to cut it off right away. If the person who connected it stops being an owner or admin, the connection stops working too.
 
 <Accordion title="Details for MCP client developers">
   | Item | Value |
@@ -78,7 +80,7 @@ Owners and admins see every connected assistant for the business in **Settings**
 | `list_messages` | `messages:read` | Messages the receptionist took for your team |
 | `add_knowledge` | `knowledge:write` | Adds an FAQ or a text entry the receptionist can use |
 
-Scopes are the same for OAuth and API keys. Tools return the same objects as the REST API, with times in UTC. Read-only tools carry the `readOnlyHint` annotation, and tools that cancel, move or replace data carry `destructiveHint`, so your assistant can ask you before it runs them.
+On a partner connection each of these tools also takes `business_id`, and the partner tools listed in [Run the partner console from an AI assistant](/white-label/mcp-for-agencies#tools) come on top. Scopes are the same for OAuth and API keys. Tools return the same objects as the REST API, with times in UTC. Read-only tools carry the `readOnlyHint` annotation, and tools that cancel, move or replace data carry `destructiveHint`, so your assistant can ask you before it runs them.
 
 The `webhooks:manage` scope has no MCP tools. A key with only that scope can't connect.
 
@@ -111,7 +113,7 @@ Each tool call counts against a limit of 120 requests per minute. An API key sha
 
 ## Audit log
 
-LobbyStack records each change made through the MCP server in the business's audit log with the actor `mcp` and the API key's ID, or for OAuth, the connection's ID and the person who approved it. It never logs keys or tokens. To cut off an assistant, disconnect it in **Settings** > **Connected apps**, or revoke its key in **Settings** > **API keys**.
+LobbyStack records each change made through the MCP server in the business's audit log with the actor `mcp` and the API key's ID, or for OAuth, the connection's ID and the person who approved it. It never logs keys or tokens. To cut off an assistant, disconnect it under **MCP connections** in **Settings** > **API keys**, or revoke its key on the same page.
 
 ## Guide for AI agents
 
