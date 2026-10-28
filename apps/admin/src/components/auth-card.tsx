@@ -16,7 +16,6 @@ import { recordAuthSuccess } from "@/lib/auth-success-analytics";
 import { takeInvitedEmail } from "@/lib/invited-email";
 import { resolveLocale } from "@/lib/locale";
 import { localizePublicPath } from "@/lib/locale-path";
-import { useBrandLinks } from "@/hooks/use-brand-links";
 import { cn } from "@/lib/utils";
 import { captureAffiliateReferralFromUrl, getAffiliateVisitorId } from "@/lib/affiliate-referral";
 
@@ -36,7 +35,6 @@ export function AuthCard({ mode, google = false, partner }: { mode: "login" | "s
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const { t, i18n } = useTranslation("auth");
   const authLocale = resolveLocale(i18n.resolvedLanguage, i18n.language);
-  const links = useBrandLinks(authLocale);
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const [signupSource, setSignupSource] = useState<"calculator" | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
