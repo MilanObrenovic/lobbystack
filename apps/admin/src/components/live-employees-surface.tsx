@@ -30,7 +30,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
+import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -291,6 +291,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
   const servicesId = useId();
   const hoursId = useId();
   const timeOffId = useId();
+  const addTimeOffId = useId();
   const [name, setName] = useState("");
   const [country, setCountry] = useState<Country>(defaultCountry);
   const [phone, setPhone] = useState("");
@@ -397,12 +398,12 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
               </Field>}
             </div>
             <Field data-invalid={timeOffError ? true : undefined}>
-              <FieldContent><FieldTitle id={timeOffId}>{t("add.fields.timeOff.label")}</FieldTitle><FieldDescription>{t("add.fields.timeOff.hint")}</FieldDescription></FieldContent>
+              <FieldContent><FieldLabel htmlFor={addTimeOffId} id={timeOffId}>{t("add.fields.timeOff.label")}</FieldLabel><FieldDescription>{t("add.fields.timeOff.hint")}</FieldDescription></FieldContent>
               {timeOff.map((entry) => <div className="flex items-center gap-2" key={entry.key}>
                 <div className="min-w-0 flex-1"><TimeOffPicker invalid={(submitted && !entry.value) || timeOffInvalid} label={t("add.fields.timeOff.dates")} locale={locale} onChange={(value) => editTimeOff(timeOff.map((item) => (item.key === entry.key ? { ...item, value } : item)))} today={today} value={entry.value} /></div>
                 <Button aria-label={t("add.fields.timeOff.remove")} onClick={() => editTimeOff(timeOff.filter((item) => item.key !== entry.key))} size="icon-sm" type="button" variant="ghost"><X /></Button>
               </div>)}
-              <Button aria-describedby={timeOffId} className="w-fit" onClick={() => editTimeOff([...timeOff, { key: nextTimeOffKey.current++, value: null }])} size="sm" type="button" variant="outline"><Plus data-icon="inline-start" />{t("add.fields.timeOff.add")}</Button>
+              <Button aria-labelledby={`${timeOffId} ${addTimeOffId}`} className="w-fit" id={addTimeOffId} onClick={() => editTimeOff([...timeOff, { key: nextTimeOffKey.current++, value: null }])} size="sm" type="button" variant="outline"><Plus data-icon="inline-start" />{t("add.fields.timeOff.add")}</Button>
               {timeOffError ? <FieldError>{timeOffError}</FieldError> : null}
             </Field>
           </FieldGroup>
