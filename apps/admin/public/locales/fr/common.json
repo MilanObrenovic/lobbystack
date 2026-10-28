@@ -32,7 +32,7 @@
     "nl": "Néerlandais"
   },
   "phoneCountry": {
-    "search": "Rechercher un pays",
+    "search": "Rechercher un pays ou un indicatif",
     "noResults": "Aucun pays trouvé."
   },
   "badges": {

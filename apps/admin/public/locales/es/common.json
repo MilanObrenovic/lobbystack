@@ -26,7 +26,7 @@
     "nl": "Neerlandés"
   },
   "phoneCountry": {
-    "search": "Buscar país",
+    "search": "Buscar país o prefijo",
     "noResults": "No se encontró ningún país."
   },
   "badges": {
