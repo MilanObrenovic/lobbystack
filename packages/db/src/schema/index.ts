@@ -256,7 +256,9 @@ export const partnerInvitations = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
-    invitedByUserId: uuid("invited_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    // A person, or a partner's platform key that invited as the partner (migration 0162).
+    invitedByUserId: uuid("invited_by_user_id").references(() => users.id, { onDelete: "cascade" }),
+    invitedByPlatformKeyId: uuid("invited_by_platform_key_id").references(() => partnerPlatformKeys.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     normalizedEmail: text("normalized_email").notNull(),
     role: varchar("role", { length: 16 }).$type<"owner" | "admin" | "member">().notNull(),
@@ -350,6 +352,10 @@ export const partnerPlatformKeys = pgTable(
     scopes: jsonb("scopes").$type<string[]>().notNull(),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
     revokedByUserId: uuid("revoked_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    // Who last changed the key's name or scopes (migration 0166).
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    // The owner who granted its partner.billing scopes, which count only while they're an active owner. Null when it has none.
+    billingScopesGrantedByUserId: uuid("billing_scopes_granted_by_user_id").references(() => users.id, { onDelete: "set null" }),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     ...timestamps,
@@ -480,7 +486,9 @@ export const prospectDemos = pgTable(
     campaignId: text("campaign_id"),
     websiteUrl: text("website_url").notNull(),
     businessName: text("business_name").notNull(),
-    operatorUserId: uuid("operator_user_id").notNull().references(() => users.id),
+    // The host's operator, or the partner's member who made it. Null for a demo a partner's platform key made (migration 0162).
+    operatorUserId: uuid("operator_user_id").references(() => users.id),
+    createdByPlatformKeyId: uuid("created_by_platform_key_id"),
     websiteIngestionJobId: uuid("website_ingestion_job_id"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     publishedAt: timestamp("published_at", { withTimezone: true }),
@@ -1381,6 +1389,22 @@ export const partnerUsageMonths = pgTable(
 );
 
 // An owner's request for a Polar checkout of a tier, which the worker turns into a checkout page.
+// Idempotency-Key records of the v1 Partner endpoints, which act on no one business (migration 0162).
+export const partnerApiIdempotencyKeys = pgTable(
+  "partner_api_idempotency_keys",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    scope: varchar("scope", { length: 120 }).notNull(),
+    key: varchar("key", { length: 255 }).notNull(),
+    requestHash: text("request_hash").notNull(),
+    status: varchar("status", { length: 16 }).$type<"processing" | "completed">().default("processing").notNull(),
+    response: jsonb("response").$type<{ status: number; body: unknown }>(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("partner_api_idempotency_keys_unique").on(table.partnerId, table.scope, table.key), index("partner_api_idempotency_keys_created_idx").on(table.createdAt)],
+);
+
 export const partnerCheckoutRequests = pgTable(
   "partner_checkout_requests",
   {
@@ -1425,6 +1449,22 @@ export const partnerLifecycleEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index("partner_lifecycle_events_partner_idx").on(table.partnerId, table.createdAt)],
+);
+
+// What happened to the partner itself rather than to one of its businesses, such as an agency connection approved or revoked (migration 0164).
+export const partnerAuditLogs = pgTable(
+  "partner_audit_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    eventType: varchar("event_type", { length: 64 }).notNull(),
+    entityType: varchar("entity_type", { length: 64 }).notNull(),
+    entityId: text("entity_id"),
+    payload: jsonb("payload").$type<Record<string, unknown>>().default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("partner_audit_logs_partner_idx").on(table.partnerId, table.createdAt)],
 );
 
 // Whether this deployment bills partners for tiers, as the worker last recorded it from the environment. At most one row (migration 0147).
@@ -2285,6 +2325,7 @@ export const schema = {
   partnerCheckoutRequests,
   partnerLifecycles,
   partnerLifecycleEvents,
+  partnerAuditLogs,
   partnerTierBilling,
   partnerNumberCharges,
   billingTransactions,
