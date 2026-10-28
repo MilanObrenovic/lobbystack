@@ -338,18 +338,8 @@ export function AuthCard({ mode, google = false, partner }: { mode: "login" | "s
   const passwordError = submitted && !password ? "passwordRequired" : null;
   const passwordInvalid = Boolean(passwordError) || (submitted && Boolean(password) && isPasswordWeak);
   const invalidInputClassName = "border-destructive text-destructive focus-visible:border-destructive focus-visible:ring-destructive/20";
-  // A partner that left out its terms or privacy page gets no agreement line.
-  const legalFooter = links.terms && links.privacy ? (
-    <p className="max-w-full text-center text-xs leading-5 text-muted-foreground sm:whitespace-nowrap">
-      {login ? t("login.legalPrefix") : t("signup.legal.prefix")} {" "}
-      <a className="underline underline-offset-4 hover:text-foreground" href={links.terms} rel="noreferrer" target="_blank">{t("signup.legal.terms")}</a>{" "}
-      {t("signup.legal.and")} {" "}
-      <a className="underline underline-offset-4 hover:text-foreground" href={links.privacy} rel="noreferrer" target="_blank">{t("signup.legal.privacy")}</a>
-      {t("signup.legal.suffix")}
-    </p>
-  ) : undefined;
   return (
-    <ReplacementOnboardingShell {...(partner ? { eyebrow: t("partner.eyebrow") } : {})} legalFooter={legalFooter} progress={login || partner ? null : { current: 1, total: 9 }} title={login ? t("login.title") : t("signup.title")} width="sm">
+    <ReplacementOnboardingShell {...(partner ? { eyebrow: t("partner.eyebrow") } : {})} legalAgreement={login ? "login" : "signup"} progress={login || partner ? null : { current: 1, total: 9 }} title={login ? t("login.title") : t("signup.title")} width="sm">
       <div className="flex w-full flex-col gap-6">
         {google ? <>
           <div className="flex flex-col gap-2">
