@@ -25,6 +25,10 @@
     "it": "Italian",
     "nl": "Dutch"
   },
+  "phoneCountry": {
+    "search": "Search countries",
+    "noResults": "No country found."
+  },
   "badges": {
     "live": "Live",
     "configured": "Configured",

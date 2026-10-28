@@ -34,11 +34,11 @@ import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLab
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDateTime, intlLocale } from "@/lib/locale";
+import { PhoneCountrySelect } from "@/components/phone-country-select";
 import { formatPhoneNumberDisplay, getDefaultTransferCountry, getPhoneCountryOptions, inferPhoneCountry } from "@/lib/phone";
 
 type TimeOff = { startsOn: string; endsOn: string };
@@ -355,7 +355,6 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
   const hoursError = submitted ? hoursProblem : null;
   const timeOffMissing = timeOff.some((entry) => !entry.value);
   const timeOffError = submitted && timeOffMissing ? t("add.fields.timeOff.required") : timeOffInvalid ? t("add.fields.timeOff.invalid") : null;
-  const selected = countries.find((option) => option.code === country) ?? countries[0];
   const editTimeOff = (next: Array<{ key: number; value: TimeOff | null }>) => { setTimeOff(next); setTimeOffInvalid(false); };
 
   return <Dialog onOpenChange={onOpenChange} open={open}>
@@ -372,10 +371,7 @@ function EmployeeDialog({ businessId, employee, open, onOpenChange, services, to
             <Field data-invalid={phoneError ? true : undefined}>
               <FieldContent><FieldLabel htmlFor={phoneId}>{t("add.fields.phone.label")}</FieldLabel><FieldDescription>{t("add.fields.phone.hint")}</FieldDescription></FieldContent>
               <div className="flex min-w-0">
-                <Select onValueChange={(value) => { if (value && value !== country) { setCountry(value as Country); setPhone(""); setPhoneDraft(""); setPhoneProblem(null); } }} value={country}>
-                  <SelectTrigger aria-label={t("add.fields.phone.country")} className="w-20 shrink-0 rounded-r-none px-4 font-medium text-muted-foreground" data-phone-country-prefix><span>{selected?.callingCode ?? ""}</span></SelectTrigger>
-                  <SelectContent className="min-w-72"><SelectGroup>{countries.filter((option) => isTransferCountry(option.code)).map((option) => <SelectItem key={option.code} value={option.code}><span>{option.label}</span><span className="text-muted-foreground">{option.callingCode}</span></SelectItem>)}</SelectGroup></SelectContent>
-                </Select>
+                <PhoneCountrySelect ariaLabel={t("add.fields.phone.country")} className="w-20 rounded-r-none px-4 font-medium text-muted-foreground" countries={countries.filter((option) => isTransferCountry(option.code))} onChange={(next) => { setCountry(next as Country); setPhone(""); setPhoneDraft(""); setPhoneProblem(null); }} value={country} />
                 <PhoneInput aria-describedby={phoneError ? `${phoneId}-error` : undefined} aria-invalid={phoneError ? true : undefined} className="rounded-l-none border-l-0" containerClassName="min-w-0 flex-1" country={country} id={phoneId} limitNationalDigits locale={locale} onChange={(value) => { setPhone(value ?? ""); setPhoneProblem(null); }} onRawValueChange={(raw) => { setPhoneDraft(raw); if (raw.trim().startsWith("+")) { const inferred = inferPhoneCountry(raw, country); if (inferred && inferred !== country) setCountry(inferred as Country); } }} value={phone} />
               </div>
               {phoneError ? <FieldError id={`${phoneId}-error`}>{phoneError}</FieldError> : null}
