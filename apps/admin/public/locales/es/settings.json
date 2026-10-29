@@ -667,8 +667,8 @@
     "changeEmail": {
       "label": "Cambiar correo electrónico",
       "description": "Correo electrónico que usa para iniciar sesión.",
-      "newEmailPlaceholder": "Nuevo correo electrónico",
-      "currentPasswordPlaceholder": "Contraseña actual",
+      "newEmailLabel": "Nuevo correo electrónico",
+      "newEmailPlaceholder": "nombre@example.com",
       "save": "Enviar enlace de confirmación",
       "title": "Correo electrónico",
       "currentPasswordLabel": "Contraseña actual",
@@ -691,15 +691,20 @@
       "description": "Contraseña que usa para iniciar sesión.",
       "dialogDescription": "Introduzca su contraseña actual y una nueva contraseña.",
       "currentPasswordLabel": "Contraseña actual",
-      "currentPasswordPlaceholder": "Contraseña actual",
       "newPasswordLabel": "Nueva contraseña",
-      "newPasswordPlaceholder": "Nueva contraseña",
       "confirmPasswordLabel": "Confirmar nueva contraseña",
-      "confirmPasswordPlaceholder": "Confirmar nueva contraseña",
       "save": "Guardar",
       "saved": "Contraseña actualizada.",
       "errors": {
         "mismatch": "Las nuevas contraseñas no coinciden.",
+        "currentRequired": "Introduzca su contraseña actual.",
+        "newRequired": "Introduzca una nueva contraseña.",
+        "confirmRequired": "Confirme su nueva contraseña.",
+        "minimumLengthMissing": "Use al menos 8 caracteres.",
+        "numberMissing": "Incluya al menos un número.",
+        "specialCharacterMissing": "Incluya al menos un carácter especial.",
+        "unchanged": "Elija una contraseña distinta de la actual.",
+        "invalidCurrent": "La contraseña actual es incorrecta.",
         "failed": "No se pudo actualizar la contraseña."
       }
     }

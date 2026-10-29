@@ -18,7 +18,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 async function openEmailDialog() {
   render(<AccountSecurityForms currentEmail="owner@example.com" />);
   await userEvent.click(screen.getAllByRole("button", { name: "account.actions.change" })[0]!);
-  return await screen.findByLabelText("account.changeEmail.newEmailPlaceholder");
+  return await screen.findByLabelText("account.changeEmail.newEmailLabel");
 }
 const send = () => userEvent.click(screen.getByRole("button", { name: "account.changeEmail.save" }));
 
@@ -51,7 +51,7 @@ describe("change email dialog", () => {
     await userEvent.type(input, "  new@example.com ");
     await send();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/auth/change-email", expect.objectContaining({ body: JSON.stringify({ newEmail: "new@example.com", callbackURL: "/settings/account?emailChanged=true" }) })));
-    await waitFor(() => expect(screen.queryByLabelText("account.changeEmail.newEmailPlaceholder")).toBeNull());
+    await waitFor(() => expect(screen.queryByLabelText("account.changeEmail.newEmailLabel")).toBeNull());
     expect(screen.getByText("account.changeEmail.confirmationSent:new@example.com")).toBeTruthy();
   });
 
@@ -69,10 +69,104 @@ describe("change email dialog", () => {
     await userEvent.type(input, "x");
     await send();
     await userEvent.click(screen.getByRole("button", { name: "account.actions.cancel" }));
-    await waitFor(() => expect(screen.queryByLabelText("account.changeEmail.newEmailPlaceholder")).toBeNull());
+    await waitFor(() => expect(screen.queryByLabelText("account.changeEmail.newEmailLabel")).toBeNull());
     await userEvent.click(screen.getAllByRole("button", { name: "account.actions.change" })[0]!);
-    const reopened = await screen.findByLabelText("account.changeEmail.newEmailPlaceholder") as HTMLInputElement;
+    const reopened = await screen.findByLabelText("account.changeEmail.newEmailLabel") as HTMLInputElement;
     expect(reopened.value).toBe("");
     expect(screen.queryByText("account.changeEmail.errors.invalid")).toBeNull();
+  });
+});
+
+describe("change password dialog", () => {
+  async function openPasswordDialog() {
+    render(<AccountSecurityForms currentEmail="owner@example.com" />);
+    await userEvent.click(screen.getAllByRole("button", { name: "account.actions.change" })[1]!);
+    return {
+      current: await screen.findByLabelText("account.changePassword.currentPasswordLabel") as HTMLInputElement,
+      next: screen.getByLabelText("account.changePassword.newPasswordLabel") as HTMLInputElement,
+      confirm: screen.getByLabelText("account.changePassword.confirmPasswordLabel") as HTMLInputElement,
+    };
+  }
+  const save = () => userEvent.click(screen.getByRole("button", { name: "account.changePassword.save" }));
+
+  it("keeps saving enabled and marks each empty field under its input after a save attempt", async () => {
+    const { current, next, confirm } = await openPasswordDialog();
+    expect((screen.getByRole("button", { name: "account.changePassword.save" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText("account.changePassword.errors.currentRequired")).toBeNull();
+    await save();
+    for (const [field, key] of [[current, "currentRequired"], [next, "newRequired"], [confirm, "confirmRequired"]] as const) {
+      const message = await screen.findByText(`account.changePassword.errors.${key}`);
+      expect(field.getAttribute("aria-invalid")).toBe("true");
+      expect(field.getAttribute("aria-describedby")).toBe(message.id);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("checks the policy, a different password, and that the two new ones match", async () => {
+    const { current, next, confirm } = await openPasswordDialog();
+    await userEvent.type(current, "Old-pass1!");
+    await userEvent.type(next, "short");
+    await save();
+    // Every requirement it misses is listed, as bullets.
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "account.changePassword.errors.minimumLengthMissing",
+      "account.changePassword.errors.numberMissing",
+      "account.changePassword.errors.specialCharacterMissing",
+    ]);
+    await userEvent.clear(next);
+    await userEvent.type(next, "Old-pass1!");
+    // One problem is plain text, not a one-item list.
+    expect(screen.getByText("account.changePassword.errors.unchanged")).toBeTruthy();
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+    await userEvent.clear(next);
+    await userEvent.type(next, "New-pass2!");
+    await userEvent.type(confirm, "New-pass3!");
+    expect(screen.getByText("account.changePassword.errors.mismatch")).toBeTruthy();
+    await save();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("lists a weak password that is also the current one as several bullets", async () => {
+    const { current, next } = await openPasswordDialog();
+    await userEvent.type(current, "abc");
+    await userEvent.type(next, "abc");
+    await save();
+    expect(screen.getAllByRole("listitem")).toHaveLength(4);
+    expect(screen.getByText("account.changePassword.errors.unchanged")).toBeTruthy();
+  });
+
+  it("saves, then closes and shows the confirmation", async () => {
+    const { current, next, confirm } = await openPasswordDialog();
+    await userEvent.type(current, "Old-pass1!");
+    await userEvent.type(next, "New-pass2!");
+    await userEvent.type(confirm, "New-pass2!");
+    await save();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/auth/change-password", expect.objectContaining({ body: JSON.stringify({ currentPassword: "Old-pass1!", newPassword: "New-pass2!", revokeOtherSessions: true }) })));
+    await waitFor(() => expect(screen.queryByLabelText("account.changePassword.currentPasswordLabel")).toBeNull());
+    expect(screen.getByText("account.changePassword.saved")).toBeTruthy();
+  });
+
+  it("puts a wrong current password under that field, and clears it when it is edited", async () => {
+    fetchMock.mockResolvedValue(Response.json({ code: "INVALID_PASSWORD", message: "Invalid password" }, { status: 400 }));
+    const { current, next, confirm } = await openPasswordDialog();
+    await userEvent.type(current, "Wrong-pass1!");
+    await userEvent.type(next, "New-pass2!");
+    await userEvent.type(confirm, "New-pass2!");
+    await save();
+    const message = await screen.findByText("account.changePassword.errors.invalidCurrent");
+    expect(current.getAttribute("aria-describedby")).toBe(message.id);
+    await userEvent.type(current, "x");
+    expect(screen.queryByText("account.changePassword.errors.invalidCurrent")).toBeNull();
+  });
+
+  it("clears the fields and errors when cancelled", async () => {
+    const { current } = await openPasswordDialog();
+    await userEvent.type(current, "x");
+    await save();
+    await userEvent.click(screen.getByRole("button", { name: "account.actions.cancel" }));
+    await waitFor(() => expect(screen.queryByLabelText("account.changePassword.currentPasswordLabel")).toBeNull());
+    await userEvent.click(screen.getAllByRole("button", { name: "account.actions.change" })[1]!);
+    expect((await screen.findByLabelText("account.changePassword.currentPasswordLabel") as HTMLInputElement).value).toBe("");
+    expect(screen.queryByText("account.changePassword.errors.minimumLengthMissing")).toBeNull();
   });
 });

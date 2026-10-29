@@ -667,8 +667,8 @@
     "changeEmail": {
       "label": "Promeni imejl",
       "description": "Imejl adresa kojom se prijavljujete.",
-      "newEmailPlaceholder": "Novi imejl",
-      "currentPasswordPlaceholder": "Trenutna lozinka",
+      "newEmailLabel": "Novi imejl",
+      "newEmailPlaceholder": "ime@example.com",
       "save": "Pošalji link za potvrdu",
       "title": "Imejl",
       "currentPasswordLabel": "Trenutna lozinka",
@@ -691,15 +691,20 @@
       "description": "Lozinka kojom se prijavljujete.",
       "dialogDescription": "Unesite trenutnu i novu lozinku.",
       "currentPasswordLabel": "Trenutna lozinka",
-      "currentPasswordPlaceholder": "Trenutna lozinka",
       "newPasswordLabel": "Nova lozinka",
-      "newPasswordPlaceholder": "Nova lozinka",
       "confirmPasswordLabel": "Potvrdite novu lozinku",
-      "confirmPasswordPlaceholder": "Potvrdite novu lozinku",
       "save": "Sačuvaj",
       "saved": "Lozinka je ažurirana.",
       "errors": {
         "mismatch": "Nove lozinke se ne podudaraju.",
+        "currentRequired": "Unesite trenutnu lozinku.",
+        "newRequired": "Unesite novu lozinku.",
+        "confirmRequired": "Potvrdite novu lozinku.",
+        "minimumLengthMissing": "Koristite najmanje 8 znakova.",
+        "numberMissing": "Uključite najmanje jedan broj.",
+        "specialCharacterMissing": "Uključite najmanje jedan specijalni znak.",
+        "unchanged": "Izaberite lozinku koja se razlikuje od trenutne.",
+        "invalidCurrent": "Trenutna lozinka nije ispravna.",
         "failed": "Nije moguće ažurirati lozinku."
       }
     }

@@ -667,8 +667,8 @@
     "changeEmail": {
       "label": "Changer le courriel",
       "description": "Entrez votre nouveau courriel et votre mot de passe actuel. Nous enverrons un lien de confirmation avant de modifier votre courriel de connexion.",
-      "newEmailPlaceholder": "Nouveau courriel",
-      "currentPasswordPlaceholder": "Mot de passe actuel",
+      "newEmailLabel": "Nouveau courriel",
+      "newEmailPlaceholder": "nom@example.com",
       "save": "Envoyer le lien de confirmation",
       "title": "Courriel",
       "currentPasswordLabel": "Mot de passe actuel",
@@ -691,15 +691,20 @@
       "description": "Mot de passe utilise pour vous connecter.",
       "dialogDescription": "Entrez votre mot de passe actuel et un nouveau mot de passe.",
       "currentPasswordLabel": "Mot de passe actuel",
-      "currentPasswordPlaceholder": "Mot de passe actuel",
       "newPasswordLabel": "Nouveau mot de passe",
-      "newPasswordPlaceholder": "Nouveau mot de passe",
       "confirmPasswordLabel": "Confirmer le nouveau mot de passe",
-      "confirmPasswordPlaceholder": "Confirmer le nouveau mot de passe",
       "save": "Enregistrer",
       "saved": "Mot de passe mis a jour.",
       "errors": {
         "mismatch": "Les nouveaux mots de passe ne correspondent pas.",
+        "currentRequired": "Entrez votre mot de passe actuel.",
+        "newRequired": "Entrez un nouveau mot de passe.",
+        "confirmRequired": "Confirmez votre nouveau mot de passe.",
+        "minimumLengthMissing": "Utilisez au moins 8 caractères.",
+        "numberMissing": "Incluez au moins un chiffre.",
+        "specialCharacterMissing": "Incluez au moins un caractère spécial.",
+        "unchanged": "Choisissez un mot de passe différent de l'actuel.",
+        "invalidCurrent": "Le mot de passe actuel est incorrect.",
         "failed": "Impossible de mettre a jour le mot de passe."
       }
     }
