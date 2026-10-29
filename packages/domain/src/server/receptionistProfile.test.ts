@@ -29,6 +29,7 @@ describe("readReceptionistSettingsChange", () => {
     [{ appointmentChangePolicy: {} }, "appointmentChangePolicy is invalid."],
     [{ appointmentChangePolicy: { enabled: true, allowCancel: true, allowReschedule: true, verificationMode: "email" } }, "appointmentChangePolicy is invalid."],
     [{ locale: "ja" }, "locale is invalid."],
+    [{ teamLocale: "ja" }, "teamLocale is invalid."],
     [{ timezone: 5 }, "timezone must be a string."],
     [{ regenerateSummary: false }, "regenerateSummary must be true."],
     [{ regenerateSummary: true, summary: "Written by hand." }, "Send summary or regenerateSummary, not both."],
@@ -52,6 +53,11 @@ describe("readReceptionistSettingsChange", () => {
       locale: "fr",
       regenerateSummary: false,
     });
+  });
+
+  it("reads the team language, and null as going back to the customer language", () => {
+    expect(readReceptionistSettingsChange({ teamLocale: "sr" })).toEqual({ patch: {}, teamLocale: "sr", regenerateSummary: false });
+    expect(readReceptionistSettingsChange({ teamLocale: null })).toEqual({ patch: {}, teamLocale: null, regenerateSummary: false });
   });
 
   it("keeps only the policy's known fields, and the longest allowed text", () => {
