@@ -651,6 +651,7 @@
     }
   },
   "account": {
+    "loading": "Cargando su cuenta",
     "passkeys": {
       "title": "Llaves de acceso",
       "description": "Inicie sesión con su huella, su rostro o el bloqueo del dispositivo, sin contraseña.",

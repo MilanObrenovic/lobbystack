@@ -651,6 +651,7 @@
     }
   },
   "account": {
+    "loading": "Chargement de votre compte",
     "passkeys": {
       "title": "Clés d'accès",
       "description": "Connectez-vous avec votre empreinte, votre visage ou le verrouillage de votre appareil, sans mot de passe.",

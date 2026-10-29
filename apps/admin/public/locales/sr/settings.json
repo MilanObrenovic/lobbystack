@@ -651,6 +651,7 @@
     }
   },
   "account": {
+    "loading": "Učitavanje vašeg naloga",
     "passkeys": {
       "title": "Pristupni ključevi",
       "description": "Prijavite se otiskom prsta, licem ili zaključavanjem uređaja umesto lozinke.",

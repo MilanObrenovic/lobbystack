@@ -48,6 +48,39 @@ describe("passkeys on the account page", () => {
     expect(listCalls()).toBe(0);
   });
 
+  it("holds the card's place with a skeleton until it knows whether passkeys are on", async () => {
+    let allow!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn((url: string) => url === "/api/auth/providers" ? new Promise<Response>((done) => { allow = done; }) : Promise.resolve(Response.json(rows))));
+    const { container } = renderCard();
+    expect(container.querySelectorAll("[data-slot=skeleton]").length).toBeGreaterThan(5);
+    expect(screen.queryByText("account.passkeys.title")).toBeNull();
+    allow(Response.json({ google: false, passkey: true }));
+    expect(await screen.findByText("MacBook")).toBeTruthy();
+    expect(container.querySelector("[data-slot=skeleton]")).toBeNull();
+  });
+
+  it("clears the skeleton and leaves no gap when passkeys are off", async () => {
+    let allow!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((done) => { allow = done; })));
+    const { container } = renderCard();
+    expect(container.querySelector("[data-slot=skeleton]")).not.toBeNull();
+    allow(Response.json({ google: false, passkey: false }));
+    await waitFor(() => expect(container.querySelector("[data-slot=skeleton]")).toBeNull());
+    expect(container.textContent).toBe("");
+  });
+
+  it("shows placeholder rows inside the card while the list loads", async () => {
+    let list!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn((url: string) => url === "/api/auth/providers" ? Promise.resolve(Response.json({ passkey: true })) : new Promise<Response>((done) => { list = done; })));
+    const { container } = renderCard();
+    expect(await screen.findByText("account.passkeys.title")).toBeTruthy();
+    expect(container.querySelectorAll("[data-slot=skeleton]").length).toBeGreaterThan(4);
+    expect(screen.queryByText("account.passkeys.empty")).toBeNull();
+    list(Response.json(rows));
+    expect(await screen.findByText("MacBook")).toBeTruthy();
+    expect(container.querySelector("[data-slot=skeleton]")).toBeNull();
+  });
+
   it("lists each passkey with its name, or a fallback when it has none", async () => {
     stubServer();
     renderCard();

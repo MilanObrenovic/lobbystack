@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "./confirm-action-dialog";
+import { PasskeyRowsSkeleton, PasskeysCardSkeleton } from "./loading-skeletons";
 import { Button } from "./ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Field, FieldError, FieldLabel } from "./ui/field";
@@ -86,6 +87,8 @@ export function AccountPasskeys() {
     rename.mutate({ id: renaming.id, name: name.trim() });
   }
 
+  // Holds the card's place while we learn whether this host offers passkeys, so the page doesn't jump when it does.
+  if (allowed.isLoading) return <PasskeysCardSkeleton />;
   if (allowed.data !== true) return null;
   const label = (passkey: Passkey) => passkey.name?.trim() || t("account.passkeys.unnamed");
   const renameError = renameSubmitted && !name.trim() ? t("account.passkeys.rename.required") : null;
@@ -99,6 +102,7 @@ export function AccountPasskeys() {
         <Button loading={add.isPending} onClick={() => add.mutate()} size="sm" type="button" variant="outline"><KeyRound data-icon="inline-start" />{t("account.passkeys.add")}</Button>
       </ItemActions>
       <div className="flex w-full basis-full flex-col">
+        {passkeys.isLoading ? <PasskeyRowsSkeleton /> : null}
         {passkeys.isError ? <p className="text-sm text-destructive">{t("account.passkeys.errors.loadFailed")}</p> : null}
         {passkeys.data?.length === 0 ? <p className="text-sm text-muted-foreground">{t("account.passkeys.empty")}</p> : null}
         {passkeys.data?.length ? <ul className="flex flex-col divide-y divide-border">{passkeys.data.map((passkey) => (

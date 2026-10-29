@@ -644,6 +644,7 @@
     }
   },
   "account": {
+    "loading": "Loading your account",
     "passkeys": {
       "title": "Passkeys",
       "description": "Sign in with your fingerprint, face or device lock instead of a password.",
