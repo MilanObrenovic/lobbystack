@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AccountPasskeys } from "./account-passkeys";
+import { AccountPasskeys, defaultPasskeyName } from "./account-passkeys";
 
 const client = vi.hoisted(() => ({ addPasskey: vi.fn() }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { passkey: { addPasskey: client.addPasskey } } }));
@@ -24,9 +24,9 @@ function stubServer(passkeyAllowed = true) {
     return Response.json({ status: true });
   }));
 }
-function renderCard() {
+function renderCard(businessName?: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={queryClient}><AccountPasskeys /></QueryClientProvider>);
+  return render(<QueryClientProvider client={queryClient}><AccountPasskeys {...(businessName ? { businessName } : {})} /></QueryClientProvider>);
 }
 const listCalls = () => vi.mocked(fetch).mock.calls.filter(([url]) => url === "/api/auth/passkey/list-user-passkeys").length;
 
@@ -96,12 +96,13 @@ describe("passkeys on the account page", () => {
     expect(await screen.findByText("account.passkeys.empty")).toBeTruthy();
   });
 
-  it("adds a passkey, confirms with a toast and reloads the list", async () => {
+  it("adds a passkey named after the business, confirms with a toast and reloads the list", async () => {
     stubServer();
     client.addPasskey.mockResolvedValue({ data: { id: "three" }, error: null });
-    renderCard();
+    renderCard("Maple Family Clinic");
     await screen.findByText("MacBook");
     await userEvent.click(screen.getByRole("button", { name: "account.passkeys.add" }));
+    expect(client.addPasskey).toHaveBeenCalledWith({ name: "maple-family-clinic-passkey" });
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("account.passkeys.added"));
     await waitFor(() => expect(listCalls()).toBe(2));
   });
@@ -166,5 +167,25 @@ describe("passkeys on the account page", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "account.actions.cancel" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(requests).toHaveLength(0);
+  });
+});
+
+describe("defaultPasskeyName", () => {
+  it("is the business's name in lowercase with dashes for spaces, then -passkey", () => {
+    expect(defaultPasskeyName("Maple Family Clinic")).toBe("maple-family-clinic-passkey");
+    expect(defaultPasskeyName("  ÉCOLE Dentaire ")).toBe("école-dentaire-passkey");
+    // A run of spaces or tabs is one dash.
+    expect(defaultPasskeyName("Acme\t  & Sons")).toBe("acme-&-sons-passkey");
+  });
+
+  it("is just passkey without a business name", () => {
+    expect(defaultPasskeyName(undefined)).toBe("passkey");
+    expect(defaultPasskeyName("   ")).toBe("passkey");
+  });
+
+  it("keeps the suffix and the name limit for a very long business name", () => {
+    const name = defaultPasskeyName("x".repeat(300));
+    expect(name).toHaveLength(100);
+    expect(name.endsWith("-passkey")).toBe(true);
   });
 });
