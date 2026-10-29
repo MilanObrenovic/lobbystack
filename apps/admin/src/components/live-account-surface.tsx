@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import { AccountPasskeys } from "./account-passkeys";
 import { AccountSecurityForms } from "./account-security-forms";
 import { PageSurface } from "./page-surface";
 
@@ -17,5 +18,5 @@ async function getAccount(): Promise<Account> {
 export function LiveAccountSurface() {
   const { t } = useTranslation("settings");
   const account = useQuery({ queryKey: ["account"], queryFn: getAccount });
-  return <PageSurface title={t("account.title")}><div className="w-full">{account.isLoading ? <p className="text-sm text-muted-foreground">Loading account...</p> : account.isError || !account.data ? <p className="text-sm text-destructive">Account data is unavailable.</p> : <AccountSecurityForms currentEmail={account.data.user.email} />}</div></PageSurface>;
+  return <PageSurface title={t("account.title")}><div className="w-full">{account.isLoading ? <p className="text-sm text-muted-foreground">Loading account...</p> : account.isError || !account.data ? <p className="text-sm text-destructive">Account data is unavailable.</p> : <div className="flex flex-col gap-8"><AccountSecurityForms currentEmail={account.data.user.email} /><AccountPasskeys /></div>}</div></PageSurface>;
 }

@@ -651,6 +651,38 @@
     }
   },
   "account": {
+    "passkeys": {
+      "title": "Pristupni ključevi",
+      "description": "Prijavite se otiskom prsta, licem ili zaključavanjem uređaja umesto lozinke.",
+      "add": "Dodaj pristupni ključ",
+      "empty": "Još niste dodali pristupni ključ.",
+      "unnamed": "Pristupni ključ",
+      "addedOn": "Dodato {{date}}",
+      "added": "Pristupni ključ je dodat.",
+      "renamed": "Pristupni ključ je preimenovan.",
+      "removed": "Pristupni ključ je uklonjen.",
+      "remove": "Ukloni",
+      "removeTitle": "Ukloniti ovaj pristupni ključ?",
+      "removeDescription": "Više se nećete moći prijaviti pomoću {{name}}. Lozinka i dalje radi.",
+      "rename": {
+        "action": "Preimenuj",
+        "title": "Preimenuj pristupni ključ",
+        "description": "Izaberite ime koje govori na kom je uređaju.",
+        "label": "Ime",
+        "placeholder": "Npr. Poslovni laptop",
+        "save": "Sačuvaj",
+        "required": "Unesite ime."
+      },
+      "errors": {
+        "addFailed": "Nismo mogli da dodamo pristupni ključ. Pokušajte ponovo.",
+        "wrongAddress": "Pristupni ključevi nisu podešeni za ovu adresu. Otvorite aplikaciju na uobičajenoj adresi, pa pokušajte ponovo.",
+        "alreadyAdded": "Ovaj uređaj već ima pristupni ključ za vaš nalog.",
+        "signInAgain": "Prijavite se ponovo, pa dodajte pristupni ključ.",
+        "renameFailed": "Nismo mogli da preimenujemo pristupni ključ. Pokušajte ponovo.",
+        "removeFailed": "Nismo mogli da uklonimo pristupni ključ. Pokušajte ponovo.",
+        "loadFailed": "Nismo mogli da učitamo vaše pristupne ključeve."
+      }
+    },
     "title": "Nalog",
     "actions": {
       "change": "Promeni",

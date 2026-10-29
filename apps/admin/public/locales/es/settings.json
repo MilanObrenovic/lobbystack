@@ -651,6 +651,38 @@
     }
   },
   "account": {
+    "passkeys": {
+      "title": "Llaves de acceso",
+      "description": "Inicie sesión con su huella, su rostro o el bloqueo del dispositivo, sin contraseña.",
+      "add": "Añadir una llave de acceso",
+      "empty": "Aún no ha añadido ninguna llave de acceso.",
+      "unnamed": "Llave de acceso",
+      "addedOn": "Añadida el {{date}}",
+      "added": "Llave de acceso añadida.",
+      "renamed": "Llave de acceso renombrada.",
+      "removed": "Llave de acceso eliminada.",
+      "remove": "Eliminar",
+      "removeTitle": "¿Eliminar esta llave de acceso?",
+      "removeDescription": "Ya no podrá iniciar sesión con {{name}}. Su contraseña sigue funcionando.",
+      "rename": {
+        "action": "Renombrar",
+        "title": "Renombrar la llave de acceso",
+        "description": "Elija un nombre que indique en qué dispositivo está.",
+        "label": "Nombre",
+        "placeholder": "P. ej.: Portátil del trabajo",
+        "save": "Guardar",
+        "required": "Introduzca un nombre."
+      },
+      "errors": {
+        "addFailed": "No pudimos añadir la llave de acceso. Inténtelo de nuevo.",
+        "wrongAddress": "Las llaves de acceso no están configuradas para esta dirección. Abra la aplicación en su dirección habitual y vuelva a intentarlo.",
+        "alreadyAdded": "Este dispositivo ya tiene una llave de acceso para su cuenta.",
+        "signInAgain": "Vuelva a iniciar sesión y añada una llave de acceso.",
+        "renameFailed": "No pudimos renombrar la llave de acceso. Inténtelo de nuevo.",
+        "removeFailed": "No pudimos eliminar la llave de acceso. Inténtelo de nuevo.",
+        "loadFailed": "No pudimos cargar sus llaves de acceso."
+      }
+    },
     "title": "Cuenta",
     "actions": {
       "change": "Cambiar",

@@ -644,6 +644,38 @@
     }
   },
   "account": {
+    "passkeys": {
+      "title": "Passkeys",
+      "description": "Sign in with your fingerprint, face or device lock instead of a password.",
+      "add": "Add a passkey",
+      "empty": "You haven't added a passkey yet.",
+      "unnamed": "Passkey",
+      "addedOn": "Added {{date}}",
+      "added": "Passkey added.",
+      "renamed": "Passkey renamed.",
+      "removed": "Passkey removed.",
+      "remove": "Remove",
+      "removeTitle": "Remove this passkey?",
+      "removeDescription": "You won't be able to sign in with {{name}} anymore. Your password still works.",
+      "rename": {
+        "action": "Rename",
+        "title": "Rename passkey",
+        "description": "Pick a name that tells you which device it is on.",
+        "label": "Name",
+        "placeholder": "E.g. Work Laptop",
+        "save": "Save",
+        "required": "Enter a name."
+      },
+      "errors": {
+        "addFailed": "We couldn't add the passkey. Try again.",
+        "wrongAddress": "Passkeys aren't set up for this address. Open the app at its usual address, then try again.",
+        "alreadyAdded": "This device already has a passkey for your account.",
+        "signInAgain": "Sign in again, then add a passkey.",
+        "renameFailed": "We couldn't rename the passkey. Try again.",
+        "removeFailed": "We couldn't remove the passkey. Try again.",
+        "loadFailed": "We couldn't load your passkeys."
+      }
+    },
     "title": "Account",
     "actions": {
       "change": "Change",
