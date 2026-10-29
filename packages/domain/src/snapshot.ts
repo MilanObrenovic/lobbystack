@@ -20,6 +20,7 @@ type SnapshotBuilderInput = {
   legalName?: string;
   timezone: string;
   defaultLocale: BusinessContextSnapshot["defaultLocale"];
+  teamLocale?: BusinessContextSnapshot["defaultLocale"];
   businessType: BusinessContextSnapshot["businessType"];
   telemetryEnabled?: boolean;
   greeting: string;
@@ -66,6 +67,7 @@ export function buildBusinessContextSnapshot(
     ...(input.legalName ? { legalName: input.legalName } : {}),
     timezone: input.timezone,
     defaultLocale: input.defaultLocale,
+    ...(input.teamLocale ? { teamLocale: input.teamLocale } : {}),
     businessType: input.businessType,
     ...(input.telemetryEnabled !== undefined ? { telemetryEnabled: input.telemetryEnabled } : {}),
     greeting: input.greeting,
