@@ -653,7 +653,8 @@
   "account": {
     "title": "Account",
     "actions": {
-      "change": "Modifier"
+      "change": "Modifier",
+      "cancel": "Annuler"
     },
     "businessName": {
       "label": "Nom de l'entreprise",
@@ -672,6 +673,7 @@
       "title": "Courriel",
       "currentPasswordLabel": "Mot de passe actuel",
       "currentEmail": "Courriel actuel : {{email}}",
+      "currentEmailLabel": "Courriel actuel",
       "confirmationSent": "Nous avons envoye un lien de confirmation a {{email}}.",
       "errors": {
         "invalidPassword": "Le mot de passe actuel est incorrect.",
@@ -679,6 +681,7 @@
         "unchanged": "Entrez une adresse courriel differente.",
         "noEmail": "Aucun courriel n'est configure pour ce compte.",
         "required": "Entrez une nouvelle adresse courriel.",
+        "invalid": "Entrez une adresse courriel valide.",
         "failed": "Impossible d'envoyer un lien de confirmation. Veuillez reessayer."
       }
     },

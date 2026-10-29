@@ -646,7 +646,8 @@
   "account": {
     "title": "Account",
     "actions": {
-      "change": "Change"
+      "change": "Change",
+      "cancel": "Cancel"
     },
     "businessName": {
       "label": "Business name",
@@ -665,6 +666,7 @@
       "title": "Email",
       "currentPasswordLabel": "Current password",
       "currentEmail": "{{email}}",
+      "currentEmailLabel": "Current email",
       "confirmationSent": "We sent a confirmation link to {{email}}.",
       "errors": {
         "invalidPassword": "Current password is incorrect.",
@@ -672,6 +674,7 @@
         "unchanged": "Enter a different email address.",
         "noEmail": "No email is configured for this account yet.",
         "required": "Enter a new email address.",
+        "invalid": "Enter a valid email address.",
         "failed": "We couldn't send a confirmation link. Please try again."
       }
     },

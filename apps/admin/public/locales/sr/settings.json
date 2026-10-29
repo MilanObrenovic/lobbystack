@@ -653,7 +653,8 @@
   "account": {
     "title": "Nalog",
     "actions": {
-      "change": "Promeni"
+      "change": "Promeni",
+      "cancel": "Otkaži"
     },
     "businessName": {
       "label": "Naziv firme",
@@ -672,6 +673,7 @@
       "title": "Imejl",
       "currentPasswordLabel": "Trenutna lozinka",
       "currentEmail": "{{email}}",
+      "currentEmailLabel": "Trenutna imejl adresa",
       "confirmationSent": "Poslali smo link za potvrdu na {{email}}.",
       "errors": {
         "invalidPassword": "Trenutna lozinka nije ispravna.",
@@ -679,6 +681,7 @@
         "unchanged": "Unesite drugu imejl adresu.",
         "noEmail": "Za ovaj nalog još nije podešen imejl.",
         "required": "Unesite novu imejl adresu.",
+        "invalid": "Unesite ispravnu imejl adresu.",
         "failed": "Nismo uspeli da pošaljemo link za potvrdu. Pokušajte ponovo."
       }
     },
