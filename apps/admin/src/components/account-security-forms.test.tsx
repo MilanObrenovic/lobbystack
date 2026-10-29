@@ -2,9 +2,11 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 
 import { AccountSecurityForms } from "./account-security-forms";
 
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string, options?: { email?: string }) => (options?.email ? `${key}:${options.email}` : key) }) }));
 
 const fetchMock = vi.fn();
@@ -52,7 +54,9 @@ describe("change email dialog", () => {
     await send();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/auth/change-email", expect.objectContaining({ body: JSON.stringify({ newEmail: "new@example.com", callbackURL: "/settings/account?emailChanged=true" }) })));
     await waitFor(() => expect(screen.queryByLabelText("account.changeEmail.newEmailLabel")).toBeNull());
-    expect(screen.getByText("account.changeEmail.confirmationSent:new@example.com")).toBeTruthy();
+    // A toast confirms it; nothing is left on the page.
+    expect(toast.success).toHaveBeenCalledWith("account.changeEmail.confirmationSent:new@example.com");
+    expect(screen.queryByText("account.changeEmail.confirmationSent:new@example.com")).toBeNull();
   });
 
   it("shows the server's refusal under the field", async () => {
@@ -143,7 +147,8 @@ describe("change password dialog", () => {
     await save();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/auth/change-password", expect.objectContaining({ body: JSON.stringify({ currentPassword: "Old-pass1!", newPassword: "New-pass2!", revokeOtherSessions: true }) })));
     await waitFor(() => expect(screen.queryByLabelText("account.changePassword.currentPasswordLabel")).toBeNull());
-    expect(screen.getByText("account.changePassword.saved")).toBeTruthy();
+    expect(toast.success).toHaveBeenCalledWith("account.changePassword.saved");
+    expect(screen.queryByText("account.changePassword.saved")).toBeNull();
   });
 
   it("puts a wrong current password under that field, and clears it when it is edited", async () => {
