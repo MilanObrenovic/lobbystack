@@ -31,6 +31,7 @@ import { useTelemetry } from "@/components/product-analytics";
 import { BookingWithoutHoursAlert, BusinessHoursSection, needsHoursForBooking, useBusinessHours } from "@/components/business-hours-section";
 import { availableTimeZones, groupTimeZones, isTimeZoneRegion, type TimeZoneOption } from "@/lib/time-zones";
 import { errorCode } from "@/lib/checkout-errors";
+import { PhoneCountrySelect } from "@/components/phone-country-select";
 import { getDefaultTransferCountry, getPhoneCountryOptions, inferPhoneCountry } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
@@ -203,7 +204,6 @@ export function AgentBasicSettingsPage({
   const defaultTransferCountry = getDefaultTransferCountry(i18n.language) as Country;
   const countries = useMemo(() => getPhoneCountryOptions(i18n.language), [i18n.language]);
   const [transferCountry, setTransferCountry] = useState<Country>(defaultTransferCountry);
-  const selectedTransferCountry = countries.find((option) => option.code === transferCountry);
   const [allowAppointmentCancel, setAllowAppointmentCancel] = useState(true);
   const [allowAppointmentReschedule, setAllowAppointmentReschedule] = useState(true);
   const [appointmentChangeVerification, setAppointmentChangeVerification] = useState<AppointmentChangeVerificationMode>("phone_match_and_facts");
@@ -728,10 +728,7 @@ export function AgentBasicSettingsPage({
                     <Skeleton className="h-10 w-full rounded-md sm:w-72" />
                   ) : (
                     <div className="flex w-full min-w-0 sm:w-fit">
-                      <Select disabled={!canManageTenant} onValueChange={(value) => { if (value && value !== transferCountry) { setTransferCountry(value as Country); setTransferNumber(""); setTransferNumberInputValue(""); setTransferStatus(null); } }} value={transferCountry}>
-                        <SelectTrigger aria-label={t("agent:fields.transferNumber.country")} className="w-20 shrink-0 rounded-r-none px-4 font-medium text-muted-foreground" data-phone-country-prefix><span>{selectedTransferCountry?.callingCode ?? ""}</span></SelectTrigger>
-                        <SelectContent className="min-w-72"><SelectGroup>{countries.filter((option) => isTransferCountry(option.code)).map((option) => <SelectItem key={option.code} value={option.code}><span>{option.label}</span><span className="text-muted-foreground">{option.callingCode}</span></SelectItem>)}</SelectGroup></SelectContent>
-                      </Select>
+                      <PhoneCountrySelect ariaLabel={t("agent:fields.transferNumber.country")} className="w-20 rounded-r-none px-4 font-medium text-muted-foreground" countries={countries.filter((option) => isTransferCountry(option.code))} disabled={!canManageTenant} onChange={(next) => { setTransferCountry(next as Country); setTransferNumber(""); setTransferNumberInputValue(""); setTransferStatus(null); }} value={transferCountry} />
                       <PhoneInput
                         className="rounded-l-none border-l-0 sm:w-40"
                         containerClassName="min-w-0 flex-1"
