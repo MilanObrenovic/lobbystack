@@ -127,7 +127,7 @@
         "invalidName": "Unesite naziv firme, do 120 znakova.",
         "invalidEmail": "Unesite imejl adresu vlasnika.",
         "invalidTimezone": "Izaberite vremensku zonu.",
-        "domainRequired": "Prvo Vam treba adresa kontrolne table. Zatražite od servisa {{appName}} da je podesi.",
+        "domainRequired": "Vašim preduzećima treba adresa kontrolne table. Povežite domen u odeljku Brend i domen.",
         "rateLimited": "Napravili ste previše firmi u ovom satu. Pokušajte ponovo kasnije.",
         "ownerOnTeam": "Neko iz Vašeg tima ne može da bude vlasnik firme. Unesite imejl svog klijenta.",
         "failed": "Nismo uspeli da napravimo firmu. Pokušajte ponovo.",
@@ -404,7 +404,7 @@
     "domain": {
       "title": "Adresa kontrolne table",
       "open": "Otvori",
-      "none": "Još nemate poddomen. Zatražite ga od servisa {{appName}}.",
+      "none": "Još nemate poddomen. Treba Vam on ili Vaš sopstveni domen da biste pravili preduzeća i demo verzije.",
       "subdomainLabel": "Vaš poddomen",
       "own": {
         "title": "Vaš sopstveni domen",

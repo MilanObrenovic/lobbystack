@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActiveBusiness } from "@/hooks/use-active-business";
 import { requestJson } from "@/lib/request-json";
-import { appointmentChangeVerificationModes, intlLocale, isTransferCountry, normalizeBookingMode, runtimeLocales, type AppointmentChangePolicy, type AppointmentChangeVerificationMode, type BookingMode, type RuntimeLocale } from "@lobbystack/shared";
+import { appointmentChangeVerificationModes, DEFAULT_RECEPTIONIST_VOICE, intlLocale, isTransferCountry, normalizeBookingMode, normalizeReceptionistVoice, runtimeLocales, type AppointmentChangePolicy, type AppointmentChangeVerificationMode, type BookingMode, type ReceptionistVoice, type RuntimeLocale } from "@lobbystack/shared";
 import type { Country } from "react-phone-number-input/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -28,7 +28,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Surface } from "@/components/ui/surface";
 import { Switch } from "@/components/ui/switch";
 import { useTelemetry } from "@/components/product-analytics";
-import { BookingWithoutHoursAlert, BusinessHoursSection, needsHoursForBooking, useBusinessHours } from "@/components/business-hours-section";
+import { VoiceDialog, voiceName, useVoicePreview, useVoiceTraits } from "@/components/voice-dialog";
+import { BusinessHoursSection } from "@/components/business-hours-section";
 import { availableTimeZones, groupTimeZones, isTimeZoneRegion, type TimeZoneOption } from "@/lib/time-zones";
 import { errorCode } from "@/lib/checkout-errors";
 import { PhoneCountrySelect } from "@/components/phone-country-select";
@@ -46,7 +47,7 @@ type CurrencyOption = { id: string; label: string };
 
 type AgentSettings = {
   business: { defaultLocale: RuntimeLocale; teamLocale?: RuntimeLocale | null; timezone: string; currency?: string } | null;
-  profile: { greeting: string; summary: string; summarySource: "placeholder" | "generated" | "operator"; summaryRegenerateStatus?: "pending" | "completed" | "empty" | "failed" | null; transferNumber: string | null; transferMode: string; appointmentChangePolicy: AppointmentChangePolicy | null; bookingMode: BookingMode } | null;
+  profile: { greeting: string; summary: string; summarySource: "placeholder" | "generated" | "operator"; summaryRegenerateStatus?: "pending" | "completed" | "empty" | "failed" | null; transferNumber: string | null; transferMode: string; appointmentChangePolicy: AppointmentChangePolicy | null; bookingMode: BookingMode; voice?: string } | null;
   hasKnowledgeSources?: boolean;
 };
 
@@ -116,9 +117,8 @@ export function AgentBasicSettingsPage({
     enabled: Boolean(businessId),
   });
   const configuration = query.data;
-  const hours = useBusinessHours(businessId);
   const isLoadingConfiguration = !businessId || query.isLoading;
-  async function saveProfile({ defaultLocale: locale, ...patch }: { businessId: string; defaultLocale?: RuntimeLocale; teamLocale?: RuntimeLocale | null; timezone?: string; currency?: string; greeting?: string; summary?: string; regenerateSummary?: true; transferNumber?: string | null; transferMode?: string; appointmentChangePolicy?: AppointmentChangePolicy; bookingMode?: BookingMode }, refetchType: "active" | "none" = "active") {
+  async function saveProfile({ defaultLocale: locale, ...patch }: { businessId: string; defaultLocale?: RuntimeLocale; teamLocale?: RuntimeLocale | null; timezone?: string; currency?: string; greeting?: string; summary?: string; regenerateSummary?: true; transferNumber?: string | null; transferMode?: string; appointmentChangePolicy?: AppointmentChangePolicy; bookingMode?: BookingMode; voice?: ReceptionistVoice }, refetchType: "active" | "none" = "active") {
     await requestJson(`/api/agent?businessId=${encodeURIComponent(businessId)}`, { method: "PATCH", body: JSON.stringify({ ...patch, ...(locale ? { locale } : {}) }) });
     await queryClient.invalidateQueries({ queryKey: ["agent-settings", businessId], refetchType });
   }
@@ -209,6 +209,12 @@ export function AgentBasicSettingsPage({
   const [appointmentChangeVerification, setAppointmentChangeVerification] = useState<AppointmentChangeVerificationMode>("phone_match_and_facts");
   const [bookingMode, setBookingMode] = useState<BookingMode>("instant");
   const [isBookingModeSaving, setIsBookingModeSaving] = useState(false);
+  const [voice, setVoice] = useState<ReceptionistVoice>(DEFAULT_RECEPTIONIST_VOICE);
+  const [isVoiceSaving, setIsVoiceSaving] = useState(false);
+  const [voiceDialogOpen, setVoiceDialogOpen] = useState(false);
+  const voiceTraits = useVoiceTraits();
+  const voicePreview = useVoicePreview(configuration?.business?.defaultLocale ?? "en");
+  // The utility bar's test call widget registers itself; this page only starts it.
   const [transferStatus, setTransferStatus] = useState<string | null>(null);
   const [isGreetingSaving, setIsGreetingSaving] = useState(false);
   const [isGreetingOpen, setIsGreetingOpen] = useState(false);
@@ -218,26 +224,47 @@ export function AgentBasicSettingsPage({
   const [isTeamLocaleSaving, setIsTeamLocaleSaving] = useState(false);
   const [isTransferSaving, setIsTransferSaving] = useState(false);
   const [isAppointmentChangeSaving, setIsAppointmentChangeSaving] = useState(false);
+  // The profile the text fields last took their values from. Every save refetches the
+  // settings, and a refetch that lands while someone is typing must not undo their edit,
+  // so the greeting and summary only take the new value while they still hold the last
+  // one, and the transfer number only while nobody has edited it since it was saved.
+  // Switching business keeps the page mounted, and none of it carries over to the next one.
+  const syncedBusinessId = useRef(businessId);
+  const syncedProfile = useRef<NonNullable<AgentSettings["profile"]> | null>(null);
+  const transferNumberRef = useRef(transferNumber);
+  transferNumberRef.current = transferNumber;
+  const transferNumberEdited = useRef(false);
   useEffect(() => {
+    if (syncedBusinessId.current !== businessId) {
+      syncedBusinessId.current = businessId;
+      syncedProfile.current = null;
+      transferNumberEdited.current = false;
+    }
     setTimezone(configuration?.business?.timezone ?? "");
     setCurrency(configuration?.business?.currency ?? "");
     const profile = configuration?.profile;
     if (!profile) {
       return;
     }
-    setGreeting(profile.greeting);
+    const previous = syncedProfile.current;
+    syncedProfile.current = profile;
     // The sign-up placeholder isn't a summary, so the field starts empty.
-    setSummary(profile.summarySource === "placeholder" ? "" : profile.summary);
+    const shownSummary = (value: NonNullable<AgentSettings["profile"]>) => value.summarySource === "placeholder" ? "" : value.summary;
+    setGreeting((current) => !previous || current === previous.greeting ? profile.greeting : current);
+    setSummary((current) => !previous || current === shownSummary(previous) ? shownSummary(profile) : current);
     setDefaultLocale(configuration.business?.defaultLocale ?? "en");
     setTeamLocale(configuration.business?.teamLocale ?? "default");
-    setTransferNumber(profile.transferNumber ?? "");
-    setTransferNumberInputValue(profile.transferNumber ?? "");
+    if (!transferNumberEdited.current) {
+      setTransferNumber(profile.transferNumber ?? "");
+      setTransferNumberInputValue(profile.transferNumber ?? "");
+    }
     setBookingMode(normalizeBookingMode(profile.bookingMode));
+    setVoice(normalizeReceptionistVoice(profile.voice));
     const appointmentChangePolicy = profile.appointmentChangePolicy as AppointmentChangePolicy | null;
     setAllowAppointmentCancel(appointmentChangePolicy?.allowCancel ?? true);
     setAllowAppointmentReschedule(appointmentChangePolicy?.allowReschedule ?? true);
     setAppointmentChangeVerification(savedVerificationMode(appointmentChangePolicy?.verificationMode));
-  }, [configuration]);
+  }, [businessId, configuration]);
   const verificationChoices = offeredVerificationModes.includes(appointmentChangeVerification) ? offeredVerificationModes : [...offeredVerificationModes, appointmentChangeVerification];
 
   // The saved number's country, else the locale's.
@@ -311,6 +338,8 @@ export function AgentBasicSettingsPage({
     setTransferStatus(null);
     try {
       await saveProfile({ businessId, transferNumber: transferNumberResolution.value });
+      // Typing that started during the save is still unsaved.
+      if (transferNumberRef.current === (transferNumberResolution.value ?? "")) transferNumberEdited.current = false;
       telemetry.track("web.agent.settings_saved", { businessId, setting: "transfer_number" });
       toast.success(t("agent:actions.saved"));
     } catch (error) {
@@ -401,6 +430,24 @@ export function AgentBasicSettingsPage({
       toast.error(t("agent:actions.saveFailed"));
     } finally {
       setIsBookingModeSaving(false);
+    }
+  }
+
+  async function saveVoice(nextVoice: ReceptionistVoice): Promise<boolean> {
+    if (!canManageTenant || !persistedProfile) return false;
+    setIsVoiceSaving(true);
+    try {
+      await saveProfile({ businessId, voice: nextVoice });
+      // Only now: the dialog shows the current voice as in use, and a failed save keeps the pick.
+      setVoice(nextVoice);
+      telemetry.track("web.agent.settings_saved", { businessId, setting: "voice" });
+      toast.success(t("agent:actions.saved"));
+      return true;
+    } catch {
+      toast.error(t("agent:actions.saveFailed"));
+      return false;
+    } finally {
+      setIsVoiceSaving(false);
     }
   }
 
@@ -647,6 +694,25 @@ export function AgentBasicSettingsPage({
               variant="default"
             >
               <ItemContent>
+                <ItemTitle>{t("agent:fields.voice.label")}</ItemTitle>
+                <ItemDescription>{t("agent:fields.voice.summary", { voice: voiceName(voice), traits: voiceTraits(voice) })}</ItemDescription>
+              </ItemContent>
+              <ItemActions className="w-full sm:w-auto">
+                {isLoadingConfiguration ? (
+                  <Skeleton className="h-10 w-full rounded-md sm:w-52" />
+                ) : (
+                  <Button disabled={!persistedProfile || !canManageTenant} onClick={() => setVoiceDialogOpen(true)} type="button" variant="outline">{t("agent:fields.voice.change")}</Button>
+                )}
+              </ItemActions>
+            </Item>
+
+            <VoiceDialog current={voice} onOpenChange={setVoiceDialogOpen} onSave={saveVoice} open={voiceDialogOpen} preview={voicePreview} saving={isVoiceSaving} />
+
+            <Item
+              className="rounded-none border-x-0 border-t-0 border-b border-border last:border-b-0"
+              variant="default"
+            >
+              <ItemContent>
                 <ItemTitle>{t("agent:fields.timezone.label")}</ItemTitle>
                 <ItemDescription>{t("agent:fields.timezone.hint")}</ItemDescription>
               </ItemContent>
@@ -728,7 +794,7 @@ export function AgentBasicSettingsPage({
                     <Skeleton className="h-10 w-full rounded-md sm:w-72" />
                   ) : (
                     <div className="flex w-full min-w-0 sm:w-fit">
-                      <PhoneCountrySelect ariaLabel={t("agent:fields.transferNumber.country")} className="w-20 rounded-r-none px-4 font-medium text-muted-foreground" countries={countries.filter((option) => isTransferCountry(option.code))} disabled={!canManageTenant} onChange={(next) => { setTransferCountry(next as Country); setTransferNumber(""); setTransferNumberInputValue(""); setTransferStatus(null); }} value={transferCountry} />
+                      <PhoneCountrySelect ariaLabel={t("agent:fields.transferNumber.country")} className="w-20 rounded-r-none px-4 font-medium text-muted-foreground" countries={countries.filter((option) => isTransferCountry(option.code))} disabled={!canManageTenant} onChange={(next) => { transferNumberEdited.current = true; setTransferCountry(next as Country); setTransferNumber(""); setTransferNumberInputValue(""); setTransferStatus(null); }} value={transferCountry} />
                       <PhoneInput
                         className="rounded-l-none border-l-0 sm:w-40"
                         containerClassName="min-w-0 flex-1"
@@ -743,6 +809,7 @@ export function AgentBasicSettingsPage({
                           setTransferStatus(null);
                         }}
                         onRawValueChange={(nextRawValue) => {
+                          transferNumberEdited.current = true;
                           setTransferNumberInputValue(nextRawValue);
                           setTransferStatus(null);
                           if (nextRawValue.trim().startsWith("+")) {
@@ -816,11 +883,9 @@ export function AgentBasicSettingsPage({
                 )}
               </ItemActions>
             </Item>
+            <BusinessHoursSection bookingMode={bookingMode} businessId={businessId} canManage={canManageTenant} />
           </Surface>
-          {!isLoadingConfiguration && hours.data && needsHoursForBooking({ ...hours.data, bookingMode }) ? <BookingWithoutHoursAlert /> : null}
         </section>
-
-        <BusinessHoursSection businessId={businessId} canManage={canManageTenant} />
 
         <section className="flex flex-col gap-3">
           <h2 className="font-heading text-sm leading-snug font-medium">

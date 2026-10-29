@@ -13,7 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CalendarX2, ChevronRight, PhoneCall, UserRound } from "lucide-react";
+import { AlertCircle, CalendarX2, ChevronRight, MessageCircleQuestionMark, PhoneCall, UserRound } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +28,9 @@ import { Surface } from "@/components/ui/surface";
 import { intlLocale, formatDateTime } from "@/lib/locale";
 import { formatDuration } from "@/lib/duration";
 import { hasEnded, useAppointments } from "@/hooks/use-appointments";
+import { fetchUnansweredQuestions, UNANSWERED_QUESTIONS_ANCHOR, unansweredQuestionsQueryKey } from "@/components/unanswered-questions-section";
+import { useBusinessCan } from "@/components/business-capabilities-provider";
+import { useActiveBusiness } from "@/hooks/use-active-business";
 import { dayKey } from "@/lib/calendar-days";
 
 const OverviewCallChart = dynamic(() => import("./overview-call-chart").then((module) => module.OverviewCallChart), {
@@ -69,6 +72,13 @@ export function LiveOverviewSurface() {
   const summary = useQuery({ queryKey: ["dashboard"], queryFn: getSummary });
   const businessId = summary.data?.businessId;
   const { appointments } = useAppointments();
+  const { t: tKnowledge } = useTranslation("knowledge");
+  // Only owners and admins answer questions, and their routes need setup, which an activity-only business leaves to its partner.
+  const { business } = useActiveBusiness();
+  const canSetUp = useBusinessCan()("setup");
+  const canAnswerQuestions = canSetUp && (business?.role === "business_owner" || business?.role === "business_admin");
+  const unanswered = useQuery({ queryKey: unansweredQuestionsQueryKey(businessId), enabled: Boolean(businessId) && canAnswerQuestions, queryFn: () => fetchUnansweredQuestions(businessId!) });
+  const unansweredCount = canAnswerQuestions ? unanswered.data?.openCount ?? 0 : 0;
 
   useEffect(() => {
     if (!businessId) return;
@@ -91,7 +101,12 @@ export function LiveOverviewSurface() {
         <DashboardActivationCard businessId={businessId} />
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <section className="animate-in fade-in slide-in-from-bottom-2 duration-200 flex flex-col gap-3 xl:h-full">
-            <div className="flex items-center justify-between gap-4 px-1"><h2 className="type-section-title">{t("home.actionRequired.title")}</h2>{summary.isLoading ? <Skeleton className="h-6 w-12 rounded-full" /> : <Badge variant="outline">{(summary.data?.actionRequired.length ?? 0).toLocaleString(intlLocale(i18n.language))}</Badge>}</div>
+            <div className="flex items-center justify-between gap-4 px-1"><h2 className="type-section-title">{t("home.actionRequired.title")}</h2>{summary.isLoading ? <Skeleton className="h-6 w-12 rounded-full" /> : <Badge variant="outline">{((summary.data?.actionRequired.length ?? 0) + (unansweredCount > 0 ? 1 : 0)).toLocaleString(intlLocale(i18n.language))}</Badge>}</div>
+            {unansweredCount > 0 ? <Item render={<Link href={`/agent/knowledge#${UNANSWERED_QUESTIONS_ANCHOR}`} />} variant="outline">
+              <ItemMedia variant="icon"><MessageCircleQuestionMark className="text-muted-foreground" /></ItemMedia>
+              <ItemContent><ItemTitle>{tKnowledge("unansweredQuestions.home.count", { count: unansweredCount })}</ItemTitle><ItemDescription>{tKnowledge("unansweredQuestions.home.description")}</ItemDescription></ItemContent>
+              <ItemActions><ChevronRight className="size-4 text-muted-foreground" /></ItemActions>
+            </Item> : null}
             {summary.isLoading ? <ActionRequiredSkeleton /> : summary.data?.actionRequired.length ? <Card className="ph-mask border-border/70">
                   <CardContent>
                     <ItemGroup>
@@ -189,10 +204,10 @@ export function LiveOverviewSurface() {
                       ))}
                     </ItemGroup>
                 </CardContent>
-              </Card> : <div className="rounded-xl border border-dashed p-12 text-center xl:flex xl:flex-1 xl:flex-col xl:items-center xl:justify-center"><p className="type-empty-title">{t("home.actionRequired.emptyTitle")}</p><p className="type-empty-description mt-2">{t("home.actionRequired.emptyDescription")}</p></div>}
+              </Card> : unansweredCount > 0 ? null : <div className="rounded-xl border border-dashed p-12 text-center xl:flex xl:flex-1 xl:flex-col xl:items-center xl:justify-center"><p className="type-empty-title">{t("home.actionRequired.emptyTitle")}</p><p className="type-empty-description mt-2">{t("home.actionRequired.emptyDescription")}</p></div>}
           </section>
           <section className="animate-in fade-in slide-in-from-bottom-2 duration-200 order-first flex flex-col gap-3 xl:h-full">
-            <div className="flex items-center justify-between gap-4 px-1"><div className="flex items-center gap-3"><h2 className="type-section-title">{t("home.upcoming.title")}</h2><Link className="text-sm text-muted-foreground transition-colors hover:text-foreground" href="/appointments">{t("home.upcoming.viewAll")}</Link></div>{summary.isLoading ? <Skeleton className="h-6 w-12 rounded-full" /> : <Badge variant="outline">{(summary.data?.upcoming.length ?? 0).toLocaleString(intlLocale(i18n.language))}</Badge>}</div>
+            <div className="flex items-center justify-between gap-4 px-1"><div className="flex items-center gap-3"><h2 className="type-section-title">{t("home.upcoming.title")}</h2><Link className="text-sm text-muted-foreground transition-colors hover:text-foreground" href="/appointments?view=list">{t("home.upcoming.viewAll")}</Link></div>{summary.isLoading ? <Skeleton className="h-6 w-12 rounded-full" /> : <Badge variant="outline">{(summary.data?.upcoming.length ?? 0).toLocaleString(intlLocale(i18n.language))}</Badge>}</div>
             {summary.isLoading ? <UpcomingSkeleton /> : summary.data?.upcoming.length ? (
               <Card className="ph-mask border-border/70"><CardContent className="flex flex-col gap-4">
                 {summary.data.upcoming.map((appointment, index) => {

@@ -66,7 +66,9 @@
         "percentUp": "+{{value}} % respecto al período anterior",
         "percentDown": "-{{value}} % respecto al período anterior",
         "durationUp": "+{{value}} respecto al período anterior",
-        "durationDown": "-{{value}} respecto al período anterior"
+        "durationDown": "-{{value}} respecto al período anterior",
+        "pointsUp": "+{{value}} pts respecto al período anterior",
+        "pointsDown": "-{{value}} pts respecto al período anterior"
       },
       "outcomes": {
         "title": "Resultados de llamadas",
@@ -84,6 +86,11 @@
         "labels": {
           "other": "Otro"
         }
+      },
+      "results": {
+        "bookedValue": "Valor reservado",
+        "timeSaved": "Tiempo ahorrado",
+        "withoutTransfer": "Llamadas sin transferir"
       }
     },
     "metrics": {

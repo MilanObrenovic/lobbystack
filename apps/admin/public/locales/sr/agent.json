@@ -328,6 +328,33 @@
       "hint": "Jezik na kom recepcioner piše poruke, napomene i zahteve za vaš tim. Pozivaoci i dalje dobijaju odgovor na svom jeziku.",
       "sameAsCaller": "Isto kao jezik klijenata"
     },
+    "voice": {
+      "label": "Glas",
+      "change": "Promeni glas",
+      "play": "Pusti {{voice}}",
+      "stop": "Zaustavi {{voice}}",
+      "inUse": "U upotrebi",
+      "traits": "{{pitch}}, {{pace}}",
+      "summary": "{{voice}} · {{traits}}",
+      "pitch": {
+        "low": "Dubok",
+        "mid": "Srednji",
+        "high": "Svetao"
+      },
+      "pace": {
+        "slow": "staložen",
+        "steady": "ujednačen",
+        "quick": "brz"
+      },
+      "dialog": {
+        "title": "Glasovi",
+        "description": "Pustite glas da ga čujete, pa ga izaberite.",
+        "current": "Trenutni",
+        "all": "Svi glasovi",
+        "cancel": "Otkaži",
+        "use": "Koristi ovaj glas"
+      }
+    },
     "timezone": {
       "label": "Vremenska zona firme",
       "hint": "Recepcioner koristi ovu vremensku zonu za radno vreme i termine koje nudi klijentima.",
@@ -448,9 +475,7 @@
   },
   "hours": {
     "title": "Radno vreme",
-    "description": "Agent nudi termine samo u ovom radnom vremenu.",
     "generated": "Popunili smo radno vreme na osnovu Vašeg veb-sajta i dokumenata. Proverite ga.",
-    "empty": "Dodajte radno vreme da bi agent mogao da zakazuje termine.",
     "closed": "Zatvoreno",
     "openOn": "Otvoreno: {{day}}",
     "opensAt": "Vreme otvaranja: {{day}}",
@@ -460,14 +485,16 @@
     "picker": { "hours": "Sati", "minutes": "Minuti", "period": "Pre ili posle podne", "hoursTitle": "HH", "minutesTitle": "MM" },
     "save": "Sačuvaj radno vreme",
     "invalid": "Proverite dan {{day}}: svako zatvaranje mora biti posle otvaranja, bez preklapanja.",
+    "edit": "Izmeni",
+    "cancel": "Otkaži",
+    "notSet": "Nije podešeno",
     "noHoursAlert": {
       "title": "Dodajte radno vreme da biste zakazivali termine",
       "description": "Agent nudi termine samo u Vašem radnom vremenu. Dok ga ne dodate, prima poruku umesto toga.",
       "action": "Dodaj radno vreme"
     },
-    "edit": "Izmeni",
-    "cancel": "Otkaži",
-    "notSet": "Nije podešeno",
+    "neededForBooking": "Nije podešeno. Potrebno za zakazivanje termina.",
+    "add": "Dodaj",
     "closures": {
       "title": "Neradni periodi",
       "description": "Dodajte praznike i druge periode kada ne radite. Agent tada ne zakazuje termine. Vreme je prema vremenskoj zoni {{timezone}}.",

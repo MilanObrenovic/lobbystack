@@ -8,6 +8,7 @@ import { Badge } from "./ui/badge";
 import { CancelAppointmentButton } from "./cancel-appointment-button";
 import { AppointmentDetailsSheet } from "./appointment-details-sheet";
 import { AppointmentsCalendar, type CalendarView } from "./appointments-calendar";
+import { HeaderSearch } from "./header-actions";
 import { PageSurface } from "./page-surface";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Surface } from "./ui/surface";
@@ -39,9 +40,9 @@ export function LiveAppointmentsSurface() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  // ?view=calendar, &range=month and &employee=<staff id>; the defaults (list, week, all) stay out of the URL.
-  const view: View = searchParams.get("view") === "calendar" ? "calendar" : "list";
-  const range: CalendarView = searchParams.get("range") === "month" ? "month" : "week";
+  // ?view=list, &range=week and &employee=<staff id>; the defaults (calendar, month, all) stay out of the URL.
+  const view: View = searchParams.get("view") === "list" ? "list" : "calendar";
+  const range: CalendarView = searchParams.get("range") === "week" ? "week" : "month";
   const when: When = searchParams.get("when") === "past" ? "past" : "upcoming";
   const setParam = (name: string, value: string, defaultValue: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -52,6 +53,7 @@ export function LiveAppointmentsSurface() {
   };
   // The calendar needs the browser's clock and time zone, so it isn't rendered on the server.
   const isClient = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  const [search, setSearch] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const businessId = business?.businessId;
@@ -64,7 +66,9 @@ export function LiveAppointmentsSurface() {
   const requestedEmployee = searchParams.get("employee") ?? ALL_EMPLOYEES;
   // A link to someone with no upcoming bookings left shows everyone rather than an empty page.
   const employee = appointments.data && !staff.some(([key]) => key === requestedEmployee) ? ALL_EMPLOYEES : requestedEmployee;
-  const filtered = employee === ALL_EMPLOYEES ? rows : rows.filter((appointment) => staffKey(appointment) === employee);
+  const byEmployee = employee === ALL_EMPLOYEES ? rows : rows.filter((appointment) => staffKey(appointment) === employee);
+  const query = search.trim().toLowerCase();
+  const filtered = query ? byEmployee.filter((appointment) => [appointment.contactName, appointment.contactPhone, appointment.contactEmail, appointment.serviceName, appointment.staffName, appointment.employeeName].some((value) => value?.toLowerCase().includes(query))) : byEmployee;
   // Past appointments read newest first.
   const listRows = when === "past" ? filtered.filter((appointment) => hasEnded(appointment)).reverse() : filtered.filter((appointment) => !hasEnded(appointment));
   const contactName = (appointment: Appointment) => getContactDisplayName({ name: appointment.contactName, phone: appointment.contactPhone, email: appointment.contactEmail, channels: [appointment.sourceChannel] }, i18n.language, t);
@@ -75,24 +79,27 @@ export function LiveAppointmentsSurface() {
   // Looked up by id, so the panel closes by itself once its appointment is cancelled.
   const details = detailsId ? rows.find((appointment) => appointment.id === detailsId) : undefined;
 
-  return <PageSurface title={t("appointments.title")}><div className="flex w-full flex-col gap-6">
-    <div className={cn("flex flex-wrap items-center gap-4", business ? "justify-end" : "justify-between")}>
-      {business ? null : <p className="type-section-description">{t("appointments.chooseWorkspace")}</p>}
-      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-        {staff.length > 1 ? <Select items={[{ value: ALL_EMPLOYEES, label: t("appointments.filter.all") }, ...staff.map(([value, label]) => ({ value, label }))]} onValueChange={(value) => setParam("employee", value ?? ALL_EMPLOYEES, ALL_EMPLOYEES)} value={employee}>
-          <SelectTrigger aria-label={t("appointments.filter.label")} className="w-full sm:w-44"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectGroup><SelectItem value={ALL_EMPLOYEES}>{t("appointments.filter.all")}</SelectItem>{staff.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectGroup></SelectContent>
-        </Select> : null}
-        <Tabs onValueChange={(value) => setParam("view", value as View, "list")} value={view}>
-          <TabsList>
-            <TabsTrigger value="list">{t("appointments.views.list")}</TabsTrigger>
-            <TabsTrigger value="calendar">{t("appointments.views.calendar")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-    </div>
+  const viewTabs = <Tabs onValueChange={(value) => setParam("view", value as View, "calendar")} value={view}>
+    <TabsList>
+      <TabsTrigger value="list">{t("appointments.views.list")}</TabsTrigger>
+      <TabsTrigger value="calendar">{t("appointments.views.calendar")}</TabsTrigger>
+    </TabsList>
+  </Tabs>;
+  const employeeFilter = staff.length > 1 ? <Select items={[{ value: ALL_EMPLOYEES, label: t("appointments.filter.all") }, ...staff.map(([value, label]) => ({ value, label }))]} onValueChange={(value) => setParam("employee", value ?? ALL_EMPLOYEES, ALL_EMPLOYEES)} value={employee}>
+    <SelectTrigger aria-label={t("appointments.filter.label")} className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+    <SelectContent><SelectGroup><SelectItem value={ALL_EMPLOYEES}>{t("appointments.filter.all")}</SelectItem>{staff.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectGroup></SelectContent>
+  </Select> : null;
+  const whenTabs = view === "list" ? <Tabs onValueChange={(value) => setParam("when", value as When, "upcoming")} value={when}>
+    <TabsList aria-label={t("appointments.when.label")}>
+      <TabsTrigger value="upcoming">{t("appointments.when.upcoming")}</TabsTrigger>
+      <TabsTrigger value="past">{t("appointments.when.past")}</TabsTrigger>
+    </TabsList>
+  </Tabs> : null;
+
+  return <PageSurface actions={business ? <HeaderSearch onChange={setSearch} placeholder={t("appointments.searchPlaceholder")} value={search} /> : undefined} title={t("appointments.title")}><div className="flex w-full flex-col gap-6">
+    {!business ? <p className="type-section-description">{t("appointments.chooseWorkspace")}</p> : whenTabs || employeeFilter || view === "list" ? <div className="flex flex-wrap items-center justify-end gap-2">{whenTabs}{employeeFilter}{view === "list" ? viewTabs : null}</div> : null}
     {view === "calendar" ? isClient ? <>
-      <AppointmentsCalendar appointments={filtered} contactName={contactName} onSelectDay={setSelectedDay} onViewChange={(next) => setParam("range", next, "week")} selectedDay={day} timeZone={timeZone} today={today} view={range} />
+      <AppointmentsCalendar appointments={filtered} contactName={contactName} onSelectDay={setSelectedDay} onViewChange={(next) => setParam("range", next, "month")} selectedDay={day} timeZone={timeZone} today={today} trailing={viewTabs} view={range} />
       <section aria-live="polite" className="flex flex-col gap-3">
         <h2 className="type-section-title px-1 first-letter:uppercase">{formatDateTime(keyToDate(day).toISOString(), i18n.language, { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}</h2>
         {dayAppointments.length ? <Surface className="p-0">
@@ -127,12 +134,7 @@ export function LiveAppointmentsSurface() {
           </ul>
         </Surface> : <div className="rounded-xl border border-dashed p-10 text-center"><p className="type-empty-description">{t("appointments.calendarView.dayEmpty")}</p></div>}
       </section>
-    </> : null : <><Tabs className="self-start" onValueChange={(value) => setParam("when", value as When, "upcoming")} value={when}>
-      <TabsList aria-label={t("appointments.when.label")}>
-        <TabsTrigger value="upcoming">{t("appointments.when.upcoming")}</TabsTrigger>
-        <TabsTrigger value="past">{t("appointments.when.past")}</TabsTrigger>
-      </TabsList>
-    </Tabs><TableCard><Table className="min-w-[60rem] w-full table-fixed"><colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[13%]" /><col className="w-[11%]" /><col className="w-[11%]" /><col className="w-[9%]" /></colgroup><TableHeader><TableRow><TableHead>{t("appointments.time")}</TableHead><TableHead>{t("appointments.customer")}</TableHead><TableHead>{t("appointments.service")}</TableHead><TableHead>{t("appointments.staff")}</TableHead><TableHead>{t("appointments.status")}</TableHead><TableHead>{t("appointments.calendar")}</TableHead><TableHead><span className="sr-only">{t("appointments.actions")}</span></TableHead></TableRow></TableHeader><TableBody>{businesses.isLoading || appointments.isLoading ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.loading")}</TableCell></TableRow> : businesses.isError || appointments.isError ? <TableRow><TableCell className="h-24 text-center text-destructive" colSpan={7}>{t("appointments.unavailable")}</TableCell></TableRow> : listRows.length ? listRows.map((appointment) => { const name = contactName(appointment); const ended = hasEnded(appointment); return <TableRow className="h-12 cursor-pointer" key={appointment.id} onClick={() => setDetailsId(appointment.id)}><TableCell className="font-medium"><button className="text-left underline-offset-4 outline-none hover:underline focus-visible:underline" onClick={() => setDetailsId(appointment.id)} type="button">{formatDate(appointment, i18n.language)}</button></TableCell><TableCell className="ph-mask max-w-0 truncate text-muted-foreground" title={name}>{name}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.serviceName}>{appointment.serviceName}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.staffName}>{appointment.staffName}</TableCell><TableCell><Badge variant="secondary">{t(`appointments.statuses.${appointment.status}`, { defaultValue: appointment.status })}</Badge></TableCell><TableCell className="capitalize text-muted-foreground">{t(`appointments.calendarStates.${appointment.calendarSyncState}`, { defaultValue: appointment.calendarSyncState.replaceAll("_", " ") })}</TableCell><TableCell className="text-right" onClick={(event) => event.stopPropagation()}>{ended ? null : <CancelAppointmentButton appointment={{ ...appointment, contactName: name }} variant="destructive" />}</TableCell></TableRow>; }) : <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t(when === "past" ? "appointments.when.pastEmpty" : "appointments.empty")}</TableCell></TableRow>}</TableBody></Table></TableCard></>}
+    </> : null : <><TableCard><Table className="min-w-[60rem] w-full table-fixed"><colgroup><col className="w-[20%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[13%]" /><col className="w-[11%]" /><col className="w-[11%]" /><col className="w-[9%]" /></colgroup><TableHeader><TableRow><TableHead>{t("appointments.time")}</TableHead><TableHead>{t("appointments.customer")}</TableHead><TableHead>{t("appointments.service")}</TableHead><TableHead>{t("appointments.staff")}</TableHead><TableHead>{t("appointments.status")}</TableHead><TableHead>{t("appointments.calendar")}</TableHead><TableHead><span className="sr-only">{t("appointments.actions")}</span></TableHead></TableRow></TableHeader><TableBody>{businesses.isLoading || appointments.isLoading ? <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t("appointments.loading")}</TableCell></TableRow> : businesses.isError || appointments.isError ? <TableRow><TableCell className="h-24 text-center text-destructive" colSpan={7}>{t("appointments.unavailable")}</TableCell></TableRow> : listRows.length ? listRows.map((appointment) => { const name = contactName(appointment); const ended = hasEnded(appointment); return <TableRow className="h-12 cursor-pointer" key={appointment.id} onClick={() => setDetailsId(appointment.id)}><TableCell className="font-medium"><button className="text-left underline-offset-4 outline-none hover:underline focus-visible:underline" onClick={() => setDetailsId(appointment.id)} type="button">{formatDate(appointment, i18n.language)}</button></TableCell><TableCell className="ph-mask max-w-0 truncate text-muted-foreground" title={name}>{name}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.serviceName}>{appointment.serviceName}</TableCell><TableCell className="max-w-0 truncate text-muted-foreground" title={appointment.staffName}>{appointment.staffName}</TableCell><TableCell><Badge variant="secondary">{t(`appointments.statuses.${appointment.status}`, { defaultValue: appointment.status })}</Badge></TableCell><TableCell className="capitalize text-muted-foreground">{t(`appointments.calendarStates.${appointment.calendarSyncState}`, { defaultValue: appointment.calendarSyncState.replaceAll("_", " ") })}</TableCell><TableCell className="text-right" onClick={(event) => event.stopPropagation()}>{ended ? null : <CancelAppointmentButton appointment={{ ...appointment, contactName: name }} variant="destructive" />}</TableCell></TableRow>; }) : <TableRow><TableCell className="h-24 text-center text-muted-foreground" colSpan={7}>{t(when === "past" ? "appointments.when.pastEmpty" : "appointments.empty")}</TableCell></TableRow>}</TableBody></Table></TableCard></>}
     <AppointmentDetailsSheet appointment={details} contactName={details ? contactName(details) : ""} onOpenChange={(open) => { if (!open) setDetailsId(null); }} />
   </div></PageSurface>;
 }

@@ -26,6 +26,9 @@ describe("readReceptionistSettingsChange", () => {
     [{ voiceInstructions: "x".repeat(RECEPTIONIST_INSTRUCTIONS_MAX_LENGTH + 1) }, "voiceInstructions is invalid."],
     [{ transferMode: "sometimes" }, "transferMode is invalid."],
     [{ bookingMode: "later" }, "bookingMode is invalid."],
+    [{ voice: "nova" }, "voice is invalid."],
+    [{ voice: "Marin" }, "voice is invalid."],
+    [{ voice: null }, "voice is invalid."],
     [{ appointmentChangePolicy: {} }, "appointmentChangePolicy is invalid."],
     [{ appointmentChangePolicy: { enabled: true, allowCancel: true, allowReschedule: true, verificationMode: "email" } }, "appointmentChangePolicy is invalid."],
     [{ locale: "ja" }, "locale is invalid."],
@@ -55,6 +58,10 @@ describe("readReceptionistSettingsChange", () => {
     });
   });
 
+  it("keeps a voice from the shared list", () => {
+    expect(readReceptionistSettingsChange({ voice: "cedar" })).toEqual({ patch: { voice: "cedar" }, regenerateSummary: false });
+  });
+
   it("reads the team language, and null as going back to the customer language", () => {
     expect(readReceptionistSettingsChange({ teamLocale: "sr" })).toEqual({ patch: {}, teamLocale: "sr", regenerateSummary: false });
     expect(readReceptionistSettingsChange({ teamLocale: null })).toEqual({ patch: {}, teamLocale: null, regenerateSummary: false });
@@ -73,7 +80,7 @@ describe("readReceptionistSettingsChange", () => {
 
 describe("defaultReceptionistProfile", () => {
   it("greets callers with the business's name until someone writes a greeting", () => {
-    expect(defaultReceptionistProfile("Maple Clinic")).toMatchObject({ greeting: defaultGreeting("Maple Clinic"), summary: "Maple Clinic", summarySource: "placeholder", transferMode: "on_request", bookingMode: "instant" });
+    expect(defaultReceptionistProfile("Maple Clinic")).toMatchObject({ greeting: defaultGreeting("Maple Clinic"), summary: "Maple Clinic", summarySource: "placeholder", transferMode: "on_request", bookingMode: "instant", voice: "marin" });
   });
 });
 

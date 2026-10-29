@@ -328,6 +328,33 @@
       "hint": "The language your receptionist writes messages, notes and requests in for your team. Callers are still answered in their own language.",
       "sameAsCaller": "Same as customer language"
     },
+    "voice": {
+      "label": "Voice",
+      "change": "Change voice",
+      "play": "Play {{voice}}",
+      "stop": "Stop {{voice}}",
+      "inUse": "In use",
+      "traits": "{{pitch}}, {{pace}}",
+      "summary": "{{voice}} · {{traits}}",
+      "pitch": {
+        "low": "Deep",
+        "mid": "Mid-range",
+        "high": "Bright"
+      },
+      "pace": {
+        "slow": "unhurried",
+        "steady": "steady",
+        "quick": "quick"
+      },
+      "dialog": {
+        "title": "Voices",
+        "description": "Play a voice to hear it, then pick one.",
+        "current": "Current",
+        "all": "All voices",
+        "cancel": "Cancel",
+        "use": "Use this voice"
+      }
+    },
     "timezone": {
       "label": "Business timezone",
       "hint": "Your receptionist uses this timezone for your opening hours and the appointment times it offers customers.",
@@ -448,9 +475,7 @@
   },
   "hours": {
     "title": "Opening hours",
-    "description": "The agent offers appointments only inside these hours.",
     "generated": "We filled these in from your website and documents. Check them.",
-    "empty": "Add your hours so the agent can book appointments.",
     "closed": "Closed",
     "openOn": "Open on {{day}}",
     "opensAt": "{{day}} opening time",
@@ -460,14 +485,16 @@
     "picker": { "hours": "Hours", "minutes": "Minutes", "period": "AM or PM", "hoursTitle": "HH", "minutesTitle": "MM" },
     "save": "Save hours",
     "invalid": "Check {{day}}: each closing time must come after its opening time, with no overlaps.",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "notSet": "Not set",
     "noHoursAlert": {
       "title": "Add opening hours to book appointments",
       "description": "The agent offers times only inside your opening hours. Until you add them, it takes a message instead.",
       "action": "Add opening hours"
     },
-    "edit": "Edit",
-    "cancel": "Cancel",
-    "notSet": "Not set",
+    "neededForBooking": "Not set. Needed to book appointments.",
+    "add": "Add hours",
     "closures": {
       "title": "Closures",
       "description": "Add holidays and other times you're closed. The agent won't book appointments during them. Times are in {{timezone}}.",

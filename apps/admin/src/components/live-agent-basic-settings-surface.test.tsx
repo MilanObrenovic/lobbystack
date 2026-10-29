@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,13 +11,11 @@ import {
 } from "./live-agent-basic-settings-surface";
 
 vi.mock("@/components/product-analytics", () => ({ useTelemetry: () => ({ track: vi.fn() }) }));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { language: "en" }, t: (key: string) => key }) }));
+// Only the voice row's summary interpolates, so its parts show up in the text.
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { language: "en" }, t: (key: string, options?: Record<string, string>) => key === "agent:fields.voice.summary" ? `voice=${options?.voice} traits=${options?.traits}` : key }) }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/components/business-hours-section", () => ({
   BusinessHoursSection: () => null,
-  BookingWithoutHoursAlert: () => null,
-  needsHoursForBooking: () => false,
-  useBusinessHours: () => ({ data: undefined }),
 }));
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -204,6 +202,72 @@ describe("AgentBasicSettingsPage saves", () => {
   });
 });
 
+describe("AgentBasicSettingsPage voice", () => {
+  function renderWithVoice(voice: string | undefined) {
+    const patches: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "PATCH") {
+        patches.push(JSON.parse(String(init.body)));
+        return Response.json({ profile: {} });
+      }
+      return Response.json({
+        business: { defaultLocale: "en" },
+        profile: { greeting: "Thanks for calling.", summary: "Clinic", summarySource: "operator", transferNumber: null, transferMode: "on_request", appointmentChangePolicy: null, bookingMode: "instant", ...(voice ? { voice } : {}) },
+      });
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><AgentBasicSettingsPage businessId="business" canManageTenant /></QueryClientProvider>);
+    return { client, patches };
+  }
+
+  it("shows the saved voice and saves the one picked in the voice dialog", async () => {
+    const { client, patches } = renderWithVoice("cedar");
+    const user = userEvent.setup();
+    expect(await screen.findByText("voice=Cedar traits=fields.voice.traits")).toBeTruthy();
+    const change = await screen.findByRole("button", { name: "agent:fields.voice.change" });
+    await waitFor(() => expect((change as HTMLButtonElement).disabled).toBe(false));
+    await user.click(change);
+    await user.click(await screen.findByRole("button", { name: /^Shimmer/ }));
+    await user.click(screen.getByRole("button", { name: "fields.voice.dialog.use" }));
+    await waitFor(() => expect(patches).toEqual([{ businessId: "business", voice: "shimmer" }]));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    client.clear();
+  });
+
+  it("keeps the saved voice in use while a save runs, and the pick when it fails", async () => {
+    let failSave: () => void = () => {};
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "PATCH") return await new Promise<Response>((resolve) => { failSave = () => resolve(Response.json({ error: "down" }, { status: 500 })); });
+      return Response.json({
+        business: { defaultLocale: "en" },
+        profile: { greeting: "Thanks for calling.", summary: "Clinic", summarySource: "operator", transferNumber: null, transferMode: "on_request", appointmentChangePolicy: null, bookingMode: "instant", voice: "cedar" },
+      });
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><AgentBasicSettingsPage businessId="business" canManageTenant /></QueryClientProvider>);
+    const user = userEvent.setup();
+    const change = await screen.findByRole("button", { name: "agent:fields.voice.change" });
+    await waitFor(() => expect((change as HTMLButtonElement).disabled).toBe(false));
+    await user.click(change);
+    await user.click(await screen.findByRole("button", { name: /^Shimmer/ }));
+    await user.click(screen.getByRole("button", { name: "fields.voice.dialog.use" }));
+
+    const current = () => screen.getByRole("heading", { name: "fields.voice.dialog.current" }).parentElement!;
+    expect(current().textContent).toContain("Cedar");
+    act(() => failSave());
+    await waitFor(() => expect((screen.getByRole("button", { name: "fields.voice.dialog.use" }) as HTMLButtonElement).disabled).toBe(false));
+    expect(current().textContent).toContain("Cedar");
+    expect(screen.getByRole("button", { name: /^Shimmer/ }).getAttribute("aria-pressed")).toBe("true");
+    client.clear();
+  });
+
+  it("shows marin for a business that never picked a voice or has one calls no longer use", async () => {
+    const { client } = renderWithVoice("nova");
+    expect(await screen.findByText("voice=Marin traits=fields.voice.traits")).toBeTruthy();
+    client.clear();
+  });
+});
+
 describe("AgentBasicSettingsPage transfer number", () => {
   it("offers only the transfer countries, and says when the server refuses the number's country", async () => {
     const patches: unknown[] = [];
@@ -234,6 +298,87 @@ describe("AgentBasicSettingsPage transfer number", () => {
 
     expect(await screen.findByText("agent:fields.transferNumber.errors.countryUnsupported")).toBeTruthy();
     expect(patches).toEqual([{ businessId: "business", transferNumber: "+18769261234" }]);
+    client.clear();
+  });
+
+  it("keeps a number being typed when a refetch of the saved settings lands", async () => {
+    const patches: unknown[] = [];
+    const settings = (transferNumber: string | null = "+15145550123") => ({
+      business: { defaultLocale: "en" },
+      profile: { greeting: "Thanks for calling.", summary: "Clinic", summarySource: "operator", transferNumber, transferMode: "on_request", appointmentChangePolicy: null, bookingMode: "instant" },
+    });
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "PATCH") {
+        patches.push(JSON.parse(String(init.body)));
+        return Response.json({ ok: true });
+      }
+      return Response.json(settings());
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><AgentBasicSettingsPage businessId="business" canManageTenant /></QueryClientProvider>);
+
+    const user = userEvent.setup();
+    await screen.findByRole("combobox", { name: "agent:fields.transferNumber.country" });
+    const input = document.getElementById("agent-transfer-number") as HTMLInputElement;
+    await user.clear(input);
+    await user.type(input, "+15145550199");
+    // The refetch an earlier save started arrives late, with the number that save stored.
+    act(() => client.setQueryData(["agent-settings", "business"], settings("+15145550177")));
+    await user.click(screen.getByRole("button", { name: "agent:actions.save" }));
+
+    await waitFor(() => expect(patches).toEqual([{ businessId: "business", transferNumber: "+15145550199" }]));
+    client.clear();
+  });
+
+  it("keeps a cleared number empty when a refetch lands, even if none was saved before", async () => {
+    const patches: unknown[] = [];
+    const settings = (transferNumber: string | null) => ({
+      business: { defaultLocale: "en" },
+      profile: { greeting: "Thanks for calling.", summary: "Clinic", summarySource: "operator", transferNumber, transferMode: "on_request", appointmentChangePolicy: null, bookingMode: "instant" },
+    });
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "PATCH") {
+        patches.push(JSON.parse(String(init.body)));
+        return Response.json({ ok: true });
+      }
+      return Response.json(settings(null));
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><AgentBasicSettingsPage businessId="business" canManageTenant /></QueryClientProvider>);
+
+    const user = userEvent.setup();
+    await screen.findByRole("combobox", { name: "agent:fields.transferNumber.country" });
+    const input = document.getElementById("agent-transfer-number") as HTMLInputElement;
+    await user.type(input, "+15145550100");
+    await user.clear(input);
+    // The field is empty again, as it was when the page loaded, when a late refetch brings a saved number.
+    act(() => client.setQueryData(["agent-settings", "business"], settings("+15145550177")));
+    await user.type(input, "+15145550199");
+    await user.click(screen.getByRole("button", { name: "agent:actions.save" }));
+
+    await waitFor(() => expect(patches).toEqual([{ businessId: "business", transferNumber: "+15145550199" }]));
+    client.clear();
+  });
+
+  it("shows the next business's number, not one typed for the last, after switching business", async () => {
+    const settings = (transferNumber: string) => ({
+      business: { defaultLocale: "en" },
+      profile: { greeting: "Thanks for calling.", summary: "Clinic", summarySource: "operator", transferNumber, transferMode: "on_request", appointmentChangePolicy: null, bookingMode: "instant" },
+    });
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => Response.json(settings(url.includes("business-b") ? "+15145550222" : "+15145550111"))));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const page = (businessId: string) => <QueryClientProvider client={client}><AgentBasicSettingsPage businessId={businessId} canManageTenant /></QueryClientProvider>;
+    const { rerender } = render(page("business-a"));
+
+    const user = userEvent.setup();
+    const input = () => document.getElementById("agent-transfer-number") as HTMLInputElement;
+    await waitFor(() => expect(input()?.value.replace(/\D/g, "")).toBe("5145550111"));
+    await user.clear(input());
+    await user.type(input(), "+15145550199");
+    // The workspace switcher keeps the page mounted and only changes the business.
+    rerender(page("business-b"));
+
+    await waitFor(() => expect(input()?.value.replace(/\D/g, "")).toBe("5145550222"));
     client.clear();
   });
 });
