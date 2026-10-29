@@ -328,6 +328,33 @@
       "hint": "El idioma en el que tu recepcionista redacta mensajes, notas y solicitudes para tu equipo. A las personas que llaman se les sigue respondiendo en su idioma.",
       "sameAsCaller": "Igual que el idioma de los clientes"
     },
+    "voice": {
+      "label": "Voz",
+      "change": "Cambiar voz",
+      "play": "Reproducir {{voice}}",
+      "stop": "Detener {{voice}}",
+      "inUse": "En uso",
+      "traits": "{{pitch}}, {{pace}}",
+      "summary": "{{voice}} · {{traits}}",
+      "pitch": {
+        "low": "Grave",
+        "mid": "Media",
+        "high": "Aguda"
+      },
+      "pace": {
+        "slow": "pausada",
+        "steady": "constante",
+        "quick": "rápida"
+      },
+      "dialog": {
+        "title": "Voces",
+        "description": "Escucha una voz y elígela.",
+        "current": "Actual",
+        "all": "Todas las voces",
+        "cancel": "Cancelar",
+        "use": "Usar esta voz"
+      }
+    },
     "timezone": {
       "label": "Zona horaria del negocio",
       "hint": "Su recepcionista usa esta zona horaria para su horario de atención y los horarios de citas que ofrece a los clientes.",
@@ -448,9 +475,7 @@
   },
   "hours": {
     "title": "Horario de atención",
-    "description": "El agente ofrece citas solo dentro de este horario.",
     "generated": "Completamos este horario a partir de su sitio web y sus documentos. Revíselo.",
-    "empty": "Agregue su horario para que el agente pueda reservar citas.",
     "closed": "Cerrado",
     "openOn": "Abierto el {{day}}",
     "opensAt": "Hora de apertura del {{day}}",
@@ -460,14 +485,16 @@
     "picker": { "hours": "Horas", "minutes": "Minutos", "period": "a. m. o p. m.", "hoursTitle": "HH", "minutesTitle": "MM" },
     "save": "Guardar horario",
     "invalid": "Revise el {{day}}: cada hora de cierre debe ir después de su apertura, sin superponerse.",
+    "edit": "Editar",
+    "cancel": "Cancelar",
+    "notSet": "Sin definir",
     "noHoursAlert": {
       "title": "Agregue su horario para reservar citas",
       "description": "El agente ofrece horas solo dentro de su horario de atención. Hasta que lo agregue, toma un mensaje.",
       "action": "Agregar horario"
     },
-    "edit": "Editar",
-    "cancel": "Cancelar",
-    "notSet": "Sin definir",
+    "neededForBooking": "Sin definir. Necesarias para reservar citas.",
+    "add": "Añadir",
     "closures": {
       "title": "Cierres",
       "description": "Agregue los días festivos y otros períodos en que su negocio cierra. El agente no reserva citas durante esos períodos. Las horas están en la zona horaria {{timezone}}.",

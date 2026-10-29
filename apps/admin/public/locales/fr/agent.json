@@ -328,6 +328,33 @@
       "hint": "La langue dans laquelle votre réceptionniste rédige les messages, notes et demandes pour votre équipe. Les appelants reçoivent toujours une réponse dans leur langue.",
       "sameAsCaller": "Identique à la langue des clients"
     },
+    "voice": {
+      "label": "Voix",
+      "change": "Changer de voix",
+      "play": "Écouter {{voice}}",
+      "stop": "Arrêter {{voice}}",
+      "inUse": "Utilisée",
+      "traits": "{{pitch}}, {{pace}}",
+      "summary": "{{voice}} · {{traits}}",
+      "pitch": {
+        "low": "Grave",
+        "mid": "Médium",
+        "high": "Claire"
+      },
+      "pace": {
+        "slow": "posée",
+        "steady": "régulière",
+        "quick": "rapide"
+      },
+      "dialog": {
+        "title": "Voix",
+        "description": "Écoutez une voix, puis choisissez-la.",
+        "current": "Actuelle",
+        "all": "Toutes les voix",
+        "cancel": "Annuler",
+        "use": "Utiliser cette voix"
+      }
+    },
     "timezone": {
       "label": "Fuseau horaire de l’entreprise",
       "hint": "Votre réceptionniste utilise ce fuseau horaire pour vos heures d’ouverture et les créneaux qu’il propose aux clients.",
@@ -448,9 +475,7 @@
   },
   "hours": {
     "title": "Heures d'ouverture",
-    "description": "L'agent propose des rendez-vous seulement pendant ces heures.",
     "generated": "Nous avons rempli ces heures à partir de votre site web et de vos documents. Vérifiez-les.",
-    "empty": "Ajoutez vos heures pour que l'agent puisse réserver des rendez-vous.",
     "closed": "Fermé",
     "openOn": "Ouvert le {{day}}",
     "opensAt": "Heure d'ouverture du {{day}}",
@@ -460,14 +485,16 @@
     "picker": { "hours": "Heures", "minutes": "Minutes", "period": "AM ou PM", "hoursTitle": "HH", "minutesTitle": "MM" },
     "save": "Enregistrer les heures",
     "invalid": "Vérifiez le {{day}} : chaque fermeture doit suivre son ouverture, sans chevauchement.",
+    "edit": "Modifier",
+    "cancel": "Annuler",
+    "notSet": "Non définies",
     "noHoursAlert": {
       "title": "Ajoutez vos heures d'ouverture pour réserver des rendez-vous",
       "description": "L'agent propose des créneaux seulement pendant vos heures d'ouverture. En attendant, il prend un message.",
       "action": "Ajouter les heures d'ouverture"
     },
-    "edit": "Modifier",
-    "cancel": "Annuler",
-    "notSet": "Non définies",
+    "neededForBooking": "Non définies. Nécessaires pour prendre des rendez-vous.",
+    "add": "Ajouter",
     "closures": {
       "title": "Fermetures",
       "description": "Ajoutez les jours fériés et les autres périodes où vous êtes fermé. L'agent ne réserve pas de rendez-vous pendant ces périodes. Les heures suivent le fuseau {{timezone}}.",

@@ -66,7 +66,9 @@
         "percentUp": "+{{value}}% u odnosu na prethodni period",
         "percentDown": "-{{value}}% u odnosu na prethodni period",
         "durationUp": "+{{value}} u odnosu na prethodni period",
-        "durationDown": "-{{value}} u odnosu na prethodni period"
+        "durationDown": "-{{value}} u odnosu na prethodni period",
+        "pointsUp": "+{{value}} p. p. u odnosu na prethodni period",
+        "pointsDown": "-{{value}} p. p. u odnosu na prethodni period"
       },
       "outcomes": {
         "title": "Ishodi poziva",
@@ -84,6 +86,11 @@
         "labels": {
           "other": "Ostalo"
         }
+      },
+      "results": {
+        "bookedValue": "Vrednost termina",
+        "timeSaved": "Ušteđeno vreme",
+        "withoutTransfer": "Pozivi bez preusmeravanja"
       }
     },
     "metrics": {

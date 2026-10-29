@@ -66,7 +66,9 @@
         "percentUp": "+{{value}}% vs previous period",
         "percentDown": "-{{value}}% vs previous period",
         "durationUp": "+{{value}} vs previous period",
-        "durationDown": "-{{value}} vs previous period"
+        "durationDown": "-{{value}} vs previous period",
+        "pointsUp": "+{{value}} pts vs previous period",
+        "pointsDown": "-{{value}} pts vs previous period"
       },
       "outcomes": {
         "title": "Call Outcomes",
@@ -84,6 +86,11 @@
         "labels": {
           "other": "Other"
         }
+      },
+      "results": {
+        "bookedValue": "Booked value",
+        "timeSaved": "Time saved",
+        "withoutTransfer": "Calls without transfer"
       }
     },
     "metrics": {

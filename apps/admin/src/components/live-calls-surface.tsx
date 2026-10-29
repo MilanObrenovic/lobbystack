@@ -11,16 +11,16 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table";
-import { Pause, Play, Search } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { HeaderSearch } from "@/components/header-actions";
 import { CallRecordingPlayer } from "@/components/audio/call-recording-player";
 import { DataTablePagination, paginationFeatures } from "@/components/data-table/pagination";
 import { TableCardSkeleton } from "@/components/loading-skeletons";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -196,31 +196,20 @@ export function LiveCallsSurface() {
   return (
     <div className="flex flex-1 flex-col gap-6">
       <PageHeader
-        actions={
-          <div className="inline-flex shrink-0 items-center gap-2">
-            {activeCalls.isLoading ? <Skeleton className="h-6 w-8" /> : liveCalls === null
-              ? <span className="text-sm text-muted-foreground">{t("page.liveUnavailable")}</span>
-              : <span className="text-base font-semibold leading-none">{liveCalls.toLocaleString(intlLocale(i18n.language))}</span>}
+        actions={<HeaderSearch onChange={(value) => { setSearch(value); setPagination((current) => ({ ...current, pageIndex: 0 })); }} placeholder={t("filters.searchPlaceholder")} value={search} />}
+        title={t("page.title")}
+        titleAside={
+          <div className="inline-flex shrink-0 items-center gap-2 font-heading leading-tight font-semibold tracking-tight text-foreground">
             {!activeCalls.isLoading && <span className="relative flex size-2.5 shrink-0" aria-hidden="true" data-testid="live-call-indicator">
               {liveCalls !== null && liveCalls > 0 && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500/45" />}
               <span className={`relative inline-flex size-2.5 rounded-full ${liveCalls === null ? "bg-muted-foreground" : "bg-emerald-500"}`} />
             </span>}
+            {activeCalls.isLoading ? <Skeleton className="h-6 w-8" /> : liveCalls === null
+              ? <span className="text-sm text-muted-foreground">{t("page.liveUnavailable")}</span>
+              : <span className="text-base font-semibold leading-none">{liveCalls.toLocaleString(intlLocale(i18n.language))}</span>}
           </div>
         }
-        title={t("page.title")}
       />
-      <div className="relative max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="pl-10"
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPagination((current) => ({ ...current, pageIndex: 0 }));
-          }}
-          placeholder={t("filters.searchPlaceholder")}
-          value={search}
-        />
-      </div>
       <CallRecordingPlayer
         autoPlay
         downloadLabel={t("actions.download")}
