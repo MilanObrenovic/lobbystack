@@ -590,3 +590,8 @@ export function CredentialRowsSkeleton({ actions, rows = 2 }: { actions: number;
     </Surface>
   );
 }
+
+/** A placeholder for a piece of fixed text. It holds the real text, hidden, so it is as wide and tall as the text. */
+export function HiddenTextSkeleton({ children, className }: { children: string; className?: string }) {
+  return <div aria-hidden="true" className={className}><Skeleton className="w-fit max-w-full"><span className="invisible">{children}</span></Skeleton></div>;
+}
