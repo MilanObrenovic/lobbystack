@@ -74,18 +74,18 @@ export function TableCardSkeleton({ columns = 5 }: { columns?: number }) {
   );
 }
 
+/** The workspace switcher's row: the same padding, the 24px initial, a one-line name and the chevron, and no border. */
 export function SidebarTeamSkeleton() {
   return (
-    <Item className="pointer-events-none gap-2 px-3 py-2" size="xs" variant="outline">
-      <ItemMedia variant="icon">
-        <Skeleton className="size-4 rounded-full" />
+    <Item aria-hidden="true" className="pointer-events-none w-full gap-2 rounded-lg px-2 py-2" size="xs">
+      <ItemMedia>
+        <Skeleton className="size-6 rounded-full" />
       </ItemMedia>
-      <ItemContent className="gap-0.5">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-3 w-16" />
+      <ItemContent className="min-w-0">
+        <Skeleton className="h-4 w-32 max-w-full" />
       </ItemContent>
       <ItemActions>
-        <Skeleton className="size-4 rounded-full" />
+        <Skeleton className="size-4" />
       </ItemActions>
     </Item>
   );
