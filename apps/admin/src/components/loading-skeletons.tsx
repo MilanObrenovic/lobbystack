@@ -378,3 +378,51 @@ export function TabsListSkeleton({ labels }: { labels: string[] }) {
     </Skeleton>
   );
 }
+
+/** Placeholder rows for the services table, with the fixed column layout of the real rows. */
+export function ServiceRowsSkeleton({ rows = 10 }: { rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <TableRow className="h-12 hover:bg-transparent" key={index}>
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-4 shrink-0" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          </TableCell>
+          <TableCell className="max-w-0"><Skeleton className="h-4 w-3/4" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+          <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+          <TableCell><Skeleton className="ms-auto h-4 w-32" /></TableCell>
+          <TableCell><Skeleton className="size-8" /></TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
+/** The services table and its pagination, for the moment before the workspace is known and the real table can render. */
+export function ServicesPageSkeleton({ headings }: { headings: [title: string, preview: string, price: string, status: string, added: string] }) {
+  return (
+    <>
+      <TableCard>
+        <Table className="min-w-[60rem] w-full table-fixed">
+          <colgroup><col className="w-[20%]" /><col className="w-[34%]" /><col className="w-[14%]" /><col className="w-[12%]" /><col className="w-[16%]" /><col className="w-12" /></colgroup>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{headings[0]}</TableHead>
+              <TableHead>{headings[1]}</TableHead>
+              <TableHead>{headings[2]}</TableHead>
+              <TableHead>{headings[3]}</TableHead>
+              <TableHead className="text-right">{headings[4]}</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody aria-busy="true"><ServiceRowsSkeleton /></TableBody>
+        </Table>
+      </TableCard>
+      <DataTablePaginationSkeleton />
+    </>
+  );
+}
