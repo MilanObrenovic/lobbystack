@@ -569,3 +569,24 @@ export function SectionSkeleton({ title, description, action, children }: { titl
     </section>
   );
 }
+
+/** Placeholder rows for a list of credentials, such as API keys or MCP connections, with the real rows' padding and two text lines. */
+export function CredentialRowsSkeleton({ actions, rows = 2 }: { actions: number; rows?: number }) {
+  return (
+    <Surface>
+      <ul aria-busy="true" className="divide-y">
+        {Array.from({ length: rows }).map((_, index) => (
+          <li className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6" key={index}>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex h-6 items-center"><Skeleton className="h-4 w-40" /></div>
+              <div className="flex h-6 items-center"><Skeleton className="h-4 w-64 max-w-full" /></div>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {Array.from({ length: actions }).map((__, action) => <Skeleton className="h-8 w-20" key={action} />)}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Surface>
+  );
+}
