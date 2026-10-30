@@ -246,3 +246,36 @@ export function DataTablePaginationSkeleton() {
     </div>
   );
 }
+
+/** Placeholder rows for the contacts table, with the fixed column layout of the real rows. */
+export function ContactRowsSkeleton({ rows = 10 }: { rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <TableRow className="h-12 hover:bg-transparent" key={index}>
+          <TableCell>
+            <div className="flex flex-col gap-1">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3.5 w-28" />
+            </div>
+          </TableCell>
+          <TableCell>
+            <div className="flex items-center gap-1.5">
+              <Skeleton className="size-5 rounded-full" />
+              <Skeleton className="size-5 rounded-full" />
+            </div>
+          </TableCell>
+          <TableCell>
+            <div className="flex gap-2">
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+          </TableCell>
+          <TableCell><Skeleton className="mx-auto h-4 w-5" /></TableCell>
+          <TableCell><Skeleton className="ms-auto h-4 w-28" /></TableCell>
+          <TableCell><Skeleton className="ms-auto size-8" /></TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
+}
