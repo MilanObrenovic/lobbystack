@@ -454,3 +454,46 @@ export function EmployeeRowsSkeleton({ rows = 10 }: { rows?: number }) {
     </>
   );
 }
+
+/** Placeholder rows for the rules table. The drag handle column is there only for people who can manage rules. */
+export function RuleRowsSkeleton({ handle = true, rows = 10 }: { handle?: boolean; rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <TableRow className="h-12 hover:bg-transparent" key={index}>
+          {handle ? <TableCell className="pr-0"><Skeleton className="size-7 rounded-md" /></TableCell> : null}
+          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+          <TableCell className="max-w-0"><Skeleton className="h-4 w-3/4" /></TableCell>
+          <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+          <TableCell><Skeleton className="ms-auto h-4 w-32" /></TableCell>
+          <TableCell><Skeleton className="size-8" /></TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
+/** The rules table and its pagination, for the moment before the workspace is known and the real table can render. */
+export function RulesPageSkeleton({ headings }: { headings: [title: string, preview: string, status: string, added: string] }) {
+  return (
+    <>
+      <TableCard>
+        <Table className="min-w-[60rem] w-full table-fixed">
+          <colgroup><col className="w-10" /><col className="w-[18%]" /><col className="w-[42%]" /><col className="w-[14%]" /><col className="w-[18%]" /><col className="w-12" /></colgroup>
+          <TableHeader>
+            <TableRow>
+              <TableHead />
+              <TableHead>{headings[0]}</TableHead>
+              <TableHead>{headings[1]}</TableHead>
+              <TableHead>{headings[2]}</TableHead>
+              <TableHead className="text-right">{headings[3]}</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody aria-busy="true"><RuleRowsSkeleton /></TableBody>
+        </Table>
+      </TableCard>
+      <DataTablePaginationSkeleton />
+    </>
+  );
+}
