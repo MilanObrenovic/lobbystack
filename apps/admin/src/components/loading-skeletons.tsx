@@ -6,7 +6,8 @@ import {
 } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Surface } from "@/components/ui/surface";
-import { TableCard, TableCell, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export function MetricCardGridSkeleton({ count = 4 }: { count?: number }) {
   const columnClass = count === 3 ? "md:grid-cols-3" : "md:grid-cols-4";
@@ -123,7 +124,7 @@ export function AppointmentRowsSkeleton({ label, rows = 5 }: { label: string; ro
 }
 
 /** The appointments calendar and the selected day's list while bookings load. */
-export function AppointmentsCalendarSkeleton({ label, weeks = 5 }: { label: string; weeks?: number }) {
+export function AppointmentsCalendarSkeleton({ label, tabs, weeks = 5 }: { label: string; tabs: { range: string[]; view: string[] }; weeks?: number }) {
   return (
     <>
       <div className="flex flex-col gap-4">
@@ -134,8 +135,8 @@ export function AppointmentsCalendarSkeleton({ label, weeks = 5 }: { label: stri
           <Skeleton className="h-7 min-w-0 flex-1 basis-24 sm:max-w-56" />
           <div className="ms-auto flex items-center gap-2">
             <Skeleton className="h-8 w-16" />
-            <Skeleton className="h-8 w-32" />
-            <Skeleton className="h-8 w-28" />
+            <TabsListSkeleton labels={tabs.range} />
+            <TabsListSkeleton labels={tabs.view} />
           </div>
         </div>
         <div className="rounded-xl border p-2 md:hidden">
@@ -277,5 +278,103 @@ export function ContactRowsSkeleton({ rows = 10 }: { rows?: number }) {
         </TableRow>
       ))}
     </>
+  );
+}
+
+/** Placeholder rows for the knowledge table, with the fixed column layout of the real rows. */
+export function KnowledgeRowsSkeleton({ rows = 10 }: { rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <TableRow className="h-12 hover:bg-transparent" key={index}>
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-5 shrink-0" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </TableCell>
+          <TableCell className="max-w-0"><Skeleton className="h-4 w-3/4" /></TableCell>
+          <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+          <TableCell><Skeleton className="ms-auto h-4 w-32" /></TableCell>
+          <TableCell><Skeleton className="size-8" /></TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
+/** The whole knowledge page body, for the moment before the workspace is known and the real table can render. */
+export function KnowledgePageSkeleton({ headings }: { headings: [title: string, preview: string, status: string, added: string] }) {
+  return (
+    <>
+      <TableCard>
+        <Table className="min-w-[60rem] w-full table-fixed">
+          <colgroup><col className="w-[20%]" /><col className="w-[46%]" /><col className="w-[12%]" /><col className="w-[22%]" /><col className="w-12" /></colgroup>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{headings[0]}</TableHead>
+              <TableHead>{headings[1]}</TableHead>
+              <TableHead>{headings[2]}</TableHead>
+              <TableHead className="text-right">{headings[3]}</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody aria-busy="true"><KnowledgeRowsSkeleton /></TableBody>
+        </Table>
+      </TableCard>
+      <DataTablePaginationSkeleton />
+      <section className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-4 px-1">
+          <Skeleton className="h-7 w-52" />
+          <Skeleton className="h-6 w-12 rounded-full" />
+        </div>
+        <Card className="border-border/70">
+          <CardContent className="flex flex-col gap-4">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div className="flex flex-col gap-2" key={index}>
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+    </>
+  );
+}
+
+/**
+ * Stands in for a header button with a leading icon, such as "+ Add knowledge". The label stays in the layout
+ * but is hidden, so the placeholder is as wide as the real button in every language.
+ */
+export function HeaderButtonSkeleton({ label, trailingIcon = false }: { label: string; trailingIcon?: boolean }) {
+  return (
+    <Skeleton
+      aria-hidden="true"
+      className={`inline-flex h-9 shrink-0 items-center gap-1.5 pl-2.5 text-sm font-medium whitespace-nowrap ${trailingIcon ? "pr-2.5" : "pr-3"}`}
+    >
+      <span className="invisible size-4 shrink-0" />
+      <span className="invisible">{label}</span>
+      {trailingIcon ? <span className="invisible size-4 shrink-0" /> : null}
+    </Skeleton>
+  );
+}
+
+/**
+ * Stands in for a TabsList. It copies the list's height and padding and the triggers' padding and type,
+ * with the real labels hidden in place, so it is as wide as the real tabs in every language.
+ */
+export function TabsListSkeleton({ labels }: { labels: string[] }) {
+  return (
+    <Skeleton aria-hidden="true" className="inline-flex h-9 w-fit shrink-0 items-center justify-center rounded-full p-[3px]">
+      {labels.map((label) => (
+        <span
+          className="invisible inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center border border-transparent px-3 py-1 type-control font-medium whitespace-nowrap"
+          key={label}
+        >
+          {label}
+        </span>
+      ))}
+    </Skeleton>
   );
 }

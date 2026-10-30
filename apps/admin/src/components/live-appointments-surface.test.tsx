@@ -32,14 +32,28 @@ describe("new appointments locale baseline", () => {
   it("shows placeholders instead of an empty state while the calendar loads", async () => {
     await setup("en", false, undefined, true);
     expect(screen.getByRole("status").textContent).toBe(en.appointments.loading);
+    expect(screen.queryByRole("tab")).toBeNull();
     expect(screen.queryByText(en.appointments.calendarView.dayEmpty)).toBeNull();
+    expect(screen.queryByPlaceholderText(en.appointments.searchPlaceholder)).toBeNull();
+  });
+  it("shows the tabs together with the loaded list", async () => {
+    route.search = "view=list";
+    await setup("en", false);
+    expect(screen.getAllByRole("tab").length).toBe(4);
+  });
+  it("shows the search box together with the loaded calendar", async () => {
+    await setup("en", false);
+    expect(screen.getByPlaceholderText(en.appointments.searchPlaceholder)).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
   });
   it("shows placeholder rows instead of an empty state while the list loads", async () => {
     route.search = "view=list";
     await setup("en", false, undefined, true);
     expect(screen.getByText(en.appointments.loading)).toBeTruthy();
     expect(screen.queryByText(en.appointments.empty)).toBeNull();
+    expect(screen.queryByRole("tab")).toBeNull();
     expect(document.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(20);
+    expect(screen.queryByPlaceholderText(en.appointments.searchPlaceholder)).toBeNull();
   });
   it.each(["en", "fr"] as const)("renders empty states in %s", async locale => {
     route.search = "view=list";

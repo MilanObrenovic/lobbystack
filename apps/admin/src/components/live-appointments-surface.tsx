@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
 import { Badge } from "./ui/badge";
-import { AppointmentRowsSkeleton, AppointmentsCalendarSkeleton, HeaderSearchSkeleton } from "./loading-skeletons";
+import { AppointmentRowsSkeleton, AppointmentsCalendarSkeleton, HeaderSearchSkeleton, TabsListSkeleton } from "./loading-skeletons";
 import { CancelAppointmentButton } from "./cancel-appointment-button";
 import { AppointmentDetailsSheet } from "./appointment-details-sheet";
 import { AppointmentsCalendar, type CalendarView } from "./appointments-calendar";
@@ -99,10 +99,11 @@ export function LiveAppointmentsSurface() {
   </Tabs> : null;
 
   // The calendar needs the browser's clock, so the server render and the first client render show this too.
-  const calendarSkeleton = <AppointmentsCalendarSkeleton label={t("appointments.loading")} weeks={range === "week" ? 1 : 5} />;
+  const viewLabels = [t("appointments.views.list"), t("appointments.views.calendar")];
+  const calendarSkeleton = <AppointmentsCalendarSkeleton label={t("appointments.loading")} tabs={{ range: [t("appointments.calendarView.week"), t("appointments.calendarView.month")], view: viewLabels }} weeks={range === "week" ? 1 : 5} />;
 
-  return <PageSurface actions={business ? <HeaderSearch onChange={setSearch} placeholder={t("appointments.searchPlaceholder")} value={search} /> : businesses.isLoading ? <HeaderSearchSkeleton /> : undefined} title={t("appointments.title")}><div className="flex w-full flex-col gap-6">
-    {!business && !businesses.isLoading ? <p className="type-section-description">{t("appointments.chooseWorkspace")}</p> : whenTabs || employeeFilter || view === "list" ? <div className="flex flex-wrap items-center justify-end gap-2">{whenTabs}{employeeFilter}{view === "list" ? viewTabs : null}</div> : null}
+  return <PageSurface actions={loading ? <HeaderSearchSkeleton /> : business ? <HeaderSearch onChange={setSearch} placeholder={t("appointments.searchPlaceholder")} value={search} /> : undefined} title={t("appointments.title")}><div className="flex w-full flex-col gap-6">
+    {!business && !businesses.isLoading ? <p className="type-section-description">{t("appointments.chooseWorkspace")}</p> : whenTabs || employeeFilter || view === "list" ? <div className="flex flex-wrap items-center justify-end gap-2">{loading && view === "list" ? <><TabsListSkeleton labels={[t("appointments.when.upcoming"), t("appointments.when.past")]} /><TabsListSkeleton labels={viewLabels} /></> : <>{whenTabs}{employeeFilter}{view === "list" ? viewTabs : null}</>}</div> : null}
     {view === "calendar" ? !isClient || loading ? calendarSkeleton : <>
       <AppointmentsCalendar appointments={filtered} contactName={contactName} onSelectDay={setSelectedDay} onViewChange={(next) => setParam("range", next, "month")} selectedDay={day} timeZone={timeZone} today={today} trailing={viewTabs} view={range} />
       <section aria-live="polite" className="flex flex-col gap-3">
