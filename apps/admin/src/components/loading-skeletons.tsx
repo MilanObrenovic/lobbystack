@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Surface } from "@/components/ui/surface";
-import { TableCard } from "@/components/ui/table";
+import { TableCard, TableCell, TableRow } from "@/components/ui/table";
 
 export function MetricCardGridSkeleton({ count = 4 }: { count?: number }) {
   const columnClass = count === 3 ? "md:grid-cols-3" : "md:grid-cols-4";
@@ -100,4 +100,100 @@ export function ChartBlockSkeleton({ height = 320 }: { height?: number }) {
       <Skeleton className="mt-6 w-full rounded-xl" style={{ height }} />
     </Surface>
   );
+}
+
+/** Placeholder rows for the appointments list, matching its seven columns and 48px rows. */
+export function AppointmentRowsSkeleton({ label, rows = 5 }: { label: string; rows?: number }) {
+  const cells = ["w-36", "w-28", "w-24", "w-20", "w-16 h-5 rounded-full", "w-14", "w-16 h-8 ms-auto"];
+
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <TableRow className="h-12 hover:bg-transparent" key={rowIndex}>
+          {cells.map((width, cellIndex) => (
+            <TableCell key={cellIndex}>
+              <Skeleton className={`h-4 ${width}`} />
+              {rowIndex === 0 && cellIndex === 0 ? <span className="sr-only">{label}</span> : null}
+            </TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
+/** The appointments calendar and the selected day's list while bookings load. */
+export function AppointmentsCalendarSkeleton({ label, weeks = 5 }: { label: string; weeks?: number }) {
+  return (
+    <>
+      <div className="flex flex-col gap-4">
+        <span className="sr-only" role="status">{label}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="size-8" />
+          <Skeleton className="size-8" />
+          <Skeleton className="h-7 min-w-0 flex-1 basis-24 sm:max-w-56" />
+          <div className="ms-auto flex items-center gap-2">
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-8 w-28" />
+          </div>
+        </div>
+        <div className="rounded-xl border p-2 md:hidden">
+          <div className="grid grid-cols-7">
+            {Array.from({ length: 7 + weeks * 7 }).map((_, index) => (
+              <div className="flex h-12 items-center justify-center" key={index}>
+                <Skeleton className={index < 7 ? "h-3 w-3" : "size-5 rounded-full"} />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="hidden overflow-x-auto rounded-xl border md:block">
+          <div className="grid min-w-[42rem] grid-cols-7">
+            {Array.from({ length: 7 }).map((_, index) => (
+              <div className="border-b px-3 py-2" key={index}>
+                <Skeleton className="h-3 w-8" />
+              </div>
+            ))}
+            {Array.from({ length: weeks * 7 }).map((_, index) => (
+              <div
+                className={`flex min-h-24 flex-col gap-1.5 p-2 ${index % 7 !== 6 ? "border-r" : ""} ${index >= (weeks - 1) * 7 ? "" : "border-b"}`}
+                key={index}
+              >
+                <Skeleton className="h-4 w-5" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <section className="flex flex-col gap-3">
+        <div className="px-1">
+          <Skeleton className="h-7 w-48" />
+        </div>
+        <Surface className="p-0">
+          <ul className="divide-y">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <li className="p-1" key={index}>
+                <div className="flex items-center gap-4 px-3 py-3">
+                  <div className="flex w-20 shrink-0 flex-col gap-1">
+                    <Skeleton className="h-5 w-16" />
+                    <Skeleton className="h-4 w-14" />
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-4 w-40" />
+                  </div>
+                  <Skeleton className="h-8 w-20 shrink-0" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Surface>
+      </section>
+    </>
+  );
+}
+
+/** Stands in for HeaderSearch: the same 36px height and responsive width. */
+export function HeaderSearchSkeleton() {
+  return <Skeleton className="h-9 w-full sm:w-64" />;
 }
