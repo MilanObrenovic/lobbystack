@@ -79,19 +79,31 @@ describe("analytics channels card", () => {
 describe("analytics loading states", () => {
   const skeletons = () => document.querySelectorAll('[data-slot="skeleton"]').length;
 
-  it("keeps the title and controls and shows placeholders shaped like the page while the data loads", () => {
+  it("keeps the title, shows placeholders for the controls and shapes the rest like the page while the data loads", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     clients.push(client);
     client.setQueryData(["businesses"], { businesses: [{ businessId: "business", name: "Test", active: true, role: "business_owner" }] });
     vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
     render(<QueryClientProvider client={client}><LiveAnalyticsSurface /></QueryClientProvider>);
     expect(screen.getByRole("heading", { name: "analyticsPage.title" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "home.analytics.controls.granularity" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "home.analytics.controls.granularity" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "home.analytics.controls.presetRange" })).toBeNull();
+    // The placeholders are as wide as the real buttons because they hold the real labels, hidden.
+    expect(screen.getByText("home.analytics.controls.granularities.weekly").className).toContain("invisible");
+    expect(screen.getByText("home.analytics.controls.presets.last30").className).toContain("invisible");
     // Three results, the overview chart, four metrics with a chart each, and two bar lists.
     expect(document.querySelectorAll("section").length).toBe(7);
     expect(document.querySelectorAll('[data-slot="card"]').length).toBe(3);
     expect(skeletons()).toBeGreaterThan(40);
     expect(screen.queryByText("home.analytics.results.bookedValue")).toBeNull();
+  });
+
+  it("shows the real controls once the data has loaded", async () => {
+    renderAnalytics({ phone_call: 0, web_call: 0, sms: 0, web_chat: 0, other: 0 });
+    await screen.findByText("home.analytics.results.bookedValue");
+    expect(screen.getByRole("button", { name: "home.analytics.controls.granularity" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "home.analytics.controls.dateRange" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "home.analytics.controls.presetRange" })).toBeTruthy();
   });
 
   it("dims the previous range instead of swapping in placeholders while a new granularity loads", async () => {

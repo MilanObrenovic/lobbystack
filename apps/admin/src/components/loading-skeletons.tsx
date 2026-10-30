@@ -497,3 +497,24 @@ export function RulesPageSkeleton({ headings }: { headings: [title: string, prev
     </>
   );
 }
+
+/**
+ * Stands in for the analytics header: the granularity menu, and the calendar button joined to the range menu.
+ * Each holds its real label, hidden, so it is as wide as the real button in every language.
+ */
+export function AnalyticsControlsSkeleton({ granularityLabel, rangeLabel }: { granularityLabel: string; rangeLabel: string }) {
+  return (
+    <>
+      <Skeleton aria-hidden="true" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-4xl border border-transparent pl-3 pr-2.5 text-sm font-medium whitespace-nowrap">
+        <span className="invisible">{granularityLabel}</span>
+        <span className="invisible size-4 shrink-0" />
+      </Skeleton>
+      <div aria-hidden="true" className="flex w-fit items-stretch">
+        <Skeleton className="size-9 rounded-4xl rounded-r-none" />
+        <Skeleton className="inline-flex h-9 max-w-56 items-center rounded-4xl rounded-l-none border border-transparent border-l-0 px-3 text-sm font-medium whitespace-nowrap">
+          <span className="invisible truncate">{rangeLabel}</span>
+        </Skeleton>
+      </div>
+    </>
+  );
+}
