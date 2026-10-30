@@ -549,18 +549,21 @@ export function IntegrationCardSkeleton({ label }: { label: string }) {
  * A settings section while its data loads: the title and description are placeholders too, so the whole
  * section turns real together. Each holds its real text, hidden, so it is as wide as the text it stands in for.
  */
-export function SectionSkeleton({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+export function SectionSkeleton({ title, description, action, children }: { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <div aria-hidden="true" className="type-section-title">
-          <Skeleton className="h-6 w-fit"><span className="invisible">{title}</span></Skeleton>
-        </div>
-        {description ? (
-          <div aria-hidden="true" className="type-section-description">
-            <Skeleton className="h-5 w-fit max-w-full"><span className="invisible">{description}</span></Skeleton>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <div aria-hidden="true" className="type-section-title">
+            <Skeleton className="h-6 w-fit"><span className="invisible">{title}</span></Skeleton>
           </div>
-        ) : null}
+          {description ? (
+            <div aria-hidden="true" className="type-section-description">
+              <Skeleton className="h-5 w-fit max-w-full"><span className="invisible">{description}</span></Skeleton>
+            </div>
+          ) : null}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
       {children}
     </section>
