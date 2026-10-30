@@ -5,7 +5,7 @@ import {
   ItemMedia,
 } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Surface } from "@/components/ui/surface";
+import { Surface, surfaceClassName } from "@/components/ui/surface";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -516,5 +516,31 @@ export function AnalyticsControlsSkeleton({ granularityLabel, rangeLabel }: { gr
         </Skeleton>
       </div>
     </>
+  );
+}
+
+/** Stands in for a small outline button such as "Connect" or "Manage", sized from its hidden label. */
+export function SmallButtonSkeleton({ label }: { label: string }) {
+  return (
+    <Skeleton aria-hidden="true" className="inline-flex h-8 shrink-0 items-center rounded-4xl border border-transparent px-3 text-sm font-medium whitespace-nowrap">
+      <span className="invisible">{label}</span>
+    </Skeleton>
+  );
+}
+
+/** A whole integration card, for a card that may not exist once its status has loaded. */
+export function IntegrationCardSkeleton({ label }: { label: string }) {
+  return (
+    <li aria-hidden="true" className={`${surfaceClassName} p-4`}>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center"><Skeleton className="size-7 rounded-full" /></div>
+        <SmallButtonSkeleton label={label} />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Skeleton className="h-7 w-32" />
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-5 w-3/4" />
+      </div>
+    </li>
   );
 }
