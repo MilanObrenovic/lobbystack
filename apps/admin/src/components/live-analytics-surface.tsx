@@ -128,7 +128,8 @@ export function LiveAnalyticsSurface() {
       key: "withoutTransfer",
       value: withoutTransfer?.current == null ? "—" : percentFormat.format(withoutTransfer.current / 100),
       // A share moves in percentage points, and there's nothing to compare while either period has no calls.
-      description: withoutTransfer?.current == null || withoutTransfer.previous == null ? null
+      description: withoutTransfer?.current == null ? null
+        : withoutTransfer.previous == null ? t("home.analytics.metrics.noPreviousCalls")
         : withoutTransfer.current === withoutTransfer.previous ? t("home.analytics.metrics.flat")
           : t(withoutTransfer.current > withoutTransfer.previous ? "home.analytics.metrics.pointsUp" : "home.analytics.metrics.pointsDown", { value: pointsFormat.format(Math.abs(withoutTransfer.current - withoutTransfer.previous)) }),
     },

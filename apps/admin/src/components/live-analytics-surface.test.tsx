@@ -51,6 +51,11 @@ describe("analytics results row", () => {
     ]);
   });
 
+  it("says the previous period had no calls instead of leaving the comparison out", async () => {
+    renderAnalytics({ phone_call: 0, web_call: 0, sms: 0, web_chat: 0, other: 0 }, { callsWithoutTransferPercent: { current: 100, previous: null } });
+    expect((await results())[2]).toEqual(["home.analytics.results.withoutTransfer", "100%", "home.analytics.metrics.noPreviousCalls"]);
+  });
+
   it("shows a dash and no comparison while no calls count", async () => {
     renderAnalytics({ phone_call: 0, web_call: 0, sms: 0, web_chat: 0, other: 0 });
     expect((await results())[2]).toEqual(["home.analytics.results.withoutTransfer", "—"]);
