@@ -197,3 +197,52 @@ export function AppointmentsCalendarSkeleton({ label, weeks = 5 }: { label: stri
 export function HeaderSearchSkeleton() {
   return <Skeleton className="h-9 w-full sm:w-64" />;
 }
+
+/** Placeholder rows for the calls table, with the column widths of the real rows. */
+export function CallRowsSkeleton({ rows = 10 }: { rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <TableRow className="h-12 hover:bg-transparent" key={index}>
+          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+          <TableCell className="max-w-0"><Skeleton className="h-4 w-3/4" /></TableCell>
+          <TableCell><Skeleton className="ms-auto h-4 w-32" /></TableCell>
+          <TableCell className="w-12"><Skeleton className="ms-auto size-8" /></TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
+/** Stands in for DataTablePagination: the rows-per-page select, the page count and four page buttons, with its responsive layout. */
+export function DataTablePaginationSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex items-center justify-between overflow-clip px-2 @max-2xl/content:flex-col-reverse @max-2xl/content:gap-4"
+    >
+      <div className="flex w-full items-center justify-between">
+        <div className="flex w-[100px] items-center justify-center @2xl/content:hidden">
+          <Skeleton className="h-5 w-16" />
+        </div>
+        <div className="flex items-center gap-2 @max-2xl/content:flex-row-reverse">
+          <Skeleton className="h-8 w-[70px]" />
+          <Skeleton className="hidden h-5 w-24 sm:block" />
+        </div>
+      </div>
+      <div className="flex items-center sm:space-x-6 lg:space-x-8">
+        <div className="flex w-[100px] items-center justify-center @max-3xl/content:hidden">
+          <Skeleton className="h-5 w-16" />
+        </div>
+        <div className="flex items-center space-x-2">
+          <Skeleton className="size-8 @max-md/content:hidden" />
+          <Skeleton className="size-8" />
+          <Skeleton className="size-8" />
+          <Skeleton className="size-8" />
+          <Skeleton className="size-8 @max-md/content:hidden" />
+        </div>
+      </div>
+    </div>
+  );
+}
