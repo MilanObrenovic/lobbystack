@@ -426,3 +426,31 @@ export function ServicesPageSkeleton({ headings }: { headings: [title: string, p
     </>
   );
 }
+
+/** Placeholder rows for the employees table, with the fixed column layout of the real rows. */
+export function EmployeeRowsSkeleton({ rows = 10 }: { rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <TableRow className="h-12 hover:bg-transparent" key={index}>
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-4 shrink-0" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          </TableCell>
+          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          </TableCell>
+          <TableCell><Skeleton className="ms-auto h-4 w-32" /></TableCell>
+          <TableCell><Skeleton className="size-8" /></TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
+}
