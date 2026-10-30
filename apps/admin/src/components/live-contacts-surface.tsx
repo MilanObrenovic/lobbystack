@@ -15,7 +15,8 @@ import {
 import { Ellipsis, ShieldBan, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousForBusiness } from "@/lib/keep-previous-for-business";
 
 import { HeaderSearch } from "@/components/header-actions";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
@@ -62,7 +63,7 @@ export function LiveContactsSurface() {
     queryFn: () => requestJson<{ contacts: Contact[]; pagination: { total: number } }>(`/api/contacts?businessId=${encodeURIComponent(business!.businessId)}&limit=${pagination.pageSize}&offset=${pagination.pageIndex * pagination.pageSize}&search=${encodeURIComponent(search.trim())}`),
     enabled: Boolean(business),
     // Keep the current rows on screen while the next page or search loads.
-    placeholderData: keepPreviousData,
+    placeholderData: keepPreviousForBusiness(business?.businessId),
   });
   const updateBlock = useMutation({
     mutationFn: ({ contact, nextBlocked }: PendingBlock) => requestJson(`/api/contacts/${encodeURIComponent(contact.id)}?businessId=${encodeURIComponent(business!.businessId)}`, { method: "PATCH", body: JSON.stringify({ smsBlocked: nextBlocked }) }),

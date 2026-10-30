@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -67,5 +68,36 @@ describe("analytics channels card", () => {
   it("lists Other only when it has activity", async () => {
     renderAnalytics({ phone_call: 0, web_call: 0, sms: 0, web_chat: 3, other: 1 });
     expect(await channelRows()).toEqual(["common:channels.phoneCall0%", "common:channels.webCall0%", "common:channels.sms0%", "common:channels.webChat75%", "home.analytics.channels.labels.other25%"]);
+  });
+});
+
+describe("analytics loading states", () => {
+  const skeletons = () => document.querySelectorAll('[data-slot="skeleton"]').length;
+
+  it("keeps the title and controls and shows placeholders shaped like the page while the data loads", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    clients.push(client);
+    client.setQueryData(["businesses"], { businesses: [{ businessId: "business", name: "Test", active: true, role: "business_owner" }] });
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+    render(<QueryClientProvider client={client}><LiveAnalyticsSurface /></QueryClientProvider>);
+    expect(screen.getByRole("heading", { name: "analyticsPage.title" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "home.analytics.controls.granularity" })).toBeTruthy();
+    // Three results, the overview chart, four metrics with a chart each, and two bar lists.
+    expect(document.querySelectorAll("section").length).toBe(7);
+    expect(document.querySelectorAll('[data-slot="card"]').length).toBe(3);
+    expect(skeletons()).toBeGreaterThan(40);
+    expect(screen.queryByText("home.analytics.results.bookedValue")).toBeNull();
+  });
+
+  it("dims the previous range instead of swapping in placeholders while a new granularity loads", async () => {
+    renderAnalytics({ phone_call: 0, web_call: 0, sms: 0, web_chat: 0, other: 0 });
+    await screen.findByText("home.analytics.results.bookedValue");
+    expect(document.querySelector("[aria-busy]")).toBeNull();
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+    await userEvent.click(screen.getByRole("button", { name: "home.analytics.controls.granularity" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "home.analytics.controls.granularities.daily" }));
+    expect(document.querySelector('[aria-busy="true"]')?.className).toContain("opacity-60");
+    expect(screen.getByText("home.analytics.results.bookedValue")).toBeTruthy();
+    expect(skeletons()).toBe(0);
   });
 });

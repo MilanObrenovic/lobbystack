@@ -18,7 +18,8 @@ import { enUS, es, fr, srLatn } from "react-day-picker/locale";
 import type { Country } from "react-phone-number-input/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousForBusiness } from "@/lib/keep-previous-for-business";
 
 import { HeaderActions, HeaderSearch } from "@/components/header-actions";
 import { toDays, useBusinessHours, useDayNames, WeeklyHoursEditor, windowsForSave, type HoursWindowInput } from "@/components/business-hours-section";
@@ -99,7 +100,7 @@ export function LiveEmployeesSurface() {
     queryFn: () => requestJson<{ employees: Employee[]; services: ServiceOption[]; today: string; pagination: { total: number } }>(`/api/employees?businessId=${encodeURIComponent(business!.businessId)}&limit=${pagination.pageSize}&offset=${pagination.pageIndex * pagination.pageSize}&search=${encodeURIComponent(search.trim())}`),
     enabled: Boolean(business),
     // Keep the current rows on screen while the next page or search loads.
-    placeholderData: keepPreviousData,
+    placeholderData: keepPreviousForBusiness(business?.businessId),
   });
   const remove = useMutation({
     onError: error => toast.error(error instanceof Error ? error.message : t("table.actions.deleteFailed")),
